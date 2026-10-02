@@ -853,6 +853,15 @@
     }
   });
 
+  // ---------- Način aplikacije ----------
+  var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+  if (standalone) document.documentElement.classList.add("standalone");
+  var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (!standalone && isIOS && !state.settings.installHintClosed) $("installHint").classList.remove("hidden");
+  $("installClose").addEventListener("click", function () {
+    $("installHint").classList.add("hidden"); state.settings.installHintClosed = true; save();
+  });
+
   // ---------- Zagon ----------
   priceKeysClean();
   renderAll();
