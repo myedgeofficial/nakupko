@@ -1,0 +1,17 @@
+{
+  "name": "nakupko-native",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Nakupko iOS aplikacija (Capacitor ovoj okoli spletne aplikacije v korenu repozitorija)",
+  "scripts": {
+    "www": "node scripts/build-www.js",
+    "sync": "node scripts/build-www.js && npx cap sync ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0"
+  }
+}

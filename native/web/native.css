@@ -1,0 +1,2 @@
+/* Samo v iOS aplikaciji: namig »Dodaj na začetni zaslon« ni potreben. */
+#installHint { display: none !important; }
