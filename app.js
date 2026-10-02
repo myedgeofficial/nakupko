@@ -263,7 +263,7 @@
   // ---------- Slike izdelkov (Open Food Facts + Wikipedija) ----------
   // Telefon sliko poišče sam ob prvem prikazu in si jo zapomni. Tap na sliko = izberi drugo.
   // Pakirani izdelki: Open Food Facts (prave fotografije embalaže). Sadje, zelenjava in brez zadetka: slovenska Wikipedija.
-  var IMG_V = 3;
+  var IMG_V = 4;
   var OFF_FIELDS = "code,product_name,brands,image_front_small_url";
   var imgQueue = [], imgBusy = false, imgWaiting = {};
   function imgBrand(it) {
@@ -273,8 +273,15 @@
   }
   function imgKey(it) { return norm((it.brand ? it.brand + " " : "") + it.name); }
   function cleanName(name) { return name.replace(/\((.*?)\)/g, " $1 ").replace(/\s+/g, " ").trim(); }
+  // besede, ki opisujejo embalažo in jih na izdelkih ni: izpusti jih pri iskanju
+  var QUALIFIER = /^(plocevin|kozar|stekleni|vreck|paket|pakir|svez|navad|kos$|kom$)/;
+  // izdelki, ki samo »spadajo zraven« (začimbe, juhe, mešanice), so napačni, če jih nisi iskal
+  var SIDE_WORDS = ["zacimb", "mesanic", "variv", "fix", "juh", "omak", "aroma", "okus", "preliv", "dodat", "mix", "marinad", "sos", "namaz", "jed", "obrok"];
   function nameWords(name) {
-    return norm(cleanName(name)).replace(/[^a-z0-9 ]/g, " ").split(" ").filter(function (w) { return w.length >= 3; });
+    return norm(cleanName(name)).replace(/[^a-z0-9 ]/g, " ").split(" ").filter(function (w) { return w.length >= 3 && !QUALIFIER.test(w); });
+  }
+  function searchName(name) {
+    return cleanName(name).split(" ").filter(function (w) { return !QUALIFIER.test(norm(w)) && !/^(v|z|s|za|na|in)$/i.test(w); }).join(" ");
   }
   function getJSON(u) {
     return fetch(u).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
@@ -305,13 +312,18 @@
   }
   // razvrsti zadetke: ujemanje imena (začetki besed) in znamk, ki jih prodajajo pri nas
   function rankImages(list, it, brands) {
-    var words = nameWords(it.name);
+    var words = nameWords(it.name), qn = norm(it.name);
     var bs = brands.map(function (b) { return norm(b).split(" ")[0]; }).filter(function (b) { return b.length >= 3; });
+    var stem = function (w) { return w.slice(0, Math.max(4, w.length - 2)); };
     return list.map(function (p) {
-      var t = norm(p.name + " " + p.brands);
+      var pn = norm(p.name), t = pn + " " + norm(p.brands);
+      // glavna beseda (npr. »grah«) mora biti v imenu izdelka
+      if (words.length && pn.indexOf(stem(words[0])) < 0) return { p: p, score: 0 };
       var score = 0;
-      words.forEach(function (w) { if (t.indexOf(w.slice(0, Math.max(4, w.length - 2))) >= 0) score += 2; });
+      words.forEach(function (w) { if (t.indexOf(stem(w)) >= 0) score += 2; });
       if (bs.some(function (b) { return t.indexOf(b) >= 0; })) score += 3;
+      SIDE_WORDS.forEach(function (s) { if (pn.indexOf(s) >= 0 && qn.indexOf(s) < 0) score -= 5; });
+      if (pn.length > 40) score -= 1;
       return { p: p, score: score };
     }).filter(function (x) { return x.score >= 2; }).sort(function (a, b2) { return b2.score - a.score; }).map(function (x) { return x.p; });
   }
@@ -320,7 +332,7 @@
     var cat = prod.cat || it.cat;
     var produce = cat === "Sadje in zelenjava";
     var brands = it.brand ? [it.brand] : (prod.brands || []);
-    var name = cleanName(it.name);
+    var name = searchName(it.name);
     var paren = (it.name.match(/\((.*?)\)/) || [])[1];
     var first = it.name.replace(/\(.*?\)/g, "").trim().split(" ")[0];
     // poizvedbe od najbolj natančne do najbolj splošne
@@ -454,7 +466,8 @@
     findImages(it).then(function (list) {
       return bestCutout(list).then(function (r) {
         state.imgCache[key] = { u: r ? r.u : (list.length ? list[0].url : ""), t: Date.now(), v: IMG_V, raw: !r && list.length > 0 };
-        if (r) { imgData[key] = { d: r.d, t: Date.now() }; saveImgData(); }
+        if (r) imgData[key] = { d: r.d, t: Date.now() }; else delete imgData[key];
+        saveImgData();
         save();
       });
     }).then(function () {
