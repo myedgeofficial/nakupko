@@ -27,8 +27,21 @@
 </head>
 <body>
   <header class="top">
-    <div class="brand"><span class="logo">🛒</span> Nakupko</div>
-    <button id="btnStoreMode" class="pill" type="button">V trgovini</button>
+    <div class="top-row">
+      <div class="brand"><img src="icon-full.svg" class="logo" alt=""> Nakupko</div>
+      <button id="btnStoreMode" class="pill" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>
+        V trgovini
+      </button>
+    </div>
+    <div class="hero">
+      <div class="hero-num"><span id="heroCount">0</span><small>za kupiti</small></div>
+      <div class="hero-side">
+        <div class="hero-label">Ocena košarice</div>
+        <div id="heroTotal" class="hero-total">–</div>
+        <div id="heroBest" class="hero-best"></div>
+      </div>
+    </div>
   </header>
 
   <div id="installHint" class="install hidden" role="note">
@@ -41,30 +54,32 @@
   <main>
     <!-- SEZNAM -->
     <section id="tab-list" class="tab active">
-      <h1>Kaj moraš kupiti?</h1>
       <form id="addForm" class="add" autocomplete="off">
-        <div class="add-row">
-          <input id="addInput" type="text" placeholder="Npr. mleko, kari, cedevita …" aria-label="Izdelek" enterkeyhint="done">
+        <div class="searchbar">
+          <svg class="search-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="addInput" type="text" placeholder="Kaj moraš kupiti?" aria-label="Izdelek" enterkeyhint="done">
           <input id="addQty" type="text" inputmode="decimal" value="1" aria-label="Količina" class="qty">
-          <button type="submit" class="primary">Dodaj</button>
+          <button type="submit" class="addbtn" aria-label="Dodaj">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
         </div>
         <ul id="suggest" class="suggest hidden" role="listbox"></ul>
         <div id="brandPick" class="brands hidden"></div>
       </form>
 
-      <div id="recoBox" class="card hidden">
-        <h2>Predlogi zate</h2>
+      <div id="recoBox" class="card reco-card hidden">
+        <div class="card-head"><h2>Predlogi zate</h2><span class="tag">glede na tvoje nakupe</span></div>
         <ul id="recoList" class="reco"></ul>
       </div>
 
       <div class="card">
-        <div class="card-head"><h2>Hitri izbor</h2><span class="muted">En dotik in je na seznamu</span></div>
+        <div class="card-head"><h2>Hitri izbor</h2><span class="muted small">en dotik in je na seznamu</span></div>
         <div id="quick" class="chips"></div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h2>Za kupiti <span id="countOpen" class="badge">0</span></h2>
+          <h2>Seznam <span id="countOpen" class="badge">0</span></h2>
           <div class="seg" role="tablist">
             <button data-filter="all" class="on" type="button">Vse</button>
             <button data-filter="store" type="button">Ta trgovina</button>
@@ -79,7 +94,7 @@
 
     <!-- TRGOVINE -->
     <section id="tab-stores" class="tab">
-      <h1>Trgovine v bližini</h1>
+      <h1 class="page-title">Trgovine v bližini</h1>
       <div class="card">
         <p id="locStatus" class="muted">Vklopi lokacijo, da najdem živilske trgovine blizu tebe.</p>
         <div class="row">
@@ -117,9 +132,9 @@
 
     <!-- CENE -->
     <section id="tab-prices" class="tab">
-      <h1>Kam po nakup?</h1>
+      <h1 class="page-title">Kam po nakup?</h1>
       <div class="card">
-        <p class="muted small">Skupna cena tvojega seznama po trgovinah. Cene z * so ocene; prave cene uvoziš spodaj.</p>
+        <p class="muted small">Skupna cena tvojega seznama po trgovinah. Cene z * so ocene.</p>
         <ul id="compare" class="compare"></ul>
       </div>
       <div class="card">
@@ -156,11 +171,15 @@
   <!-- NAČIN V TRGOVINI -->
   <div id="storeMode" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="smTitle">
     <div class="sm-head">
-      <div>
-        <div class="muted small">V trgovini</div>
-        <h1 id="smTitle">Trgovina</h1>
+      <div class="sm-top">
+        <div>
+          <div class="sm-eyebrow">V trgovini</div>
+          <h1 id="smTitle">Trgovina</h1>
+        </div>
+        <button id="smClose" class="sm-close" type="button">Zapri</button>
       </div>
-      <button id="smClose" class="ghost" type="button">Zapri</button>
+      <div class="progress"><div id="smBar" class="progress-bar"></div></div>
+      <div id="smProgress" class="sm-progress"></div>
     </div>
     <form id="smAdd" class="add-row sm-add" autocomplete="off">
       <input id="smInput" type="text" placeholder="Dodaj izdelek …" aria-label="Dodaj izdelek">
@@ -168,13 +187,13 @@
     </form>
     <ul id="smReco" class="reco"></ul>
     <ul id="smList" class="list big"></ul>
-    <p id="smEmpty" class="empty hidden">Vse kupljeno. 🎉</p>
+    <div id="smEmpty" class="done-state hidden"><div class="done-ico">✓</div><b>Vse kupljeno</b><span>Lahko greš na blagajno.</span></div>
   </div>
 
   <nav class="tabs">
-    <button data-tab="list" class="on" type="button"><span>📝</span>Seznam</button>
-    <button data-tab="stores" type="button"><span>📍</span>Trgovine</button>
-    <button data-tab="prices" type="button"><span>€</span>Cene</button>
+    <button data-tab="list" class="on" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>Seznam</button>
+    <button data-tab="stores" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>Trgovine</button>
+    <button data-tab="prices" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1.4"/></svg>Cene</button>
   </nav>
 
   <div id="toast" class="toast hidden" role="status"></div>

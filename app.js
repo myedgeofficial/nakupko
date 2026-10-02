@@ -3,17 +3,24 @@
 
   // ---------- Osnovni podatki ----------
   var CHAINS = [
-    { key: "spar", name: "Spar", factor: 1.0, match: /spar|interspar/i },
-    { key: "mercator", name: "Mercator", factor: 1.04, match: /mercator|hipermarket m|mere/i },
-    { key: "tus", name: "Tuš", factor: 1.02, match: /tu[sš]\b|tus |tuš/i },
-    { key: "lidl", name: "Lidl", factor: 0.87, match: /lidl/i },
-    { key: "hofer", name: "Hofer", factor: 0.86, match: /hofer|aldi/i },
-    { key: "eurospin", name: "Eurospin", factor: 0.85, match: /eurospin/i },
-    { key: "jager", name: "Jager", factor: 1.0, match: /jager/i }
+    { key: "spar", name: "Spar", factor: 1.0, color: "#2E9D4A", match: /spar|interspar/i },
+    { key: "mercator", name: "Mercator", factor: 1.04, color: "#D9372B", match: /mercator|hipermarket m|mere/i },
+    { key: "tus", name: "Tuš", factor: 1.02, color: "#E8792B", match: /tu[sš]\b|tus |tuš/i },
+    { key: "lidl", name: "Lidl", factor: 0.87, color: "#1F5FBF", match: /lidl/i },
+    { key: "hofer", name: "Hofer", factor: 0.86, color: "#2B3A78", match: /hofer|aldi/i },
+    { key: "eurospin", name: "Eurospin", factor: 0.85, color: "#2B8FD6", match: /eurospin/i },
+    { key: "jager", name: "Jager", factor: 1.0, color: "#8A5A2B", match: /jager/i }
   ];
   var CHAIN_BY_KEY = {};
   CHAINS.forEach(function (c) { CHAIN_BY_KEY[c.key] = c; });
   var COMPARE_CHAINS = ["spar", "mercator", "tus", "lidl", "hofer"];
+  var CAT_META = {
+    "Sadje in zelenjava": ["🥦", "#E3F3DF"], "Kruh in pecivo": ["🥖", "#F7EBDA"], "Mlečni izdelki": ["🥛", "#E4EEF8"],
+    "Meso in ribe": ["🥩", "#F8E3E1"], "Shramba": ["🥫", "#F4E9DC"], "Prigrizki": ["🍫", "#F1E6F4"], "Pijače": ["🥤", "#DFF1F3"],
+    "Zamrznjeno": ["🧊", "#E3ECF8"], "Gospodinjstvo": ["🧽", "#EEF0D9"], "Higiena": ["🧴", "#E9E6F6"], "Tobak": ["🚬", "#ECE7E2"],
+    "Ljubljenčki": ["🐾", "#F6ECDD"], "Drugo": ["🛒", "#E9EEEA"]
+  };
+  function chainDot(c) { return el("i", { class: "dot", style: "background:" + ((CHAIN_BY_KEY[c] || {}).color || "#999") }); }
 
   var CATALOG = (window.NAKUPKO_PRODUCTS || []).map(function (p) {
     return { name: p[0], cat: p[1], brands: p[2] || [], base: p[3], unit: p[4] || "", fixed: !!p[5] };
@@ -194,8 +201,6 @@
     if (it.brand) parts.push(it.brand);
     var usual = usualStore(it.name);
     if (usual) parts.push("običajno: " + usual);
-    var best = cheapestChain(it.name);
-    if (best) parts.push("najceneje " + CHAIN_BY_KEY[best.chain].name + " " + eur(best.price) + (best.est ? "*" : ""));
     return parts.join(" · ");
   }
   function cheapestChain(name) {
@@ -207,17 +212,33 @@
     return best;
   }
 
+  var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+  var X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  function priceChip(it, storeCtx) {
+    var q = it.qty || 1, chain = null, p = null;
+    if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it.name, chain); if (p.price == null) p = null; }
+    if (!p) { var b = cheapestChain(it.name); if (b) { chain = b.chain; p = { price: b.price, est: b.est }; } }
+    if (!p) return null;
+    return el("span", { class: "price" + (p.est ? " est" : ""), title: (CHAIN_BY_KEY[chain] || {}).name || "" }, [
+      chainDot(chain), eur(p.price * q) + (p.est ? "*" : "")
+    ]);
+  }
   function itemRow(it, big, storeCtx) {
-    var li = el("li", { class: it.done ? "done" : "" }, [
-      el("button", { class: "check", type: "button", "aria-label": it.done ? "Označi kot nekupljeno" : "Označi kot kupljeno",
-        onclick: function () { toggleItem(it.id, storeCtx); } }, [it.done ? "✓" : ""]),
+    var meta = itemMeta(it);
+    var check = el("button", { class: "check", type: "button", "aria-label": it.done ? "Označi kot nekupljeno" : "Označi kot kupljeno",
+      onclick: function () { toggleItem(it.id, storeCtx); } });
+    check.innerHTML = CHECK_SVG;
+    var del = el("button", { class: "del", type: "button", "aria-label": "Izbriši " + it.name, onclick: function () { removeItem(it.id); } });
+    del.innerHTML = X_SVG;
+    return el("li", { class: "item" + (it.done ? " done" : "") }, [
+      check,
       el("div", { class: "ibody" }, [
         el("div", { class: "iname", text: it.name }),
-        el("div", { class: "imeta", text: itemMeta(it) })
+        meta ? el("div", { class: "imeta", text: meta }) : null
       ]),
-      el("button", { class: "del", type: "button", "aria-label": "Izbriši " + it.name, onclick: function () { removeItem(it.id); } }, ["×"])
+      it.done ? null : priceChip(it, storeCtx),
+      del
     ]);
-    return li;
   }
 
   function renderList() {
@@ -239,7 +260,11 @@
     items.sort(function (a, b) { return order.indexOf(a.cat || "Drugo") - order.indexOf(b.cat || "Drugo"); });
     var lastCat = null;
     items.forEach(function (it) {
-      if (filter !== "done" && it.cat !== lastCat) { ul.appendChild(el("li", { class: "cat", text: it.cat || "Drugo" })); lastCat = it.cat; }
+      if (filter !== "done" && it.cat !== lastCat) {
+        var m = CAT_META[it.cat] || CAT_META.Drugo;
+        ul.appendChild(el("li", { class: "cat" }, [el("span", { class: "cat-ico", style: "background:" + m[1] }, [m[0]]), it.cat || "Drugo"]));
+        lastCat = it.cat;
+      }
       ul.appendChild(itemRow(it));
     });
     $("listEmpty").classList.toggle("hidden", items.length > 0);
@@ -419,8 +444,8 @@
       ul.appendChild(el("li", null, [
         el("div", null, [el("b", { text: r.h.name + (r.h.brand ? " (" + r.h.brand + ")" : "") }), el("small", { text: r.reason })]),
         el("div", { class: "row" }, [
-          el("button", { class: "ghost", type: "button", "aria-label": "Skrij predlog", onclick: function () { state.dismissed[r.h.key] = Date.now(); save(); renderAll(); } }, ["Ne"]),
-          el("button", { class: "primary", type: "button", onclick: function () { addItem(r.h.name, r.h.brand, 1); } }, ["Dodaj"])
+          el("button", { class: "mini ghosty", type: "button", "aria-label": "Skrij predlog", onclick: function () { state.dismissed[r.h.key] = Date.now(); save(); renderAll(); } }, ["Ne"]),
+          el("button", { class: "mini", type: "button", onclick: function () { addItem(r.h.name, r.h.brand, 1); } }, ["+ Dodaj"])
         ])
       ]));
     });
@@ -564,12 +589,14 @@
     if (!n || nearState.id !== n.s.id) return;
     var left = Math.max(0, Math.ceil(state.settings.delay - (Date.now() - nearState.since) / 1000));
     bar.innerHTML = "";
-    var text = "📍 " + n.s.short + " · " + fmtDist(n.d) + " (GPS ±" + Math.round(lastPos.acc) + " m)";
+    var sub = fmtDist(n.d) + " · GPS ±" + Math.round(lastPos.acc) + " m";
+    var info = el("div", { class: "detect-info" }, [el("b", { text: n.s.short }), el("span", { text: sub })]);
     if (snoozed(n.s.id)) {
-      bar.appendChild(el("span", { text: text }));
+      bar.appendChild(info);
     } else {
-      bar.appendChild(el("span", { text: text + (left > 0 ? " · odpiram čez " + left + " s" : "") }));
       if (left === 0) { stopCountdown(); openStoreMode(n.s); return; }
+      info.lastChild.textContent = sub + " · odpiram čez " + left + " s";
+      bar.appendChild(info);
     }
     bar.appendChild(el("button", { type: "button", onclick: function () { stopCountdown(); openStoreMode(n.s); } }, ["Odpri"]));
     bar.classList.remove("hidden");
@@ -584,14 +611,16 @@
     if (!list.length) { ul.appendChild(el("li", null, [el("span", { class: "muted", text: "V bližini ni najdenih trgovin." })])); return; }
     list.forEach(function (x) {
       var near = lastPos && inRange(x.d, lastPos.acc);
+      var badge = el("span", { class: "store-badge", style: "background:" + ((CHAIN_BY_KEY[x.s.chain] || {}).color || "#7A8A84") }, [(x.s.short || "?").charAt(0).toUpperCase()]);
       ul.appendChild(el("li", { class: near ? "near" : "" }, [
-        el("div", null, [
+        badge,
+        el("div", { class: "sbody" }, [
           el("div", { class: "sname", text: x.s.name }),
-          el("div", { class: "shours", text: x.s.hours ? "Urnik: " + x.s.hours : "Urnik ni podan" })
+          el("div", { class: "shours", text: (near ? "Tukaj si · " : "") + (x.s.hours ? x.s.hours : "Urnik ni podan") })
         ]),
-        el("div", { class: "row" }, [
+        el("div", { class: "sright" }, [
           el("span", { class: "dist", text: fmtDist(x.d) }),
-          el("button", { class: "ghost", type: "button", onclick: function () { openStoreMode(x.s); } }, ["Sem tu"])
+          el("button", { class: "mini", type: "button", onclick: function () { openStoreMode(x.s); } }, ["Sem tu"])
         ])
       ]));
     });
@@ -658,16 +687,17 @@
     var done = state.items.filter(function (i) { return i.done && i.doneAt && i.doneAt >= storeModeOpenedAt; });
     open.concat(done).forEach(function (it) { ul.appendChild(itemRow(it, true, activeStore)); });
     $("smEmpty").classList.toggle("hidden", open.length > 0);
+    var total = open.length + done.length;
+    $("smBar").style.width = (total ? Math.round(done.length / total * 100) : 100) + "%";
+    var sum = 0;
+    open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it.name, activeStore.chain) : null; if (!p || p.price == null) { var b = cheapestChain(it.name); p = b ? { price: b.price } : null; } if (p) sum += p.price * (it.qty || 1); });
+    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length ? " · še ≈ " + eur(sum) : "");
     renderRecoInto($("smReco"), activeStore);
   }
 
   // ---------- Cene: primerjava, tabela, uvoz ----------
-  function renderCompare() {
-    var ul = $("compare");
-    ul.innerHTML = "";
-    var open = state.items.filter(function (i) { return !i.done; });
-    if (!open.length) { ul.appendChild(el("li", null, [el("span", { class: "muted", text: "Dodaj izdelke na seznam za primerjavo." })])); return; }
-    var rows = COMPARE_CHAINS.map(function (c) {
+  function compareRows(open) {
+    return COMPARE_CHAINS.map(function (c) {
       var sum = 0, est = 0, missing = 0;
       open.forEach(function (it) {
         var p = priceFor(it.name, c);
@@ -676,11 +706,33 @@
       });
       return { c: c, sum: sum, est: est, missing: missing };
     }).sort(function (a, b) { return a.sum - b.sum; });
+  }
+  function renderHero() {
+    var open = state.items.filter(function (i) { return !i.done; });
+    $("heroCount").textContent = open.length;
+    if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = "Dodaj izdelke na seznam"; return; }
+    var rows = compareRows(open);
+    $("heroTotal").textContent = "≈ " + eur(rows[0].sum);
+    $("heroBest").innerHTML = "";
+    $("heroBest").appendChild(chainDot(rows[0].c));
+    $("heroBest").appendChild(document.createTextNode("najceneje v " + CHAIN_BY_KEY[rows[0].c].name + (rows.length > 1 ? " · prihranek " + eur(rows[rows.length - 1].sum - rows[0].sum) : "")));
+  }
+  function renderCompare() {
+    var ul = $("compare");
+    ul.innerHTML = "";
+    var open = state.items.filter(function (i) { return !i.done; });
+    if (!open.length) { ul.appendChild(el("li", { class: "muted" }, ["Dodaj izdelke na seznam za primerjavo."])); return; }
+    var rows = compareRows(open);
+    var max = rows[rows.length - 1].sum || 1;
     rows.forEach(function (r, i) {
-      var note = (r.est ? " *" : "") + (r.missing ? " (" + r.missing + " brez cene)" : "");
+      var note = r.missing ? r.missing + " brez cene" : "";
       ul.appendChild(el("li", { class: i === 0 ? "best" : "" }, [
-        el("span", { text: CHAIN_BY_KEY[r.c].name + (i === 0 ? " · najceneje" : "") }),
-        el("span", { text: eur(r.sum) + note })
+        el("div", { class: "cmp-row" }, [
+          el("span", { class: "cmp-name" }, [chainDot(r.c), CHAIN_BY_KEY[r.c].name, i === 0 ? el("span", { class: "tag ok", text: "najceneje" }) : null]),
+          el("span", { class: "cmp-sum", text: eur(r.sum) + (i > 0 ? "  +" + eur(r.sum - rows[0].sum) : "") })
+        ]),
+        el("div", { class: "cmp-track" }, [el("div", { class: "cmp-fill", style: "width:" + Math.max(6, Math.round(r.sum / max * 100)) + "%;background:" + CHAIN_BY_KEY[r.c].color })]),
+        note ? el("div", { class: "cmp-note", text: note }) : null
       ]));
     });
   }
@@ -766,6 +818,7 @@
 
   // ---------- Izris ----------
   function renderAll() {
+    renderHero();
     renderList();
     renderQuick();
     renderReco();
