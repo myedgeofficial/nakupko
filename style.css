@@ -367,3 +367,18 @@ textarea { width: 100%; margin: 10px 0; }
 .chip.on { background: linear-gradient(135deg, #FFE8F4, #E9EFFF); color: #7A2BE0; }
 .pref-opt.on { border-color: #9B3BFF; background: linear-gradient(135deg, #FFE8F4, #E9EFFF); }
 .stores li.near { box-shadow: 0 0 0 2px #9B3BFF, var(--shadow); }
+
+/* ---------- Velikost prikaza ---------- */
+.size-aa { font-weight: 800; color: #9B3BFF; flex: 0 0 auto; }
+.size-young .iname, .size-young .page-title, .size-young h2, .size-young .chip, .size-young .trip-title { font-weight: 800; }
+.size-young body { font-weight: 500; }
+.size-mid body { zoom: 1.1; font-weight: 500; }
+.size-mid .iname { font-weight: 750; }
+.size-senior body { zoom: 1.25; font-weight: 600; }
+.size-senior .iname { font-weight: 800; font-size: 18px; }
+.size-senior .thumb { width: 56px; height: 56px; flex-basis: 56px; }
+.size-senior .check { width: 34px; height: 34px; flex-basis: 34px; }
+.size-senior .tabs { width: calc(100% - 20px); }
+/* preprostejše: brez filtrov, podrobnosti in tabel */
+.size-senior #addQty, .size-senior .seg, .size-senior .trip-lists, .size-senior .hero-alt, .size-senior #pref2Wrap { display: none !important; }
+.size-senior .muted.small, .size-senior .small { font-size: 15px; }

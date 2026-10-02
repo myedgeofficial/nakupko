@@ -1213,9 +1213,10 @@
     if (first && PREFS[k].chains) {
       $("obTitle").textContent = "Pa druga izbira?";
       $("obText").textContent = "Kam greš, ko ne greš v " + PREFS[k].short + "? Tako lahko Nakupko predlaga, kdaj se splača obiskati dve bližnji trgovini.";
-      renderPrefChoices($("onboardBox"), function (k2) { setPref2(k2); $("onboard").classList.add("hidden"); }, { second: true });
+      renderPrefChoices($("onboardBox"), function (k2) { setPref2(k2); askSize(); }, { second: true });
       return;
     }
+    if (first && !state.settings.size) { askSize(); return; }
     $("onboard").classList.add("hidden");
     toast(k === "none" ? "Cene so skrite." : "Cene računam za: " + PREFS[k].label);
   }
@@ -1225,7 +1226,40 @@
     renderAll();
     toast(k ? "Druga izbira: " + PREFS[k].label : "Brez druge izbire.");
   }
+  // ---------- Velikost prikaza po starosti ----------
+  var SIZES = {
+    young: { label: "Mlajši", sub: "Običajen prikaz, krepkejše črke", zoom: 1 },
+    mid: { label: "Srednja leta", sub: "Malo večje besedilo in slike", zoom: 1.1 },
+    senior: { label: "Starejši", sub: "Veliko besedilo in slike, preprostejši prikaz", zoom: 1.25 }
+  };
+  function applySize() {
+    var k = SIZES[state.settings.size] ? state.settings.size : "young";
+    document.documentElement.classList.remove("size-young", "size-mid", "size-senior");
+    document.documentElement.classList.add("size-" + k);
+  }
+  function renderSizeChoices(box, onPick) {
+    box.innerHTML = "";
+    ["young", "mid", "senior"].forEach(function (k) {
+      var s = SIZES[k];
+      box.appendChild(el("button", { class: "pref-opt size-opt" + (state.settings.size === k ? " on" : ""), type: "button", onclick: function () { onPick(k); } }, [
+        el("div", { class: "pref-text" }, [el("b", { text: s.label }), el("span", { text: s.sub })]),
+        el("span", { class: "size-aa", style: "font-size:" + Math.round(16 * s.zoom) + "px", text: "Aa" })
+      ]));
+    });
+  }
+  function setSize(k) {
+    state.settings.size = k; save();
+    applySize();
+    renderSizeChoices($("sizeBox"), setSize);
+  }
+  function askSize() {
+    $("obTitle").textContent = "Kako velik naj bo prikaz?";
+    $("obText").textContent = "Izberi, kar ti je najlažje brati. Spremeniš lahko kadar koli v zavihku Cene.";
+    renderSizeChoices($("onboardBox"), function (k) { setSize(k); $("onboard").classList.add("hidden"); toast("Prikaz: " + SIZES[k].label); });
+    $("onboard").classList.remove("hidden");
+  }
   function maybeOnboard() {
+    if (state.settings.pricePref && !state.settings.size) { askSize(); return; }
     if (state.settings.pricePref) return;
     renderPrefChoices($("onboardBox"), setPref);
     $("onboard").classList.remove("hidden");
@@ -1494,6 +1528,8 @@
   });
 
   // ---------- Zagon ----------
+  applySize();
+  renderSizeChoices($("sizeBox"), setSize);
   renderPrefs();
   maybeOnboard();
   $("imgClose").addEventListener("click", function () { $("imgSheet").classList.add("hidden"); });
