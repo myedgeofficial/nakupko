@@ -9,6 +9,8 @@ in doda `web/native.js` (lokacija prek iPhona + sinhronizacija s spremljanjem v 
 - iOS spremlja 19 najbližjih trgovin (geofence) in večje območje okoli tebe.
 - Ko prideš v trgovino in imaš kaj na seznamu, dobiš obvestilo z izdelki.
 - Ko se premakneš (npr. v drug kraj), iPhone sam izbere nove trgovine in jih po potrebi naloži iz OpenStreetMap.
+- Obvestilo pokaže ves seznam, razvrščen po oddelkih (sadje, mlečni, drogerija …), ko ga razpreš.
+- Med nakupovanjem (način »V trgovini«) je seznam po oddelkih na zaklenjenem zaslonu (Live Activity) in se sproti posodablja.
 - Potrebno dovoljenje: Lokacija **Vedno** in Obvestila.
 
 ## Gradnja brez Maca
