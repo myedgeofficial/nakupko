@@ -130,7 +130,7 @@
           <li>Nadzorni center: povleci dol iz zgornjega desnega kota, pridrži prazno mesto, Dodaj kontrolnik → Bližnjica.</li>
         </ol>
       </details>
-      <p class="muted small">Vir lokacij: © OpenStreetMap contributors. Urniki so informativni.</p>
+      <p class="muted small">Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Slike izdelkov: Open Food Facts (CC BY-SA).</p>
     </section>
 
     <!-- CENE -->
@@ -200,6 +200,16 @@
     <ul id="smReco" class="reco"></ul>
     <ul id="smList" class="list big"></ul>
     <div id="smEmpty" class="done-state hidden"><div class="done-ico">✓</div><b>Vse kupljeno</b><span>Lahko greš na blagajno.</span></div>
+  </div>
+
+  <!-- IZBIRA SLIKE -->
+  <div id="imgSheet" class="sheet-wrap hidden" role="dialog" aria-modal="true" aria-labelledby="imgTitle">
+    <div class="sheet">
+      <div class="sheet-grip"></div>
+      <div class="card-head"><h2 id="imgTitle">Slika</h2><button id="imgClose" class="mini ghosty" type="button">Zapri</button></div>
+      <p class="muted small">Izberi sliko, ki je najbolj podobna tvojemu izdelku.</p>
+      <div id="imgBox"></div>
+    </div>
   </div>
 
   <!-- PRVI ZAGON -->

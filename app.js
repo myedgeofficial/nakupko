@@ -45,7 +45,8 @@
       settings: { locOn: false, radius: 75, delay: 15 },
       storesCache: null,
       dismissed: {},
-      dismissN: {}
+      dismissN: {},
+      imgCache: {}
     };
   }
   function load() {
@@ -259,6 +260,101 @@
       chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), eur(p.price * q) + (p.est ? "*" : "")
     ]);
   }
+  // ---------- Slike izdelkov (Open Food Facts) ----------
+  // Telefon sliko poišče sam ob prvem prikazu in si jo zapomni. Tap na sliko = izberi drugo.
+  var OFF = "https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=24&fields=code,product_name,brands,image_front_small_url&search_terms=";
+  var imgQueue = [], imgBusy = false, imgWaiting = {};
+  function imgKey(it) { return norm((it.brand ? it.brand + " " : "") + it.name); }
+  function nameWords(name) {
+    return norm(name.replace(/\(.*?\)/g, "")).replace(/[^a-z0-9 ]/g, " ").split(" ").filter(function (w) { return w.length >= 3; });
+  }
+  function offSearch(q, slo) {
+    var u = OFF + encodeURIComponent(q) + (slo ? "&tagtype_0=countries&tag_contains_0=contains&tag_0=slovenia" : "");
+    return fetch(u).then(function (r) { return r.ok ? r.json() : { products: [] }; })
+      .then(function (d) { return (d.products || []).filter(function (p) { return p.image_front_small_url; }); })
+      .catch(function () { return []; });
+  }
+  // razvrsti zadetke: ujemanje imena (začetki besed) in znamke
+  function rankImages(list, it) {
+    var words = nameWords(it.name), brand = norm(it.brand || "");
+    return list.map(function (p) {
+      var t = norm((p.product_name || "") + " " + (p.brands || ""));
+      var score = 0;
+      words.forEach(function (w) { if (t.indexOf(w.slice(0, Math.max(4, w.length - 2))) >= 0) score += 2; });
+      if (brand && t.indexOf(brand.split(" ")[0]) >= 0) score += 3;
+      return { p: p, score: score };
+    }).filter(function (x) { return x.score >= 2; }).sort(function (a, b) { return b.score - a.score; }).map(function (x) { return x.p; });
+  }
+  function findImages(it) {
+    var q = (it.brand ? it.brand + " " : "") + it.name.replace(/\(.*?\)/g, "");
+    return offSearch(q, true).then(function (r) {
+      var ranked = rankImages(r, it);
+      if (ranked.length) return ranked;
+      return offSearch(q, false).then(function (r2) {
+        var ranked2 = rankImages(r2, it);
+        if (ranked2.length || !it.brand) return ranked2;
+        return offSearch(it.name, true).then(function (r3) { return rankImages(r3, it); });
+      });
+    });
+  }
+  function pumpImages() {
+    if (imgBusy || !imgQueue.length) return;
+    var it = imgQueue.shift(), key = imgKey(it);
+    imgBusy = true;
+    findImages(it).then(function (list) {
+      state.imgCache[key] = { u: list.length ? list[0].image_front_small_url : "", t: Date.now() };
+      save();
+      (imgWaiting[key] || []).forEach(function (fn) { fn(); });
+      delete imgWaiting[key];
+    }).then(function () {
+      setTimeout(function () { imgBusy = false; pumpImages(); }, 2500); // Open Food Facts: največ ~10 iskanj na minuto
+    });
+  }
+  function thumbFor(it) {
+    var m = CAT_META[it.cat] || CAT_META.Drugo;
+    var box = el("button", { class: "thumb", type: "button", "aria-label": "Slika: " + it.name, style: "background:" + m[1], onclick: function () { openImgPicker(it); } }, [m[0]]);
+    var key = imgKey(it);
+    var paint = function () {
+      var c = state.imgCache[key];
+      if (!c || !c.u) return;
+      var img = el("img", { src: c.u, alt: "", loading: "lazy" });
+      img.addEventListener("error", function () { box.innerHTML = ""; box.textContent = m[0]; box.classList.remove("has-img"); });
+      box.textContent = ""; box.appendChild(img); box.classList.add("has-img");
+    };
+    var c = state.imgCache[key];
+    if (c && (c.u || Date.now() - c.t < 7 * DAY)) { paint(); return box; }
+    if (!navigator.onLine) return box;
+    (imgWaiting[key] = imgWaiting[key] || []).push(paint);
+    if (imgWaiting[key].length === 1) { imgQueue.push(it); pumpImages(); }
+    return box;
+  }
+  function openImgPicker(it) {
+    var key = imgKey(it);
+    var box = $("imgBox");
+    $("imgTitle").textContent = it.name + (it.brand ? " · " + it.brand : "");
+    box.innerHTML = "";
+    box.appendChild(el("p", { class: "muted small", text: "Iščem slike …" }));
+    $("imgSheet").classList.remove("hidden");
+    var pick = function (u) {
+      state.imgCache[key] = { u: u, t: Date.now(), manual: true }; save();
+      $("imgSheet").classList.add("hidden");
+      renderAll();
+    };
+    findImages(it).then(function (list) {
+      box.innerHTML = "";
+      var grid = el("div", { class: "img-grid" });
+      list.slice(0, 12).forEach(function (p) {
+        grid.appendChild(el("button", { class: "img-opt", type: "button", title: p.product_name || "", onclick: function () { pick(p.image_front_small_url); } }, [
+          el("img", { src: p.image_front_small_url, alt: p.product_name || "", loading: "lazy" }),
+          el("span", { text: p.product_name || "" })
+        ]));
+      });
+      if (!list.length) box.appendChild(el("p", { class: "muted small", text: navigator.onLine ? "Za ta izdelek ni najdenih slik." : "Ni povezave z internetom." }));
+      else box.appendChild(grid);
+      box.appendChild(el("button", { class: "ghost full", type: "button", onclick: function () { pick(""); } }, ["Brez slike"]));
+    });
+  }
+
   function itemRow(it, big, storeCtx) {
     var meta = itemMeta(it);
     var check = el("button", { class: "check", type: "button", "aria-label": it.done ? "Označi kot nekupljeno" : "Označi kot kupljeno",
@@ -268,6 +364,7 @@
     del.innerHTML = X_SVG;
     return el("li", { class: "item" + (it.done ? " done" : "") }, [
       check,
+      thumbFor(it),
       el("div", { class: "ibody" }, [
         el("div", { class: "iname", text: it.name }),
         meta ? el("div", { class: "imeta", text: meta }) : null
@@ -1220,6 +1317,8 @@
   // ---------- Zagon ----------
   renderPrefs();
   maybeOnboard();
+  $("imgClose").addEventListener("click", function () { $("imgSheet").classList.add("hidden"); });
+  $("imgSheet").addEventListener("click", function (e) { if (e.target === $("imgSheet")) $("imgSheet").classList.add("hidden"); });
   priceKeysClean();
   renderAll();
   renderStores();
