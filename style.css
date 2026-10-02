@@ -6,21 +6,22 @@
   --ink: #121826;
   --muted: #6B7385;
   --line: #E6E9F0;
-  --brand: #F26A1B;
-  --brand-2: #1F6FEB;
+  --brand: #F0258C;
+  --brand-2: #2E6BFF;
   --brand-ink: #FFFFFF;
-  --brand-soft: #FFEFE4;
-  --blue: #1F6FEB;
-  --blue-soft: #E7F0FE;
-  --accent: #F26A1B;
+  --brand-soft: #FFE8F4;
+  --blue: #2E6BFF;
+  --blue-soft: #E9EFFF;
+  --accent: #F0258C;
   --accent-ink: #FFFFFF;
-  --accent-soft: #FFF4EC;
+  --accent-soft: #FFF0F8;
   --ok: #17924F;
   --danger: #D23B2A;
   --shadow: 0 1px 2px rgba(18, 24, 38, .04), 0 6px 20px rgba(18, 24, 38, .06);
   --radius: 18px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  --grad: linear-gradient(135deg, #FF2D95 0%, #9B3BFF 52%, #2E6BFF 100%);
   color-scheme: light;
 }
 
@@ -61,12 +62,12 @@ h2.inline { display: inline; }
 }
 .top-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand { display: flex; align-items: center; gap: 10px; font: 800 22px/1 var(--font-display); letter-spacing: -.02em; }
-.logo { width: 32px; height: 32px; border-radius: 9px; box-shadow: 0 2px 6px rgba(242,106,27,.3); }
+.logo { width: 32px; height: 32px; border-radius: 9px; box-shadow: 0 2px 6px rgba(240,37,140,.3); }
 .pill {
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--brand); color: #fff; border: 0;
   border-radius: 999px; padding: 9px 15px 9px 12px; font-weight: 650; font-size: 15px;
-  box-shadow: 0 4px 12px rgba(242,106,27,.3);
+  box-shadow: 0 4px 12px rgba(240,37,140,.3);
 }
 .pill svg { width: 17px; height: 17px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 22px; }
@@ -251,7 +252,7 @@ textarea { width: 100%; margin: 10px 0; }
 .sm-head h1 { margin: 2px 0 0; font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
 .sm-close { background: var(--surface-2); border: 0; color: var(--ink); border-radius: 999px; padding: 8px 14px; font-weight: 650; }
 .progress { height: 8px; background: var(--surface-2); border-radius: 999px; margin-top: 16px; overflow: hidden; }
-.progress-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--brand), #FF9A4D); border-radius: 999px; transition: width .3s ease; }
+.progress-bar { height: 100%; width: 0; background: linear-gradient(90deg, var(--brand), #2E6BFF); border-radius: 999px; transition: width .3s ease; }
 .sm-progress { font-size: 14px; margin-top: 8px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sm-add { display: flex; gap: 8px; margin: 16px 16px 8px; }
 .sm-add input { flex: 1; }
@@ -351,3 +352,18 @@ textarea { width: 100%; margin: 10px 0; }
 .cat-bar { width: 4px; height: 16px; border-radius: 2px; filter: saturate(2.2) brightness(.85); }
 .thumb.has-img { padding: 0; }
 .thumb.raw img { object-fit: cover; }
+
+/* ---------- Neon preliv ---------- */
+.primary, .addbtn, .pill, .badge, .done .check, .detect, .sheet-logo { background: var(--grad); border-color: transparent; }
+.done .check { border-color: transparent; }
+.progress-bar { background: var(--grad); }
+.pill, .addbtn, .primary { box-shadow: 0 6px 18px rgba(155,59,255,.32); }
+.logo { box-shadow: 0 4px 12px rgba(155,59,255,.35); }
+.hero-total, .trip-main.split .trip-title, .brand span, .sm-eyebrow {
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.tabs button.on { color: #9B3BFF; background: linear-gradient(135deg, #FFE8F4, #ECE9FF); }
+.trip-card { background: linear-gradient(180deg, #FCEBFF, var(--surface) 75%); }
+.chip.on { background: linear-gradient(135deg, #FFE8F4, #E9EFFF); color: #7A2BE0; }
+.pref-opt.on { border-color: #9B3BFF; background: linear-gradient(135deg, #FFE8F4, #E9EFFF); }
+.stores li.near { box-shadow: 0 0 0 2px #9B3BFF, var(--shadow); }

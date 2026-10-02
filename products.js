@@ -114,6 +114,7 @@ window.NAKUPKO_PRODUCTS = [
   ["Balzamični kis", "Shramba", ["Ponti", "Monari Federzoni"], 2.99, "500 ml"],
   ["Paradižnikova mezga", "Shramba", ["Mutti", "Podravka", "Pomi"], 1.29, "500 g"],
   ["Pelati", "Shramba", ["Mutti", "Cirio"], 1.39, "400 g"],
+  ["Paradižnikov koncentrat", "Shramba", ["Mutti", "Podravka", "Pomi", "Cirio", "S-Budget"], 1.19, "200 g"],
   ["Omaka za testenine", "Shramba", ["Barilla", "Dolmio", "Podravka"], 2.49, "400 g"],
   ["Pesto", "Shramba", ["Barilla", "Sacla"], 2.99, "190 g"],
   ["Fižol v pločevinki", "Shramba", ["Podravka", "Bonduelle"], 1.19, "400 g"],
