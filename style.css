@@ -335,24 +335,12 @@ textarea { width: 100%; margin: 10px 0; }
 .hero-num small { white-space: nowrap; }
 .hero-side { flex: 1 1 auto; }
 
-/* ---------- Slike izdelkov ---------- */
-.thumb { width: 48px; height: 48px; flex: 0 0 48px; border-radius: 12px; border: 0; padding: 3px; display: grid; place-items: center; overflow: hidden; background: #fff; box-shadow: inset 0 0 0 1px var(--line); color: #C3C9D5; }
-.thumb svg { width: 22px; height: 22px; }
-.thumb.loading { background: linear-gradient(90deg, var(--surface-2), #fff, var(--surface-2)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
-@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-.thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.list.big .thumb { width: 60px; height: 60px; flex-basis: 60px; }
-.img-search { margin: 4px 0 12px; }
-.img-search input { flex: 1; }
-.done .thumb { opacity: .45; }
-.img-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 6px 0 14px; }
-.img-opt { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 8px; display: grid; gap: 6px; justify-items: center; }
-.img-opt img { width: 100%; aspect-ratio: 1; object-fit: contain; }
-.img-opt span { font-size: 11px; color: var(--muted); line-height: 1.2; max-height: 2.4em; overflow: hidden; text-align: center; }
-.cat-bar { width: 4px; height: 16px; border-radius: 2px; filter: saturate(2.2) brightness(.85); }
-.thumb.has-img { padding: 0; }
-.thumb.raw img { object-fit: cover; }
-
+/* ---------- Ikone izdelkov ---------- */
+.thumb { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 13px; display: grid; place-items: center; background: linear-gradient(145deg, #FFF4FA, #F1F3FF); box-shadow: inset 0 0 0 1px rgba(155,59,255,.10); }
+.thumb img { width: 30px; height: 30px; display: block; }
+.list.big .thumb { width: 56px; height: 56px; flex-basis: 56px; }
+.list.big .thumb img { width: 38px; height: 38px; }
+.done .thumb { opacity: .45; filter: grayscale(.6); }
 /* ---------- Neon preliv ---------- */
 .primary, .addbtn, .pill, .badge, .done .check, .detect, .sheet-logo { background: var(--grad); border-color: transparent; }
 .done .check { border-color: transparent; }
@@ -377,6 +365,7 @@ textarea { width: 100%; margin: 10px 0; }
 .size-senior body { zoom: 1.25; font-weight: 600; }
 .size-senior .iname { font-weight: 800; font-size: 18px; }
 .size-senior .thumb { width: 56px; height: 56px; flex-basis: 56px; }
+.size-senior .thumb img { width: 38px; height: 38px; }
 .size-senior .check { width: 34px; height: 34px; flex-basis: 34px; }
 .size-senior .tabs { width: calc(100% - 20px); }
 /* preprostejše: brez filtrov, podrobnosti in tabel */
