@@ -164,6 +164,7 @@
     if (it.done) {
       it.doneAt = Date.now();
       var st = storeCtx || currentStore();
+      if (st && /^test\//.test(st.id)) st = null; // testni nakupi ne vplivajo na navade
       state.history.push({
         name: it.name, brand: it.brand || "", qty: it.qty || 1, ts: Date.now(),
         storeId: st ? st.id : null, storeName: st ? st.name : null, chain: st ? st.chain : null
@@ -596,6 +597,40 @@
     });
   }
 
+  // ---------- Testni prihod v trgovino ----------
+  // Prikaže, kaj se zgodi ob prihodu v trgovino, brez prave lokacije.
+  var testMode = false;
+  function startTest() {
+    testMode = true;
+    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
+    if (!state.items.some(function (i) { return !i.done; })) {
+      ["Mleko", "Kruh beli", "Banane", "Jajca", "Kava mleta"].forEach(function (n) { addItem(n, "", 1, { silent: true }); });
+    }
+    delete state.dismissed["store:test/1"];
+    lastPos = { lat: 46.0500, lon: 14.5000, acc: 12 };
+    stores = [{ id: "test/1", name: "Spar (testna trgovina)", short: "Spar (test)", chain: "spar", lat: 46.0502, lon: 14.5003, hours: "Mo-Sa 07:00-21:00" }];
+    nearState = { id: null, since: 0 };
+    setLocStatus("Testni način: simuliram prihod v trgovino.");
+    evaluateNear();
+    renderStores();
+    toast("Test: čez " + state.settings.delay + " s se odpre »V trgovini«.");
+  }
+
+  // Testni prihod lahko sproži tudi razvijalec na daljavo (datoteka remote.json).
+  function checkRemote() {
+    if (document.visibilityState !== "visible") return;
+    fetch("remote.json?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.test) return;
+        var t = Date.parse(d.test);
+        if (!t || t <= (state.settings.remoteSeen || 0) || Date.now() - t > 15 * 60000) return;
+        state.settings.remoteSeen = t; save();
+        startTest();
+      })
+      .catch(function () {});
+  }
+
   // ---------- Način »V trgovini« ----------
   function openStoreMode(store) {
     activeStore = store || lastNearStore || null;
@@ -791,6 +826,7 @@
   });
 
   $("btnLoc").addEventListener("click", function () { if (watchId === null) startLocation(); else stopLocation(); });
+  $("btnTest").addEventListener("click", function () { window.scrollTo(0, 0); startTest(); });
   $("btnRefreshStores").addEventListener("click", function () {
     if (!lastPos) { startLocation(); return; }
     fetchStores(lastPos, true); toast("Osvežujem trgovine …");
@@ -848,7 +884,7 @@
 
   // iPhone ustavi sledenje, ko je aplikacija v ozadju: ob vrnitvi ga zaženemo znova.
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "visible" && state.settings.locOn) {
+    if (document.visibilityState === "visible" && state.settings.locOn && !testMode) {
       if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
       nearState = { id: null, since: 0 };
       startLocation();
@@ -868,7 +904,10 @@
   priceKeysClean();
   renderAll();
   renderStores();
-  if (state.settings.locOn) startLocation();
+  setInterval(checkRemote, 10000);
+  checkRemote();
+  if (/[?&]test\b/.test(location.search)) startTest();
+  else if (state.settings.locOn) startLocation();
   if (/[?&]trgovina\b/.test(location.search)) openStoreMode(null);
 
   if ("serviceWorker" in navigator && location.protocol === "https:") {
