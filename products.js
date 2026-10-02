@@ -226,6 +226,27 @@ window.NAKUPKO_PRODUCTS = [
   ["Plenice", "Higiena", ["Pampers", "Huggies", "Libero"], 12.99, "kos"],
   ["Vlažilni robčki", "Higiena", ["Pampers", "Huggies", "Paloma"], 1.99, "kos"],
 
+  // Tobak (cene so v Sloveniji enake v vseh trgovinah; vir: Kompas shop cenik 1. 6. 2026, secret-slovenia.com)
+  ["Cigarete Marlboro", "Tobak", ["Red", "Gold", "Touch", "Advance Blue"], 6.00, "20 kos", true],
+  ["Cigarete Winston", "Tobak", ["Classic", "Blue", "Silver", "XStyle Blue"], 5.50, "20 kos", true],
+  ["Cigarete Camel", "Tobak", ["Yellow", "Blue", "Essential Blue"], 5.60, "20 kos", true],
+  ["Cigarete Chesterfield", "Tobak", ["Blue", "Red"], 5.50, "20 kos", true],
+  ["Cigarete L&M", "Tobak", ["Blue Label", "Red Label"], 5.50, "20 kos", true],
+  ["Cigarete Davidoff", "Tobak", ["Gold", "Reach Blue", "Reach Silver"], 6.10, "20 kos", true],
+  ["Cigarete Philip Morris", "Tobak", ["Supreme", "Supreme 100's"], 5.20, "20 kos", true],
+  ["Cigarete Lucky Strike", "Tobak", ["Red", "Blue"], 5.60, "20 kos", true],
+  ["Cigarete West", "Tobak", ["Red", "Blue", "Silver"], 5.60, "20 kos", true],
+  ["Cigarete Boss", "Tobak", ["Classic", "Blue", "Silver", "Gold"], 5.50, "20 kos", true],
+  ["Cigarete Eve", "Tobak", ["Red Divine", "Blue Mystique"], 5.50, "20 kos", true],
+  ["Cigarete Benson & Hedges", "Tobak", ["Red", "Blue"], 5.20, "20 kos", true],
+  ["Cigarete Austin", "Tobak", ["Red", "Blue"], 4.80, "20 kos", true],
+  ["Tobačne palčke (IQOS)", "Tobak", ["Terea", "Heets"], 5.30, "20 kos", true],
+  ["Tobak za zvijanje", "Tobak", ["Pueblo", "Golden Virginia", "Drum", "Chesterfield"], 9.50, "30 g", true],
+  ["Papirčki za zvijanje", "Tobak", ["OCB", "Rizla", "Smoking"], 0.99, "kos"],
+  ["Filtri za zvijanje", "Tobak", ["OCB", "Rizla", "Smoking"], 1.49, "kos"],
+  ["Vžigalnik", "Tobak", ["BIC", "Clipper"], 1.49, "kos"],
+  ["Vžigalice", "Tobak", [], 0.49, "kos"],
+
   // Hišni ljubljenčki
   ["Hrana za mačke", "Ljubljenčki", ["Whiskas", "Felix", "Sheba", "Purina"], 0.79, "kos"],
   ["Hrana za pse", "Ljubljenčki", ["Pedigree", "Purina", "Chappi"], 1.49, "kos"],

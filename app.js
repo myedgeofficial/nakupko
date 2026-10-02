@@ -16,7 +16,7 @@
   var COMPARE_CHAINS = ["spar", "mercator", "tus", "lidl", "hofer"];
 
   var CATALOG = (window.NAKUPKO_PRODUCTS || []).map(function (p) {
-    return { name: p[0], cat: p[1], brands: p[2] || [], base: p[3], unit: p[4] || "" };
+    return { name: p[0], cat: p[1], brands: p[2] || [], base: p[3], unit: p[4] || "", fixed: !!p[5] };
   });
   var CATALOG_BY_KEY = {};
   CATALOG.forEach(function (p) { CATALOG_BY_KEY[norm(p.name)] = p; });
@@ -125,6 +125,8 @@
     var p = CATALOG_BY_KEY[key];
     if (p && typeof p.base === "number") {
       var c = CHAIN_BY_KEY[chain];
+      // izdelki z enotno ceno (npr. tobak) stanejo povsod enako
+      if (p.fixed) return { price: p.base, est: false };
       return { price: Math.round(p.base * (c ? c.factor : 1) * 100) / 100, est: true };
     }
     return { price: null, est: true };
@@ -232,7 +234,7 @@
       return true;
     });
     // razvrsti po kategoriji (kot pot po trgovini)
-    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Ljubljenčki", "Drugo"];
+    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Tobak", "Ljubljenčki", "Drugo"];
     items.sort(function (a, b) { return order.indexOf(a.cat || "Drugo") - order.indexOf(b.cat || "Drugo"); });
     var lastCat = null;
     items.forEach(function (it) {
