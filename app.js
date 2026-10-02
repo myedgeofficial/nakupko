@@ -203,9 +203,34 @@
     if (usual) parts.push("običajno: " + usual);
     return parts.join(" · ");
   }
+  // ---------- Izbira trgovin za izračun cen ----------
+  var PREFS = {
+    discount: { label: "Hofer in Lidl", short: "Hofer/Lidl", chains: ["hofer", "lidl"] },
+    eurojag: { label: "Eurospin in Jager", short: "Eurospin/Jager", chains: ["eurospin", "jager"] },
+    classic: { label: "Tuš, Spar in Mercator", short: "Tuš/Spar/Mercator", chains: ["tus", "spar", "mercator"] },
+    all: { label: "Kjerkoli je najceneje", short: "najceneje", chains: null },
+    none: { label: "Cene me ne zanimajo", short: "", chains: null }
+  };
+  function pref() { return PREFS[state.settings.pricePref] || PREFS.all; }
+  function pricesOff() { return state.settings.pricePref === "none"; }
+  function compareChains() {
+    var list = COMPARE_CHAINS.slice();
+    (pref().chains || []).forEach(function (c) { if (list.indexOf(c) < 0) list.push(c); });
+    return list;
+  }
+  // Cena po izbiri uporabnika: povprečje izbranih trgovin ali najnižja cena.
+  function prefPrice(name) {
+    if (pricesOff()) return null;
+    var chains = pref().chains;
+    if (!chains) { var b = cheapestChain(name); return b ? { price: b.price, est: b.est, chain: b.chain } : null; }
+    var sum = 0, n = 0, est = false;
+    chains.forEach(function (c) { var p = priceFor(name, c); if (p.price != null) { sum += p.price; n++; est = est || p.est; } });
+    if (!n) return null;
+    return { price: Math.round(sum / n * 100) / 100, est: est, chain: chains.length === 1 ? chains[0] : null, group: chains.length > 1 };
+  }
   function cheapestChain(name) {
     var best = null;
-    COMPARE_CHAINS.forEach(function (c) {
+    compareChains().forEach(function (c) {
       var p = priceFor(name, c);
       if (p.price != null && (!best || p.price < best.price)) best = { chain: c, price: p.price, est: p.est };
     });
@@ -215,12 +240,13 @@
   var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
   var X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   function priceChip(it, storeCtx) {
+    if (pricesOff()) return null;
     var q = it.qty || 1, chain = null, p = null;
     if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it.name, chain); if (p.price == null) p = null; }
-    if (!p) { var b = cheapestChain(it.name); if (b) { chain = b.chain; p = { price: b.price, est: b.est }; } }
+    if (!p) { p = prefPrice(it.name); if (p) chain = p.chain; }
     if (!p) return null;
-    return el("span", { class: "price" + (p.est ? " est" : ""), title: (CHAIN_BY_KEY[chain] || {}).name || "" }, [
-      chainDot(chain), eur(p.price * q) + (p.est ? "*" : "")
+    return el("span", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
+      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), eur(p.price * q) + (p.est ? "*" : "")
     ]);
   }
   function itemRow(it, big, storeCtx) {
@@ -690,14 +716,14 @@
     var total = open.length + done.length;
     $("smBar").style.width = (total ? Math.round(done.length / total * 100) : 100) + "%";
     var sum = 0;
-    open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it.name, activeStore.chain) : null; if (!p || p.price == null) { var b = cheapestChain(it.name); p = b ? { price: b.price } : null; } if (p) sum += p.price * (it.qty || 1); });
-    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length ? " · še ≈ " + eur(sum) : "");
+    open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it.name, activeStore.chain) : null; if (!p || p.price == null) p = prefPrice(it.name); if (p) sum += p.price * (it.qty || 1); });
+    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && !pricesOff() ? " · še ≈ " + eur(sum) : "");
     renderRecoInto($("smReco"), activeStore);
   }
 
   // ---------- Cene: primerjava, tabela, uvoz ----------
   function compareRows(open) {
-    return COMPARE_CHAINS.map(function (c) {
+    return compareChains().map(function (c) {
       var sum = 0, est = 0, missing = 0;
       open.forEach(function (it) {
         var p = priceFor(it.name, c);
@@ -710,7 +736,20 @@
   function renderHero() {
     var open = state.items.filter(function (i) { return !i.done; });
     $("heroCount").textContent = open.length;
+    $("heroSide").classList.toggle("hidden", pricesOff());
+    if (pricesOff()) return;
+    $("heroLabel").textContent = pref().chains ? "Košarica · " + pref().short : "Ocena košarice";
     if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = "Dodaj izdelke na seznam"; return; }
+    if (pref().chains) {
+      var total = 0;
+      open.forEach(function (it) { var p = prefPrice(it.name); if (p) total += p.price * (it.qty || 1); });
+      $("heroTotal").textContent = "≈ " + eur(total);
+      var grp = compareRows(open).filter(function (r) { return pref().chains.indexOf(r.c) >= 0; });
+      $("heroBest").innerHTML = "";
+      if (grp.length > 1) { $("heroBest").appendChild(chainDot(grp[0].c)); $("heroBest").appendChild(document.createTextNode("od teh najceneje " + CHAIN_BY_KEY[grp[0].c].name)); }
+      else $("heroBest").textContent = "povprečje izbranih trgovin";
+      return;
+    }
     var rows = compareRows(open);
     $("heroTotal").textContent = "≈ " + eur(rows[0].sum);
     $("heroBest").innerHTML = "";
@@ -728,7 +767,8 @@
       var note = r.missing ? r.missing + " brez cene" : "";
       ul.appendChild(el("li", { class: i === 0 ? "best" : "" }, [
         el("div", { class: "cmp-row" }, [
-          el("span", { class: "cmp-name" }, [chainDot(r.c), CHAIN_BY_KEY[r.c].name, i === 0 ? el("span", { class: "tag ok", text: "najceneje" }) : null]),
+          el("span", { class: "cmp-name" }, [chainDot(r.c), CHAIN_BY_KEY[r.c].name, i === 0 ? el("span", { class: "tag ok", text: "najceneje" }) : null,
+            (pref().chains || []).indexOf(r.c) >= 0 ? el("span", { class: "tag", text: "tvoja" }) : null]),
           el("span", { class: "cmp-sum", text: eur(r.sum) + (i > 0 ? "  +" + eur(r.sum - rows[0].sum) : "") })
         ]),
         el("div", { class: "cmp-track" }, [el("div", { class: "cmp-fill", style: "width:" + Math.max(6, Math.round(r.sum / max * 100)) + "%;background:" + CHAIN_BY_KEY[r.c].color })]),
@@ -817,6 +857,30 @@
   }
 
   // ---------- Izris ----------
+  function renderPrefChoices(box, onPick) {
+    box.innerHTML = "";
+    ["discount", "eurojag", "classic", "all", "none"].forEach(function (k) {
+      var p = PREFS[k];
+      var dots = el("span", { class: "pref-dots" }, (p.chains || (k === "all" ? COMPARE_CHAINS : [])).map(chainDot));
+      var sub = { discount: "Diskontni trgovini", eurojag: "Ugodni trgovini", classic: "Klasični supermarketi", all: "Primerjam vse in pokažem najnižjo ceno", none: "Brez cen, samo seznam" }[k];
+      box.appendChild(el("button", { class: "pref-opt" + (state.settings.pricePref === k ? " on" : ""), type: "button", onclick: function () { onPick(k); } }, [
+        el("div", { class: "pref-text" }, [el("b", { text: p.label }), el("span", { text: sub })]), dots
+      ]));
+    });
+  }
+  function setPref(k) {
+    state.settings.pricePref = k; save();
+    $("onboard").classList.add("hidden");
+    renderPrefChoices($("prefBox"), setPref);
+    renderAll();
+    toast(k === "none" ? "Cene so skrite." : "Cene računam za: " + PREFS[k].label);
+  }
+  function maybeOnboard() {
+    if (state.settings.pricePref) return;
+    renderPrefChoices($("onboardBox"), setPref);
+    $("onboard").classList.remove("hidden");
+  }
+
   function renderAll() {
     renderHero();
     renderList();
@@ -957,6 +1021,8 @@
   });
 
   // ---------- Zagon ----------
+  renderPrefChoices($("prefBox"), setPref);
+  maybeOnboard();
   priceKeysClean();
   renderAll();
   renderStores();
