@@ -1,0 +1,19 @@
+{
+  "name": "Nakupko",
+  "short_name": "Nakupko",
+  "description": "Nakupovalni seznam, ki prepozna bližnje trgovine, primerja cene in se uči tvojih navad.",
+  "lang": "sl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#114c40",
+  "theme_color": "#114c40",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "shortcuts": [
+    { "name": "V trgovini", "url": "./?trgovina" }
+  ]
+}

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#114c40">
+  <meta name="description" content="Nakupovalni seznam, ki prepozna bližnje trgovine, primerja cene in se uči tvojih navad.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Nakupko">
+  <title>Nakupko — nakupovalni seznam</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="logo">🛒</span> Nakupko</div>
+    <button id="btnStoreMode" class="pill" type="button">V trgovini</button>
+  </header>
+
+  <div id="detectBar" class="detect hidden" role="status"></div>
+
+  <main>
+    <!-- SEZNAM -->
+    <section id="tab-list" class="tab active">
+      <h1>Kaj moraš kupiti?</h1>
+      <form id="addForm" class="add" autocomplete="off">
+        <div class="add-row">
+          <input id="addInput" type="text" placeholder="Npr. mleko, kari, cedevita …" aria-label="Izdelek" enterkeyhint="done">
+          <input id="addQty" type="text" inputmode="decimal" value="1" aria-label="Količina" class="qty">
+          <button type="submit" class="primary">Dodaj</button>
+        </div>
+        <ul id="suggest" class="suggest hidden" role="listbox"></ul>
+        <div id="brandPick" class="brands hidden"></div>
+      </form>
+
+      <div id="recoBox" class="card hidden">
+        <h2>Predlogi zate</h2>
+        <ul id="recoList" class="reco"></ul>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Hitri izbor</h2><span class="muted">En dotik in je na seznamu</span></div>
+        <div id="quick" class="chips"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Za kupiti <span id="countOpen" class="badge">0</span></h2>
+          <div class="seg" role="tablist">
+            <button data-filter="all" class="on" type="button">Vse</button>
+            <button data-filter="store" type="button">Ta trgovina</button>
+            <button data-filter="done" type="button">Kupljeno</button>
+          </div>
+        </div>
+        <ul id="list" class="list"></ul>
+        <p id="listEmpty" class="empty">Seznam je prazen.</p>
+        <button id="clearDone" class="link" type="button">Počisti kupljeno</button>
+      </div>
+    </section>
+
+    <!-- TRGOVINE -->
+    <section id="tab-stores" class="tab">
+      <h1>Trgovine v bližini</h1>
+      <div class="card">
+        <p id="locStatus" class="muted">Vklopi lokacijo, da najdem živilske trgovine blizu tebe.</p>
+        <div class="row">
+          <button id="btnLoc" class="primary" type="button">Vklopi lokacijo</button>
+          <button id="btnRefreshStores" class="ghost" type="button">Osveži trgovine</button>
+        </div>
+      </div>
+      <ul id="storeList" class="stores"></ul>
+
+      <div class="card">
+        <h2>Zaznavanje trgovine</h2>
+        <label class="field">Razdalja zaznave: <b id="radiusVal">75 m</b>
+          <input id="radius" type="range" min="30" max="150" step="5" value="75">
+        </label>
+        <label class="field">Samodejni »V trgovini« po: <b id="delayVal">15 s</b>
+          <input id="delay" type="range" min="5" max="60" step="5" value="15">
+        </label>
+        <p class="muted small">iPhone posodablja lokacijo samo, ko je Nakupko odprt na zaslonu. Ko ga odpreš pred trgovino, te zazna v nekaj sekundah. V trgovini lahko vedno tapneš »V trgovini« zgoraj.</p>
+      </div>
+
+      <details class="card">
+        <summary><h2 class="inline">Bližnjica na iPhonu</h2></summary>
+        <ol class="small">
+          <li>Na domači zaslon: v Safariju tapni Deli → Dodaj na začetni zaslon.</li>
+          <li>Action button: Nastavitve → Action Button → Bližnjica → izberi bližnjico, ki odpre ta naslov.</li>
+          <li>Dvojni tap po hrbtu telefona: Nastavitve → Dostopnost → Dotik → Back Tap → Dvojni tap → tvoja bližnjica.</li>
+          <li>Nadzorni center: povleci dol iz zgornjega desnega kota, pridrži prazno mesto, Dodaj kontrolnik → Bližnjica.</li>
+        </ol>
+      </details>
+      <p class="muted small">Vir lokacij: © OpenStreetMap contributors. Urniki so informativni.</p>
+    </section>
+
+    <!-- CENE -->
+    <section id="tab-prices" class="tab">
+      <h1>Kam po nakup?</h1>
+      <div class="card">
+        <p class="muted small">Skupna cena tvojega seznama po trgovinah. Cene z * so ocene; prave cene uvoziš spodaj.</p>
+        <ul id="compare" class="compare"></ul>
+      </div>
+      <div class="card">
+        <h2>Cenik izdelkov</h2>
+        <input id="priceSearch" type="search" placeholder="Poišči izdelek …" class="full">
+        <div id="priceTable" class="ptable"></div>
+      </div>
+      <div class="card">
+        <h2>Tedenski cenik</h2>
+        <p class="muted small">Prave cene uvoziš z eno datoteko JSON (lahko jo pripravi ChatGPT ali Claude).</p>
+        <div class="row wrap">
+          <label class="primary filebtn">Uvozi cene<input id="importFile" type="file" accept="application/json,.json,.txt" hidden></label>
+          <button id="btnPaste" class="ghost" type="button">Prilepi JSON</button>
+          <button id="btnHelp" class="ghost" type="button">Navodila</button>
+          <button id="btnResetPrices" class="ghost" type="button">Ponastavi cene</button>
+        </div>
+        <p id="pricesInfo" class="muted small"></p>
+        <pre id="helpText" class="help hidden"></pre>
+        <div id="pasteBox" class="hidden">
+          <textarea id="pasteText" rows="5" class="full" placeholder='{"izdelki":[{"ime":"Mleko","cene":{"spar":1.19}}]}'></textarea>
+          <button id="btnPasteDo" class="primary" type="button">Uvozi prilepljeno</button>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Podatki</h2>
+        <div class="row wrap">
+          <button id="btnExport" class="ghost" type="button">Izvozi varnostno kopijo</button>
+          <label class="ghost filebtn">Uvozi kopijo<input id="importBackup" type="file" accept="application/json,.json" hidden></label>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- NAČIN V TRGOVINI -->
+  <div id="storeMode" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="smTitle">
+    <div class="sm-head">
+      <div>
+        <div class="muted small">V trgovini</div>
+        <h1 id="smTitle">Trgovina</h1>
+      </div>
+      <button id="smClose" class="ghost" type="button">Zapri</button>
+    </div>
+    <form id="smAdd" class="add-row sm-add" autocomplete="off">
+      <input id="smInput" type="text" placeholder="Dodaj izdelek …" aria-label="Dodaj izdelek">
+      <button class="primary" type="submit">Dodaj</button>
+    </form>
+    <ul id="smReco" class="reco"></ul>
+    <ul id="smList" class="list big"></ul>
+    <p id="smEmpty" class="empty hidden">Vse kupljeno. 🎉</p>
+  </div>
+
+  <nav class="tabs">
+    <button data-tab="list" class="on" type="button"><span>📝</span>Seznam</button>
+    <button data-tab="stores" type="button"><span>📍</span>Trgovine</button>
+    <button data-tab="prices" type="button"><span>€</span>Cene</button>
+  </nav>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="products.js"></script>
+  <script src="prices.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
