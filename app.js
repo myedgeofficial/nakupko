@@ -892,7 +892,23 @@
     var r = state.settings.radius;
     return d <= r || (d - Math.min(acc, 60)) <= r * 0.6;
   }
+  // Ko se oddaljiš od trgovine, se način »V trgovini« sam zapre (po 20 s, da GPS ne zaniha).
+  var leftSince = 0;
+  function checkLeftStore() {
+    if (!activeStore || activeStore.lat == null || !lastPos || testMode) { leftSince = 0; return; }
+    var limit = Math.max(150, state.settings.radius * 2.5) + Math.min(lastPos.acc || 0, 60);
+    var d = distM(lastPos, activeStore);
+    if (d <= limit) { leftSince = 0; return; }
+    if (!leftSince && d < 1000) { leftSince = Date.now(); setTimeout(checkLeftStore, 20500); return; }
+    if (d >= 1000 || Date.now() - leftSince >= 20000) {
+      leftSince = 0;
+      var name = activeStore.short || activeStore.name;
+      closeStoreMode();
+      toast("Zapustil si " + name + ". Nakupovanje zaprto.");
+    }
+  }
   function evaluateNear() {
+    checkLeftStore();
     var n = nearestStore();
     var bar = $("detectBar");
     if (!n || !inRange(n.d, lastPos.acc)) {
@@ -1001,6 +1017,7 @@
   function openStoreMode(store) {
     activeStore = store || lastNearStore || null;
     storeModeOpenedAt = Date.now();
+    leftSince = 0;
     $("smTitle").textContent = activeStore ? activeStore.name : "Nakupovanje";
     $("storeMode").classList.remove("hidden");
     $("detectBar").classList.add("hidden");
