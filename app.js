@@ -260,70 +260,125 @@
       chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), eur(p.price * q) + (p.est ? "*" : "")
     ]);
   }
-  // ---------- Slike izdelkov (Open Food Facts) ----------
+  // ---------- Slike izdelkov (Open Food Facts + Wikipedija) ----------
   // Telefon sliko poišče sam ob prvem prikazu in si jo zapomni. Tap na sliko = izberi drugo.
-  var OFF = "https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=24&fields=code,product_name,brands,image_front_small_url&search_terms=";
+  // Pakirani izdelki: Open Food Facts (prave fotografije embalaže). Sadje, zelenjava in brez zadetka: slovenska Wikipedija.
+  var IMG_V = 2;
+  var OFF_FIELDS = "code,product_name,brands,image_front_small_url";
   var imgQueue = [], imgBusy = false, imgWaiting = {};
+  function imgBrand(it) {
+    if (it.brand) return it.brand;
+    var p = CATALOG_BY_KEY[norm(it.name)];
+    return p && p.brands.length && p.cat !== "Sadje in zelenjava" ? p.brands[0] : "";
+  }
   function imgKey(it) { return norm((it.brand ? it.brand + " " : "") + it.name); }
+  function cleanName(name) { return name.replace(/\((.*?)\)/g, " $1 ").replace(/\s+/g, " ").trim(); }
   function nameWords(name) {
-    return norm(name.replace(/\(.*?\)/g, "")).replace(/[^a-z0-9 ]/g, " ").split(" ").filter(function (w) { return w.length >= 3; });
+    return norm(cleanName(name)).replace(/[^a-z0-9 ]/g, " ").split(" ").filter(function (w) { return w.length >= 3; });
   }
-  function offSearch(q, slo) {
-    var u = OFF + encodeURIComponent(q) + (slo ? "&tagtype_0=countries&tag_contains_0=contains&tag_0=slovenia" : "");
-    return fetch(u).then(function (r) { return r.ok ? r.json() : { products: [] }; })
-      .then(function (d) { return (d.products || []).filter(function (p) { return p.image_front_small_url; }); })
-      .catch(function () { return []; });
+  function getJSON(u) {
+    return fetch(u).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   }
-  // razvrsti zadetke: ujemanje imena (začetki besed) in znamke
-  function rankImages(list, it) {
-    var words = nameWords(it.name), brand = norm(it.brand || "");
+  function offProducts(d) {
+    var l = d ? (d.hits || d.products || []) : [];
+    return l.map(function (p) {
+      return { name: p.product_name || "", brands: Array.isArray(p.brands) ? p.brands.join(", ") : (p.brands || ""), url: p.image_front_small_url };
+    }).filter(function (p) { return p.url; });
+  }
+  function offSearch(q) {
+    // hitro iskanje; če ne odgovori, klasično iskanje
+    return getJSON("https://search.openfoodfacts.org/search?page_size=24&fields=" + OFF_FIELDS + "&q=" + encodeURIComponent(q))
+      .then(function (d) {
+        var l = offProducts(d);
+        if (d && (d.hits || d.products)) return l;
+        return getJSON("https://world.openfoodfacts.org/cgi/search.pl?search_simple=1&action=process&json=1&page_size=24&fields=" + OFF_FIELDS + "&search_terms=" + encodeURIComponent(q)).then(offProducts);
+      });
+  }
+  function wikiSearch(q) {
+    return getJSON("https://sl.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=6&prop=pageimages&piprop=thumbnail&pithumbsize=240&gsrsearch=" + encodeURIComponent(q))
+      .then(function (d) {
+        var pages = d && d.query && d.query.pages ? Object.keys(d.query.pages).map(function (k) { return d.query.pages[k]; }) : [];
+        pages.sort(function (a, b) { return (a.index || 0) - (b.index || 0); });
+        return pages.filter(function (p) { return p.thumbnail && p.thumbnail.source && !/\.svg/i.test(p.thumbnail.source); })
+          .map(function (p) { return { name: p.title, brands: "", url: p.thumbnail.source }; });
+      });
+  }
+  // razvrsti zadetke: ujemanje imena (začetki besed) in znamk, ki jih prodajajo pri nas
+  function rankImages(list, it, brands) {
+    var words = nameWords(it.name);
+    var bs = brands.map(function (b) { return norm(b).split(" ")[0]; }).filter(function (b) { return b.length >= 3; });
     return list.map(function (p) {
-      var t = norm((p.product_name || "") + " " + (p.brands || ""));
+      var t = norm(p.name + " " + p.brands);
       var score = 0;
       words.forEach(function (w) { if (t.indexOf(w.slice(0, Math.max(4, w.length - 2))) >= 0) score += 2; });
-      if (brand && t.indexOf(brand.split(" ")[0]) >= 0) score += 3;
+      if (bs.some(function (b) { return t.indexOf(b) >= 0; })) score += 3;
       return { p: p, score: score };
-    }).filter(function (x) { return x.score >= 2; }).sort(function (a, b) { return b.score - a.score; }).map(function (x) { return x.p; });
+    }).filter(function (x) { return x.score >= 2; }).sort(function (a, b2) { return b2.score - a.score; }).map(function (x) { return x.p; });
   }
   function findImages(it) {
-    var q = (it.brand ? it.brand + " " : "") + it.name.replace(/\(.*?\)/g, "");
-    return offSearch(q, true).then(function (r) {
-      var ranked = rankImages(r, it);
-      if (ranked.length) return ranked;
-      return offSearch(q, false).then(function (r2) {
-        var ranked2 = rankImages(r2, it);
-        if (ranked2.length || !it.brand) return ranked2;
-        return offSearch(it.name, true).then(function (r3) { return rankImages(r3, it); });
+    var prod = CATALOG_BY_KEY[norm(it.name)] || {};
+    var cat = prod.cat || it.cat;
+    var produce = cat === "Sadje in zelenjava";
+    var brands = it.brand ? [it.brand] : (prod.brands || []);
+    var name = cleanName(it.name);
+    var paren = (it.name.match(/\((.*?)\)/) || [])[1];
+    var first = it.name.replace(/\(.*?\)/g, "").trim().split(" ")[0];
+    // poizvedbe od najbolj natančne do najbolj splošne
+    var qs = [];
+    var addQ = function (q) { q = (q || "").trim(); if (q && qs.indexOf(q) < 0) qs.push(q); };
+    if (it.brand) addQ(it.brand + " " + name);
+    addQ(name);
+    brands.slice(0, 2).forEach(function (b) { addQ(b + " " + (paren || first)); });
+    if (paren) addQ(paren);
+    addQ(first);
+    qs = qs.slice(0, 5);
+    var out = [];
+    var add = function (l) { l.forEach(function (p) { if (!out.some(function (x) { return x.url === p.url; })) out.push(p); }); };
+    var off = function (i) {
+      if (i >= qs.length || out.length) return Promise.resolve();
+      return offSearch(qs[i]).then(function (r) { add(rankImages(r, it, brands)); return off(i + 1); });
+    };
+    var wiki = function () {
+      return wikiSearch(name).then(function (r) {
+        add(r.slice(0, 3));
+        if (r.length) return;
+        var w = paren || first;
+        if (w && norm(w) !== norm(name)) return wikiSearch(w).then(function (r2) { add(r2.slice(0, 3)); });
       });
-    });
+    };
+    var chain = produce ? wiki().then(function () { if (!out.length) return off(0); })
+      : off(0).then(function () { if (!out.length) return wiki(); });
+    return chain.then(function () { return out; }, function () { return out; });
   }
   function pumpImages() {
     if (imgBusy || !imgQueue.length) return;
     var it = imgQueue.shift(), key = imgKey(it);
     imgBusy = true;
     findImages(it).then(function (list) {
-      state.imgCache[key] = { u: list.length ? list[0].image_front_small_url : "", t: Date.now() };
+      state.imgCache[key] = { u: list.length ? list[0].url : "", t: Date.now(), v: IMG_V };
       save();
       (imgWaiting[key] || []).forEach(function (fn) { fn(); });
       delete imgWaiting[key];
     }).then(function () {
-      setTimeout(function () { imgBusy = false; pumpImages(); }, 2500); // Open Food Facts: največ ~10 iskanj na minuto
+      setTimeout(function () { imgBusy = false; pumpImages(); }, 1500);
     });
   }
+  var BAG_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>';
   function thumbFor(it) {
-    var m = CAT_META[it.cat] || CAT_META.Drugo;
-    var box = el("button", { class: "thumb", type: "button", "aria-label": "Slika: " + it.name, style: "background:" + m[1], onclick: function () { openImgPicker(it); } }, [m[0]]);
+    var box = el("button", { class: "thumb", type: "button", "aria-label": "Slika: " + it.name, onclick: function () { openImgPicker(it); } });
+    box.innerHTML = BAG_SVG;
     var key = imgKey(it);
     var paint = function () {
       var c = state.imgCache[key];
-      if (!c || !c.u) return;
-      var img = el("img", { src: c.u, alt: "", loading: "lazy" });
-      img.addEventListener("error", function () { box.innerHTML = ""; box.textContent = m[0]; box.classList.remove("has-img"); });
-      box.textContent = ""; box.appendChild(img); box.classList.add("has-img");
+      if (!c || !c.u) { box.classList.remove("loading"); return; }
+      var img = el("img", { src: c.u, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+      img.addEventListener("error", function () { box.innerHTML = BAG_SVG; box.classList.remove("has-img"); });
+      box.innerHTML = ""; box.appendChild(img); box.classList.add("has-img"); box.classList.remove("loading");
     };
     var c = state.imgCache[key];
-    if (c && (c.u || Date.now() - c.t < 7 * DAY)) { paint(); return box; }
+    if (c && (c.u || (c.v === IMG_V && Date.now() - c.t < 3 * DAY))) { paint(); return box; }
     if (!navigator.onLine) return box;
+    box.classList.add("loading");
     (imgWaiting[key] = imgWaiting[key] || []).push(paint);
     if (imgWaiting[key].length === 1) { imgQueue.push(it); pumpImages(); }
     return box;
@@ -336,23 +391,33 @@
     box.appendChild(el("p", { class: "muted small", text: "Iščem slike …" }));
     $("imgSheet").classList.remove("hidden");
     var pick = function (u) {
-      state.imgCache[key] = { u: u, t: Date.now(), manual: true }; save();
+      state.imgCache[key] = { u: u, t: Date.now(), v: IMG_V, manual: true }; save();
       $("imgSheet").classList.add("hidden");
       renderAll();
     };
-    findImages(it).then(function (list) {
+    var show = function (list) {
       box.innerHTML = "";
       var grid = el("div", { class: "img-grid" });
       list.slice(0, 12).forEach(function (p) {
-        grid.appendChild(el("button", { class: "img-opt", type: "button", title: p.product_name || "", onclick: function () { pick(p.image_front_small_url); } }, [
-          el("img", { src: p.image_front_small_url, alt: p.product_name || "", loading: "lazy" }),
-          el("span", { text: p.product_name || "" })
+        grid.appendChild(el("button", { class: "img-opt", type: "button", title: p.name, onclick: function () { pick(p.url); } }, [
+          el("img", { src: p.url, alt: p.name, loading: "lazy", referrerpolicy: "no-referrer" }),
+          el("span", { text: p.name })
         ]));
       });
-      if (!list.length) box.appendChild(el("p", { class: "muted small", text: navigator.onLine ? "Za ta izdelek ni najdenih slik." : "Ni povezave z internetom." }));
+      if (!list.length) box.appendChild(el("p", { class: "muted small", text: navigator.onLine ? "Ni najdenih slik. Poskusi z drugo besedo spodaj." : "Ni povezave z internetom." }));
       else box.appendChild(grid);
+      var q = el("input", { type: "search", placeholder: "Npr. Kotányi curry", "aria-label": "Išči sliko" });
+      var form = el("form", { class: "row img-search" }, [q, el("button", { class: "primary", type: "submit" }, ["Išči"])]);
+      form.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var t = q.value.trim(); if (!t) return;
+        box.innerHTML = ""; box.appendChild(el("p", { class: "muted small", text: "Iščem slike …" }));
+        Promise.all([offSearch(t), wikiSearch(t)]).then(function (r) { show(r[0].concat(r[1].slice(0, 3))); });
+      });
+      box.appendChild(form);
       box.appendChild(el("button", { class: "ghost full", type: "button", onclick: function () { pick(""); } }, ["Brez slike"]));
-    });
+    };
+    findImages(it).then(show);
   }
 
   function itemRow(it, big, storeCtx) {
@@ -395,7 +460,7 @@
     items.forEach(function (it) {
       if (filter !== "done" && it.cat !== lastCat) {
         var m = CAT_META[it.cat] || CAT_META.Drugo;
-        ul.appendChild(el("li", { class: "cat" }, [el("span", { class: "cat-ico", style: "background:" + m[1] }, [m[0]]), it.cat || "Drugo"]));
+        ul.appendChild(el("li", { class: "cat" }, [el("span", { class: "cat-bar", style: "background:" + m[1] }), it.cat || "Drugo"]));
         lastCat = it.cat;
       }
       ul.appendChild(itemRow(it));
