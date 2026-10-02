@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="format-detection" content="telephone=no">
-  <meta name="theme-color" content="#114c40">
+  <meta name="theme-color" content="#ffffff">
   <meta name="description" content="Nakupovalni seznam, ki prepozna bližnje trgovine, primerja cene in se uči tvojih navad.">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Nakupko">
   <title>Nakupko — nakupovalni seznam</title>
   <link rel="manifest" href="manifest.webmanifest">
@@ -45,7 +45,8 @@
   </header>
 
   <div id="installHint" class="install hidden" role="note">
-    <div><b>Namesti Nakupko</b><br><span class="small">Tapni <span aria-label="Deli">⬆︎ Deli</span> spodaj in nato »Dodaj na začetni zaslon«.</span></div>
+    <div><b>Namesti Nakupko</b><br><span id="installText" class="small">Tapni <span aria-label="Deli">⬆︎ Deli</span> spodaj in nato »Dodaj na začetni zaslon«.</span></div>
+    <button id="installBtn" class="primary hidden" type="button">Namesti</button>
     <button id="installClose" type="button" aria-label="Zapri">×</button>
   </div>
 
@@ -67,13 +68,15 @@
         <div id="brandPick" class="brands hidden"></div>
       </form>
 
+      <div id="tripBox" class="card trip-card hidden"></div>
+
       <div id="recoBox" class="card reco-card hidden">
-        <div class="card-head"><h2>Predlogi zate</h2><span class="tag">glede na tvoje nakupe</span></div>
+        <div class="card-head"><h2>Morda potrebuješ</h2><button id="recoAll" class="mini" type="button">+ Dodaj vse</button></div>
         <ul id="recoList" class="reco"></ul>
       </div>
 
       <div class="card">
-        <div class="card-head"><h2>Hitri izbor</h2><span class="muted small">en dotik in je na seznamu</span></div>
+        <div class="card-head"><h2>Pogosto kupuješ</h2><span class="muted small">en dotik in je na seznamu</span></div>
         <div id="quick" class="chips"></div>
       </div>
 
@@ -136,7 +139,12 @@
       <div class="card">
         <div class="card-head"><h2>Moje trgovine</h2><span class="muted small">po teh računam cene</span></div>
         <div id="prefBox" class="pref-list"></div>
+        <div id="pref2Wrap">
+          <div class="card-head pref2-head"><h2>Druga izbira</h2><span class="muted small">neobvezno</span></div>
+          <div id="pref2Box" class="pref-list"></div>
+        </div>
       </div>
+      <div id="tripBox2" class="card trip-card hidden"></div>
       <div class="card">
         <p class="muted small">Skupna cena tvojega seznama po trgovinah. Cene z * so ocene.</p>
         <ul id="compare" class="compare"></ul>
@@ -200,7 +208,7 @@
       <div class="sheet-grip"></div>
       <img src="icon-full.svg" class="sheet-logo" alt="">
       <h1 id="obTitle">Kje najraje nakupuješ?</h1>
-      <p class="muted">Po tem bo Nakupko računal cene na seznamu. Izbiro lahko kadar koli spremeniš v zavihku Cene.</p>
+      <p id="obText" class="muted">Po tem bo Nakupko računal cene na seznamu. Izbiro lahko kadar koli spremeniš v zavihku Cene.</p>
       <div id="onboardBox" class="pref-list"></div>
     </div>
   </div>
@@ -214,6 +222,7 @@
   <div id="toast" class="toast hidden" role="status"></div>
 
   <script src="products.js"></script>
+  <script src="products-extra.js"></script>
   <script src="prices.js"></script>
   <script src="app.js"></script>
 </body>

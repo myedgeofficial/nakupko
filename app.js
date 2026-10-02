@@ -17,7 +17,7 @@
   var CAT_META = {
     "Sadje in zelenjava": ["🥦", "#E3F3DF"], "Kruh in pecivo": ["🥖", "#F7EBDA"], "Mlečni izdelki": ["🥛", "#E4EEF8"],
     "Meso in ribe": ["🥩", "#F8E3E1"], "Shramba": ["🥫", "#F4E9DC"], "Prigrizki": ["🍫", "#F1E6F4"], "Pijače": ["🥤", "#DFF1F3"],
-    "Zamrznjeno": ["🧊", "#E3ECF8"], "Gospodinjstvo": ["🧽", "#EEF0D9"], "Higiena": ["🧴", "#E9E6F6"], "Tobak": ["🚬", "#ECE7E2"],
+    "Zamrznjeno": ["🧊", "#E3ECF8"], "Gospodinjstvo": ["🧽", "#EEF0D9"], "Higiena": ["🧴", "#E9E6F6"], "Tobak": ["🚬", "#ECE7E2"], "Brez glutena": ["🌾", "#FBEFD9"],
     "Ljubljenčki": ["🐾", "#F6ECDD"], "Drugo": ["🛒", "#E9EEEA"]
   };
   function chainDot(c) { return el("i", { class: "dot", style: "background:" + ((CHAIN_BY_KEY[c] || {}).color || "#999") }); }
@@ -44,7 +44,8 @@
       pricesUpdated: null,
       settings: { locOn: false, radius: 75, delay: 15 },
       storesCache: null,
-      dismissed: {}
+      dismissed: {},
+      dismissN: {}
     };
   }
   function load() {
@@ -177,6 +178,7 @@
         storeId: st ? st.id : null, storeName: st ? st.name : null, chain: st ? st.chain : null
       });
       if (state.history.length > 3000) state.history = state.history.slice(-3000);
+      delete state.dismissN[norm(it.name)]; // kupljeno: predlogi spet po običajnem ritmu
       it.historyTs = state.history[state.history.length - 1].ts;
     } else {
       // razveljavi zapis nakupa
@@ -213,9 +215,17 @@
   };
   function pref() { return PREFS[state.settings.pricePref] || PREFS.all; }
   function pricesOff() { return state.settings.pricePref === "none"; }
+  function pref2() { var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
+  // trgovine, ki jih uporabnik sploh obiskuje (prva + druga izbira); null = vse
+  function myChains() {
+    if (!pref().chains) return null;
+    var l = pref().chains.slice();
+    if (pref2()) pref2().chains.forEach(function (c) { if (l.indexOf(c) < 0) l.push(c); });
+    return l;
+  }
   function compareChains() {
     var list = COMPARE_CHAINS.slice();
-    (pref().chains || []).forEach(function (c) { if (list.indexOf(c) < 0) list.push(c); });
+    (myChains() || []).forEach(function (c) { if (list.indexOf(c) < 0) list.push(c); });
     return list;
   }
   // Cena po izbiri uporabnika: povprečje izbranih trgovin ali najnižja cena.
@@ -426,8 +436,14 @@
       if (days.length < 2) return;
       var gaps = [];
       for (var i = 1; i < days.length; i++) gaps.push(days[i] - days[i - 1]);
-      gaps.sort(function (a, b) { return a - b; });
+      // štejejo zadnji 4 razmiki, da se ob spremembi rutine hitro prilagodi
+      gaps = gaps.slice(-4).sort(function (a, b) { return a - b; });
       var median = gaps[Math.floor(gaps.length / 2)];
+      // dan v tednu: vsaj 3 nakupi in večina na isti dan
+      var recentDays = days.slice(-6), wd = [0, 0, 0, 0, 0, 0, 0];
+      recentDays.forEach(function (d) { wd[new Date(d * DAY + 12 * 3600000).getDay()]++; });
+      var topWd = wd.indexOf(Math.max.apply(null, wd));
+      var weekday = recentDays.length >= 3 && wd[topWd] / recentDays.length >= 0.6 ? topWd : null;
       var last = hs[hs.length - 1];
       var since = (Date.now() - last.ts) / DAY;
       var dom = hs.map(function (h) { return new Date(h.ts).getDate(); });
@@ -435,25 +451,34 @@
       var domSd = Math.sqrt(dom.reduce(function (a, b) { return a + (b - domMean) * (b - domMean); }, 0) / dom.length);
       out.push({
         key: k, name: last.name, brand: last.brand, count: hs.length, interval: Math.max(1, median),
-        since: since, domMean: Math.round(domMean), monthly: hs.length >= 3 && domSd <= 3 && median >= 20,
+        since: since, domMean: Math.round(domMean), monthly: hs.length >= 3 && domSd <= 3 && median >= 20, weekday: weekday,
         store: usualStoreInfo(last.name)
       });
     });
     return out;
   }
+  var WEEKDAYS = ["ob nedeljah", "ob ponedeljkih", "ob torkih", "ob sredah", "ob četrtkih", "ob petkih", "ob sobotah"];
+  function agoDays(d) { d = Math.floor(d); return d <= 0 ? "manj kot dnevom" : d === 1 ? "1 dnevom" : d + " dnevi"; }
   function recommendations(storeCtx) {
     var openKeys = state.items.filter(function (i) { return !i.done; }).map(function (i) { return norm(i.name); });
     var today = new Date().getDate();
+    var wdNow = new Date().getDay(), wdNext = (wdNow + 1) % 7;
     var res = [];
     habits().forEach(function (h) {
       if (openKeys.indexOf(h.key) >= 0) return;
+      // vsak »Ne« podaljša čakanje, dokler izdelka spet ne kupiš
+      var nDis = state.dismissN[h.key] || 0;
       var dis = state.dismissed[h.key];
-      if (dis && Date.now() - dis < Math.max(1, h.interval / 3) * DAY) return;
+      if (dis && Date.now() - dis < Math.max(1, h.interval / 3) * (1 + nDis) * DAY) return;
+      var interval = h.interval * (1 + 0.5 * nDis);
       var reason = null, score = 0;
       if (h.monthly && Math.abs(today - h.domMean) <= 2 && h.since > 15) {
         reason = "Običajno kupiš okoli " + h.domMean + ". v mesecu"; score = 3;
-      } else if (h.since >= h.interval * 0.85) {
-        reason = "Kupiš vsakih ~" + Math.round(h.interval) + " dni, zadnjič pred " + Math.floor(h.since) + " dnevi"; score = 2 + h.since / h.interval;
+      } else if (h.weekday != null && (h.weekday === wdNow || h.weekday === wdNext) && h.since >= Math.min(4, interval * 0.6)) {
+        reason = "Običajno kupiš " + WEEKDAYS[h.weekday] + (h.weekday === wdNext ? " (jutri)" : ""); score = 3 + (h.weekday === wdNow ? 0.5 : 0);
+      } else if (h.since >= interval * 0.85) {
+        reason = (interval >= 5 && interval <= 9 ? "Kupiš ga vsak teden" : "Kupiš ga vsakih ~" + Math.round(interval) + " dni") + ", zadnjič pred " + agoDays(h.since);
+        score = 2 + h.since / interval;
       }
       if (storeCtx && h.store && (h.store.storeId === storeCtx.id || h.store.chain === storeCtx.chain)) {
         if (reason) { reason += " · tu ga običajno kupiš"; score += 2; }
@@ -470,7 +495,7 @@
       ul.appendChild(el("li", null, [
         el("div", null, [el("b", { text: r.h.name + (r.h.brand ? " (" + r.h.brand + ")" : "") }), el("small", { text: r.reason })]),
         el("div", { class: "row" }, [
-          el("button", { class: "mini ghosty", type: "button", "aria-label": "Skrij predlog", onclick: function () { state.dismissed[r.h.key] = Date.now(); save(); renderAll(); } }, ["Ne"]),
+          el("button", { class: "mini ghosty", type: "button", "aria-label": "Skrij predlog", onclick: function () { state.dismissed[r.h.key] = Date.now(); state.dismissN[r.h.key] = (state.dismissN[r.h.key] || 0) + 1; save(); renderAll(); } }, ["Ne"]),
           el("button", { class: "mini", type: "button", onclick: function () { addItem(r.h.name, r.h.brand, 1); } }, ["+ Dodaj"])
         ])
       ]));
@@ -480,7 +505,14 @@
   function renderReco() {
     var n = renderRecoInto($("recoList"), currentStore());
     $("recoBox").classList.toggle("hidden", n === 0);
+    $("recoAll").classList.toggle("hidden", n < 2);
   }
+  $("recoAll").addEventListener("click", function () {
+    var recs = recommendations(currentStore());
+    recs.forEach(function (r) { addItem(r.h.name, r.h.brand, 1, { silent: true }); });
+    renderAll();
+    toast("Dodanih " + recs.length + " izdelkov.");
+  });
 
   // ---------- Lokacija in trgovine ----------
   var watchId = null, lastPos = null, stores = [], lastFetchPos = null, fetching = false;
@@ -528,6 +560,7 @@
     if (!lastFetchPos || distM(lastFetchPos, lastPos) > 700 || !stores.length) fetchStores(lastPos);
     evaluateNear();
     renderStores();
+    renderTrip();
   }
 
   var OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
@@ -562,6 +595,7 @@
           save();
           evaluateNear();
           renderStores();
+          renderTrip(true);
         })
         .catch(function () { tryAt(i + 1); });
     };
@@ -748,6 +782,15 @@
       $("heroBest").innerHTML = "";
       if (grp.length > 1) { $("heroBest").appendChild(chainDot(grp[0].c)); $("heroBest").appendChild(document.createTextNode("od teh najceneje " + CHAIN_BY_KEY[grp[0].c].name)); }
       else $("heroBest").textContent = "povprečje izbranih trgovin";
+      if (pref2()) {
+        var t2 = 0, n2 = 0;
+        open.forEach(function (it) {
+          var s = 0, n = 0;
+          pref2().chains.forEach(function (c) { var p = priceFor(it.name, c); if (p.price != null) { s += p.price; n++; } });
+          if (n) { t2 += s / n * (it.qty || 1); n2++; }
+        });
+        if (n2) $("heroBest").appendChild(el("div", { class: "hero-alt", text: pref2().short + " ≈ " + eur(t2) }));
+      }
       return;
     }
     var rows = compareRows(open);
@@ -768,7 +811,7 @@
       ul.appendChild(el("li", { class: i === 0 ? "best" : "" }, [
         el("div", { class: "cmp-row" }, [
           el("span", { class: "cmp-name" }, [chainDot(r.c), CHAIN_BY_KEY[r.c].name, i === 0 ? el("span", { class: "tag ok", text: "najceneje" }) : null,
-            (pref().chains || []).indexOf(r.c) >= 0 ? el("span", { class: "tag", text: "tvoja" }) : null]),
+            (myChains() || []).indexOf(r.c) >= 0 ? el("span", { class: "tag", text: "tvoja" }) : null]),
           el("span", { class: "cmp-sum", text: eur(r.sum) + (i > 0 ? "  +" + eur(r.sum - rows[0].sum) : "") })
         ]),
         el("div", { class: "cmp-track" }, [el("div", { class: "cmp-fill", style: "width:" + Math.max(6, Math.round(r.sum / max * 100)) + "%;background:" + CHAIN_BY_KEY[r.c].color })]),
@@ -857,23 +900,54 @@
   }
 
   // ---------- Izris ----------
-  function renderPrefChoices(box, onPick) {
+  function renderPrefChoices(box, onPick, opts) {
+    opts = opts || {};
     box.innerHTML = "";
-    ["discount", "eurojag", "classic", "all", "none"].forEach(function (k) {
+    var keys = opts.second ? ["discount", "eurojag", "classic"].filter(function (k) { return k !== state.settings.pricePref; }).concat(["skip"])
+      : ["discount", "eurojag", "classic", "all", "none"];
+    var cur = opts.second ? (pref2() ? state.settings.pricePref2 : "skip") : state.settings.pricePref;
+    keys.forEach(function (k) {
+      if (k === "skip") {
+        box.appendChild(el("button", { class: "pref-opt" + (cur === "skip" ? " on" : ""), type: "button", onclick: function () { onPick(null); } }, [
+          el("div", { class: "pref-text" }, [el("b", { text: "Ni druge izbire" }), el("span", { text: "Hodim samo v prve" })])
+        ]));
+        return;
+      }
       var p = PREFS[k];
       var dots = el("span", { class: "pref-dots" }, (p.chains || (k === "all" ? COMPARE_CHAINS : [])).map(chainDot));
       var sub = { discount: "Diskontni trgovini", eurojag: "Ugodni trgovini", classic: "Klasični supermarketi", all: "Primerjam vse in pokažem najnižjo ceno", none: "Brez cen, samo seznam" }[k];
-      box.appendChild(el("button", { class: "pref-opt" + (state.settings.pricePref === k ? " on" : ""), type: "button", onclick: function () { onPick(k); } }, [
+      box.appendChild(el("button", { class: "pref-opt" + (cur === k ? " on" : ""), type: "button", onclick: function () { onPick(k); } }, [
         el("div", { class: "pref-text" }, [el("b", { text: p.label }), el("span", { text: sub })]), dots
       ]));
     });
   }
-  function setPref(k) {
-    state.settings.pricePref = k; save();
-    $("onboard").classList.add("hidden");
+  function renderPrefs() {
     renderPrefChoices($("prefBox"), setPref);
+    $("pref2Wrap").classList.toggle("hidden", !pref().chains);
+    if (pref().chains) renderPrefChoices($("pref2Box"), setPref2, { second: true });
+  }
+  function setPref(k) {
+    var first = !state.settings.pricePref;
+    state.settings.pricePref = k;
+    if (state.settings.pricePref2 === k) state.settings.pricePref2 = null;
+    save();
+    renderPrefs();
     renderAll();
+    // ob prvem zagonu še vprašaj za drugo izbiro
+    if (first && PREFS[k].chains) {
+      $("obTitle").textContent = "Pa druga izbira?";
+      $("obText").textContent = "Kam greš, ko ne greš v " + PREFS[k].short + "? Tako lahko Nakupko predlaga, kdaj se splača obiskati dve bližnji trgovini.";
+      renderPrefChoices($("onboardBox"), function (k2) { setPref2(k2); $("onboard").classList.add("hidden"); }, { second: true });
+      return;
+    }
+    $("onboard").classList.add("hidden");
     toast(k === "none" ? "Cene so skrite." : "Cene računam za: " + PREFS[k].label);
+  }
+  function setPref2(k) {
+    state.settings.pricePref2 = k; save();
+    renderPrefs();
+    renderAll();
+    toast(k ? "Druga izbira: " + PREFS[k].label : "Brez druge izbire.");
   }
   function maybeOnboard() {
     if (state.settings.pricePref) return;
@@ -881,7 +955,110 @@
     $("onboard").classList.remove("hidden");
   }
 
+  // ---------- Ena ali dve trgovini? ----------
+  // Primerja nakup v eni trgovini z nakupom v dveh, ki sta druga ob drugi (do 400 m).
+  var PAIR_MAX = 400, TRIP_MAX = 4000;
+  function tripPlan() {
+    if (pricesOff()) return null;
+    var open = state.items.filter(function (i) { return !i.done; });
+    if (open.length < 2) return null;
+    var ref = lastPos || lastFetchPos;
+    if (!ref || !stores.length) return null;
+    var allowed = myChains();
+    var cand = stores.filter(function (s) { return s.chain && CHAIN_BY_KEY[s.chain] && !/^test\//.test(s.id) && (!allowed || allowed.indexOf(s.chain) >= 0); })
+      .map(function (s) { return { s: s, d: distM(ref, s) }; })
+      .filter(function (x) { return x.d <= TRIP_MAX; })
+      .sort(function (a, b) { return a.d - b.d; }).slice(0, 60);
+    if (!cand.length) return { none: true };
+    var price = {}, cost = {};
+    cand.forEach(function (x) {
+      var c = x.s.chain;
+      if (cost[c] != null) return;
+      price[c] = open.map(function (it) { var p = priceFor(it.name, c); return p.price == null ? null : p.price * (it.qty || 1); });
+      cost[c] = price[c].reduce(function (a, v) { return a + (v || 0); }, 0);
+    });
+    // ena trgovina: najbližja, razen če je druga občutno cenejša
+    var nearest = cand[0];
+    var cheapest = cand.slice().sort(function (a, b) { return cost[a.s.chain] - cost[b.s.chain] || a.d - b.d; })[0];
+    var diff = cost[nearest.s.chain] - cost[cheapest.s.chain];
+    var single = diff >= Math.max(1.5, cost[nearest.s.chain] * 0.05) ? cheapest : nearest;
+    var singleCost = cost[single.s.chain];
+    // dve trgovini, ki sta skupaj
+    var pairCost = {}, best = null;
+    for (var i = 0; i < cand.length; i++) {
+      for (var j = i + 1; j < cand.length; j++) {
+        var a = cand[i], b = cand[j];
+        if (a.s.chain === b.s.chain) continue;
+        var gap = distM(a.s, b.s);
+        if (gap > PAIR_MAX) continue;
+        var key = [a.s.chain, b.s.chain].sort().join("+");
+        if (pairCost[key] == null) {
+          var pa = price[a.s.chain], pb = price[b.s.chain];
+          pairCost[key] = pa.reduce(function (sum, v, k) { var w = pb[k]; return sum + (v == null ? (w || 0) : w == null ? v : Math.min(v, w)); }, 0);
+        }
+        var far = Math.max(a.d, b.d);
+        if (!best || pairCost[key] < best.cost - 0.01 || (Math.abs(pairCost[key] - best.cost) <= 0.01 && far < best.far)) best = { a: a, b: b, gap: gap, cost: pairCost[key], far: far };
+      }
+    }
+    var plan = { single: single, singleCost: singleCost, nearest: nearest, nearestCost: cost[nearest.s.chain], items: open };
+    if (best) {
+      var saving = singleCost - best.cost;
+      plan.pair = best; plan.saving = saving;
+      plan.split = saving >= Math.max(2, singleCost * 0.08);
+      if (plan.split) {
+        var pa2 = price[best.a.s.chain], pb2 = price[best.b.s.chain];
+        plan.listA = []; plan.listB = [];
+        open.forEach(function (it, k) { var v = pa2[k], w = pb2[k]; ((w != null && (v == null || w < v)) ? plan.listB : plan.listA).push(it.name); });
+      }
+    }
+    return plan;
+  }
+  function mapsLink(s) { return "https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lon; }
+  function storeLabel(x) { return el("span", { class: "trip-store" }, [chainDot(x.s.chain), CHAIN_BY_KEY[x.s.chain].name, el("small", { text: " " + fmtDist(x.d) })]); }
+  function renderTripInto(box) {
+    var plan = tripPlan();
+    box.innerHTML = "";
+    if (!plan) { box.classList.add("hidden"); return; }
+    box.classList.remove("hidden");
+    box.appendChild(el("div", { class: "card-head" }, [el("h2", { text: "Kam po nakup?" }), el("span", { class: "tag", text: "glede na tvojo lokacijo" })]));
+    if (plan.none) { box.appendChild(el("p", { class: "muted small", text: "V bližini ni tvojih trgovin." })); return; }
+    if (plan.split) {
+      var p = plan.pair;
+      box.appendChild(el("div", { class: "trip-main split" }, [
+        el("div", { class: "trip-title", text: "Splača se iti v dve trgovini" }),
+        el("div", { class: "trip-stores" }, [storeLabel(p.a), el("b", { text: "+" }), storeLabel(p.b)]),
+        el("div", { class: "trip-sub", text: "Sta " + fmtDist(p.gap) + " narazen. Prihraniš ≈ " + eur(plan.saving) + " (" + eur(p.cost) + " namesto " + eur(plan.singleCost) + " samo v trgovini " + CHAIN_BY_KEY[plan.single.s.chain].name + ")." })
+      ]));
+      var lists = el("div", { class: "trip-lists" }, [
+        el("div", null, [el("b", { text: CHAIN_BY_KEY[p.a.s.chain].name + ": " }), plan.listA.join(", ") || "–"]),
+        el("div", null, [el("b", { text: CHAIN_BY_KEY[p.b.s.chain].name + ": " }), plan.listB.join(", ") || "–"])
+      ]);
+      box.appendChild(lists);
+      box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(p.a.d <= p.b.d ? p.a.s : p.b.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
+      return;
+    }
+    var s = plan.single;
+    var sub = "Celoten seznam ≈ " + eur(plan.singleCost) + ".";
+    if (s !== plan.nearest) sub += " Najbližja " + CHAIN_BY_KEY[plan.nearest.s.chain].name + " bi bila ≈ " + eur(plan.nearestCost - plan.singleCost) + " dražja.";
+    if (plan.pair) sub += plan.saving > 0.05 ? " Dve trgovini bi prihranili le " + eur(plan.saving) + ", ne splača se." : " Druga trgovina ne bi nič prihranila.";
+    else sub += " Dveh tvojih trgovin skupaj ni v bližini.";
+    box.appendChild(el("div", { class: "trip-main" }, [
+      el("div", { class: "trip-title", text: "Pojdi v eno trgovino" }),
+      el("div", { class: "trip-stores" }, [storeLabel(s)]),
+      el("div", { class: "trip-sub", text: sub })
+    ]));
+    box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(s.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
+  }
+  var tripPos = null;
+  function renderTrip(force) {
+    if (!force && lastPos && tripPos && distM(tripPos, lastPos) < 150) return;
+    tripPos = lastPos;
+    renderTripInto($("tripBox"));
+    renderTripInto($("tripBox2"));
+  }
+
   function renderAll() {
+    renderTrip(true);
     renderHero();
     renderList();
     renderQuick();
@@ -1015,13 +1192,33 @@
   var standalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
   if (standalone) document.documentElement.classList.add("standalone");
   var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var isAndroid = /android/i.test(navigator.userAgent);
   if (!standalone && isIOS && !state.settings.installHintClosed) $("installHint").classList.remove("hidden");
+  if (!standalone && isAndroid && !state.settings.installHintClosed) {
+    $("installText").textContent = "V Chromu tapni ⋮ zgoraj desno in nato »Namesti aplikacijo« ali »Dodaj na začetni zaslon«.";
+    $("installHint").classList.remove("hidden");
+  }
+  // Android/Chrome: pravi gumb za namestitev
+  var installEvt = null;
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault(); installEvt = e;
+    if (state.settings.installHintClosed) return;
+    $("installText").textContent = "Dodaj Nakupko na začetni zaslon in ga odpiraj kot aplikacijo.";
+    $("installBtn").classList.remove("hidden");
+    $("installHint").classList.remove("hidden");
+  });
+  $("installBtn").addEventListener("click", function () {
+    if (!installEvt) return;
+    installEvt.prompt();
+    installEvt.userChoice.then(function () { installEvt = null; $("installHint").classList.add("hidden"); });
+  });
+  window.addEventListener("appinstalled", function () { $("installHint").classList.add("hidden"); toast("Nakupko je nameščen."); });
   $("installClose").addEventListener("click", function () {
     $("installHint").classList.add("hidden"); state.settings.installHintClosed = true; save();
   });
 
   // ---------- Zagon ----------
-  renderPrefChoices($("prefBox"), setPref);
+  renderPrefs();
   maybeOnboard();
   priceKeysClean();
   renderAll();
@@ -1037,5 +1234,5 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange };
+  window.__nakupko = { state: function () { return state; }, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
 })();
