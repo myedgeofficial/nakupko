@@ -349,3 +349,5 @@ textarea { width: 100%; margin: 10px 0; }
 .img-opt img { width: 100%; aspect-ratio: 1; object-fit: contain; }
 .img-opt span { font-size: 11px; color: var(--muted); line-height: 1.2; max-height: 2.4em; overflow: hidden; text-align: center; }
 .cat-bar { width: 4px; height: 16px; border-radius: 2px; filter: saturate(2.2) brightness(.85); }
+.thumb.has-img { padding: 0; }
+.thumb.raw img { object-fit: cover; }

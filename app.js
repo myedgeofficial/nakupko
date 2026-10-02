@@ -263,7 +263,7 @@
   // ---------- Slike izdelkov (Open Food Facts + Wikipedija) ----------
   // Telefon sliko poišče sam ob prvem prikazu in si jo zapomni. Tap na sliko = izberi drugo.
   // Pakirani izdelki: Open Food Facts (prave fotografije embalaže). Sadje, zelenjava in brez zadetka: slovenska Wikipedija.
-  var IMG_V = 2;
+  var IMG_V = 3;
   var OFF_FIELDS = "code,product_name,brands,image_front_small_url";
   var imgQueue = [], imgBusy = false, imgWaiting = {};
   function imgBrand(it) {
@@ -350,17 +350,117 @@
       : off(0).then(function () { if (!out.length) return wiki(); });
     return chain.then(function () { return out; }, function () { return out; });
   }
+  // ---------- Izrez izdelka iz ozadja ----------
+  // Ozadje (enotna barva ob robovih) pobarva belo, izdelek obreže in postavi na sredino.
+  // Če ozadje ni enotno (fotografija), sliko samo lepo obreže. Rezultat shrani v telefon.
+  var IMG_STORE = "nakupko-img";
+  var imgData = (function () { try { return JSON.parse(localStorage.getItem(IMG_STORE) || "{}"); } catch (e) { return {}; } })();
+  function saveImgData() {
+    var keys = Object.keys(imgData);
+    if (keys.length > 400) keys.sort(function (x, y) { return imgData[x].t - imgData[y].t; }).slice(0, keys.length - 400).forEach(function (k) { delete imgData[k]; });
+    try { localStorage.setItem(IMG_STORE, JSON.stringify(imgData)); } catch (e) { imgData = {}; try { localStorage.removeItem(IMG_STORE); } catch (e2) { /* nič */ } }
+  }
+  function loadImage(url) {
+    return new Promise(function (res, rej) {
+      var im = new Image();
+      im.crossOrigin = "anonymous";
+      im.referrerPolicy = "no-referrer";
+      im.onload = function () { res(im); };
+      im.onerror = rej;
+      im.src = url;
+    });
+  }
+  var OUT = 128;
+  function cutout(url) {
+    return loadImage(url).then(function (im) {
+      var sc = Math.min(1, 180 / Math.max(im.naturalWidth, im.naturalHeight));
+      var w = Math.max(1, Math.round(im.naturalWidth * sc)), h = Math.max(1, Math.round(im.naturalHeight * sc));
+      var cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+      var cx = cv.getContext("2d");
+      cx.fillStyle = "#fff"; cx.fillRect(0, 0, w, h); // prozorne slike na belo
+      cx.drawImage(im, 0, 0, w, h);
+      var id = cx.getImageData(0, 0, w, h), px = id.data; // vrže napako, če strežnik ne dovoli (ni CORS)
+      // barva ozadja = mediana robnih točk
+      var border = [];
+      for (var x = 0; x < w; x++) { border.push(x, x + (h - 1) * w); }
+      for (var y = 1; y < h - 1; y++) { border.push(y * w, y * w + w - 1); }
+      var med = [0, 1, 2].map(function (ch) { var v = border.map(function (i) { return px[i * 4 + ch]; }).sort(function (p, q) { return p - q; }); return v[v.length >> 1]; });
+      var dist = function (i) { var dr = px[i * 4] - med[0], dg = px[i * 4 + 1] - med[1], db = px[i * 4 + 2] - med[2]; return Math.sqrt(dr * dr + dg * dg + db * db); };
+      var uniform = border.filter(function (i) { return dist(i) < 40; }).length / border.length;
+      var out = document.createElement("canvas"); out.width = OUT; out.height = OUT;
+      var ox = out.getContext("2d");
+      ox.fillStyle = "#fff"; ox.fillRect(0, 0, OUT, OUT);
+      var clean = false;
+      if (uniform >= 0.7) {
+        // poplavno polnjenje od robov: vse, kar je podobno ozadju in povezano z robom
+        var bg = new Uint8Array(w * h), stack = [];
+        border.forEach(function (i) { if (!bg[i] && dist(i) < 46) { bg[i] = 1; stack.push(i); } });
+        while (stack.length) {
+          var i = stack.pop(), xx = i % w;
+          var nb = [xx > 0 ? i - 1 : -1, xx < w - 1 ? i + 1 : -1, i - w, i + w];
+          for (var k = 0; k < 4; k++) { var n = nb[k]; if (n >= 0 && n < w * h && !bg[n] && dist(n) < 46) { bg[n] = 1; stack.push(n); } }
+        }
+        var minX = w, minY = h, maxX = -1, maxY = -1, fg = 0;
+        for (var j = 0; j < w * h; j++) {
+          if (bg[j]) { px[j * 4] = px[j * 4 + 1] = px[j * 4 + 2] = 255; continue; }
+          fg++; var jx = j % w, jy = (j / w) | 0;
+          if (jx < minX) minX = jx; if (jx > maxX) maxX = jx; if (jy < minY) minY = jy; if (jy > maxY) maxY = jy;
+        }
+        var share = fg / (w * h);
+        if (maxX >= 0 && share > 0.04 && share < 0.97) {
+          // mehak rob: točke ob ozadju malo posvetli
+          for (var m = 0; m < w * h; m++) {
+            if (bg[m]) continue;
+            var mx = m % w;
+            if ((mx > 0 && bg[m - 1]) || (mx < w - 1 && bg[m + 1]) || (m >= w && bg[m - w]) || (m + w < w * h && bg[m + w])) {
+              for (var c2 = 0; c2 < 3; c2++) px[m * 4 + c2] = Math.round(px[m * 4 + c2] * 0.6 + 255 * 0.4);
+            }
+          }
+          cx.putImageData(id, 0, 0);
+          var bw = maxX - minX + 1, bh = maxY - minY + 1, pad = OUT * 0.08;
+          var s2 = Math.min((OUT - 2 * pad) / bw, (OUT - 2 * pad) / bh);
+          ox.imageSmoothingQuality = "high";
+          ox.drawImage(cv, minX, minY, bw, bh, (OUT - bw * s2) / 2, (OUT - bh * s2) / 2, bw * s2, bh * s2);
+          clean = true;
+        }
+      }
+      if (!clean) {
+        // fotografija: obreži na kvadrat (sredina)
+        var side = Math.min(w, h);
+        ox.drawImage(cv, (w - side) / 2, (h - side) / 2, side, side, 0, 0, OUT, OUT);
+      }
+      return { d: out.toDataURL("image/jpeg", 0.86), clean: clean };
+    });
+  }
+  // izberi prvo sliko z enotnim ozadjem (lep izrez); sicer prvo, ki se da obdelati
+  function bestCutout(list) {
+    var tried = 0, fallback = null;
+    var next = function (i) {
+      if (i >= list.length || tried >= 4) return Promise.resolve(fallback);
+      tried++;
+      return cutout(list[i].url).then(function (r) {
+        r.u = list[i].url;
+        if (r.clean) return r;
+        if (!fallback) fallback = r;
+        return next(i + 1);
+      }, function () { return next(i + 1); });
+    };
+    return next(0);
+  }
   function pumpImages() {
     if (imgBusy || !imgQueue.length) return;
     var it = imgQueue.shift(), key = imgKey(it);
     imgBusy = true;
     findImages(it).then(function (list) {
-      state.imgCache[key] = { u: list.length ? list[0].url : "", t: Date.now(), v: IMG_V };
-      save();
+      return bestCutout(list).then(function (r) {
+        state.imgCache[key] = { u: r ? r.u : (list.length ? list[0].url : ""), t: Date.now(), v: IMG_V, raw: !r && list.length > 0 };
+        if (r) { imgData[key] = { d: r.d, t: Date.now() }; saveImgData(); }
+        save();
+      });
+    }).then(function () {
       (imgWaiting[key] || []).forEach(function (fn) { fn(); });
       delete imgWaiting[key];
-    }).then(function () {
-      setTimeout(function () { imgBusy = false; pumpImages(); }, 1500);
+      setTimeout(function () { imgBusy = false; pumpImages(); }, 1200);
     });
   }
   var BAG_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>';
@@ -369,18 +469,29 @@
     box.innerHTML = BAG_SVG;
     var key = imgKey(it);
     var paint = function () {
-      var c = state.imgCache[key];
-      if (!c || !c.u) { box.classList.remove("loading"); return; }
-      var img = el("img", { src: c.u, alt: "", loading: "lazy", referrerpolicy: "no-referrer" });
+      var c = state.imgCache[key], d = imgData[key];
+      box.classList.remove("loading");
+      if (!c || !c.u) return;
+      var img = el("img", { src: d ? d.d : c.u, alt: "", referrerpolicy: "no-referrer" });
       img.addEventListener("error", function () { box.innerHTML = BAG_SVG; box.classList.remove("has-img"); });
-      box.innerHTML = ""; box.appendChild(img); box.classList.add("has-img"); box.classList.remove("loading");
+      box.innerHTML = ""; box.appendChild(img); box.classList.add("has-img");
+      if (!d) box.classList.add("raw");
     };
     var c = state.imgCache[key];
-    if (c && (c.u || (c.v === IMG_V && Date.now() - c.t < 3 * DAY))) { paint(); return box; }
+    // stare slike brez izreza obdelaj znova
+    var fresh = c && c.v === IMG_V && (imgData[key] || c.raw || !c.u) && (c.u || Date.now() - c.t < 3 * DAY);
+    if (fresh || (c && c.manual && !c.u)) { paint(); return box; }
+    if (c && c.u && !navigator.onLine) { paint(); return box; }
     if (!navigator.onLine) return box;
     box.classList.add("loading");
     (imgWaiting[key] = imgWaiting[key] || []).push(paint);
-    if (imgWaiting[key].length === 1) { imgQueue.push(it); pumpImages(); }
+    if (imgWaiting[key].length === 1) {
+      if (c && c.manual && c.u) {
+        // ročno izbrana slika: samo izreži
+        cutout(c.u).then(function (r) { imgData[key] = { d: r.d, t: Date.now() }; saveImgData(); }, function () { state.imgCache[key].raw = true; })
+          .then(function () { state.imgCache[key].v = IMG_V; save(); (imgWaiting[key] || []).forEach(function (fn) { fn(); }); delete imgWaiting[key]; });
+      } else { imgQueue.push(it); pumpImages(); }
+    }
     return box;
   }
   function openImgPicker(it) {
@@ -392,8 +503,11 @@
     $("imgSheet").classList.remove("hidden");
     var pick = function (u) {
       state.imgCache[key] = { u: u, t: Date.now(), v: IMG_V, manual: true }; save();
+      delete imgData[key];
       $("imgSheet").classList.add("hidden");
-      renderAll();
+      var done = function () { saveImgData(); renderAll(); };
+      if (!u) { done(); return; }
+      cutout(u).then(function (r) { imgData[key] = { d: r.d, t: Date.now() }; }, function () { state.imgCache[key].raw = true; save(); }).then(done);
     };
     var show = function (list) {
       box.innerHTML = "";
