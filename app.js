@@ -632,8 +632,10 @@
   }
 
   // ---------- Način »V trgovini« ----------
+  var storeModeOpenedAt = 0;
   function openStoreMode(store) {
     activeStore = store || lastNearStore || null;
+    storeModeOpenedAt = Date.now();
     $("smTitle").textContent = activeStore ? activeStore.name : "Nakupovanje";
     $("storeMode").classList.remove("hidden");
     $("detectBar").classList.add("hidden");
@@ -652,7 +654,8 @@
     var ul = $("smList");
     ul.innerHTML = "";
     var open = state.items.filter(function (i) { return !i.done; });
-    var done = state.items.filter(function (i) { return i.done && i.doneAt && Date.now() - i.doneAt < 6 * 3600000; });
+    // kupljeno pokažemo samo, če je bilo odkljukano zdaj v trgovini (da lahko razveljaviš)
+    var done = state.items.filter(function (i) { return i.done && i.doneAt && i.doneAt >= storeModeOpenedAt; });
     open.concat(done).forEach(function (it) { ul.appendChild(itemRow(it, true, activeStore)); });
     $("smEmpty").classList.toggle("hidden", open.length > 0);
     renderRecoInto($("smReco"), activeStore);
