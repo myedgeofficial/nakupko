@@ -165,13 +165,16 @@ if (results.length < 50) {
 }
 
 // --- združi s starimi (trgovina brez nove cene obdrži staro) ---
+const seenStores = new Set(results.flatMap((r) => Object.keys(r.cene)));
 const map = new Map();
 for (const e of old.izdelki || []) map.set(norm(e.ime), { ime: e.ime, cene: { ...e.cene } });
 let changed = 0;
 for (const r of results) {
   const k = norm(r.ime);
   const prev = map.get(k) || { ime: r.ime, cene: {} };
-  const next = { ime: r.ime, cene: { ...prev.cene, ...r.cene } };
+  // stare cene ostanejo le za trgovine, ki jih vir nocoj sploh ni vrnil (izpad); sicer veljajo samo sveže
+  const keep = Object.fromEntries(Object.entries(prev.cene).filter(([st]) => !seenStores.has(st)));
+  const next = { ime: r.ime, cene: { ...keep, ...r.cene } };
   if (r.akcija.length) next.akcija = r.akcija;
   if (JSON.stringify(prev.cene) !== JSON.stringify(next.cene) || JSON.stringify(prev.akcija || []) !== JSON.stringify(next.akcija || [])) changed++;
   map.set(k, next);
