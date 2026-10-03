@@ -57,6 +57,40 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "geo.groups") }
     }
+    // Skupen seznam (household.js): ob prihodu v trgovino preberemo najnovejši seznam s strežnika.
+    private var household: (url: String, code: String)? {
+        get {
+            guard let u = defaults.string(forKey: "geo.hh.url"), let c = defaults.string(forKey: "geo.hh.code"), !u.isEmpty, !c.isEmpty else { return nil }
+            return (u, c)
+        }
+        set { defaults.set(newValue?.url, forKey: "geo.hh.url"); defaults.set(newValue?.code, forKey: "geo.hh.code") }
+    }
+    private static let categories: [(String, String)] = [
+        ("Sadje in zelenjava", "🥦"), ("Kruh in pecivo", "🥖"), ("Mlečni izdelki", "🥛"), ("Meso in ribe", "🥩"),
+        ("Shramba", "🥫"), ("Brez glutena", "🌾"), ("Prigrizki", "🍫"), ("Pijače", "🥤"), ("Zamrznjeno", "🧊"),
+        ("Otroci", "🍼"), ("Gospodinjstvo", "🧽"), ("Higiena", "🧴"), ("Zdravje", "💊"), ("Tobak", "🚬"),
+        ("Ljubljenčki", "🐾"), ("Drugo", "🛒")
+    ]
+    // Enako kot groupsOf() v native.js: odprti izdelki po oddelkih.
+    static func groupsOf(items: [[String: Any]]) -> [ItemGroup] {
+        var by: [String: [[String: Any]]] = [:]
+        for i in items where (i["done"] as? Bool) != true {
+            guard let name = i["name"] as? String, !name.isEmpty else { continue }
+            var c = (i["cat"] as? String) ?? "Drugo"
+            if !categories.contains(where: { $0.0 == c }) { c = "Drugo" }
+            by[c, default: []].append(i)
+        }
+        return categories.compactMap { cat, icon in
+            guard let list = by[cat] else { return nil }
+            let labels = list.sorted { (($0["name"] as? String) ?? "").localizedCompare(($1["name"] as? String) ?? "") == .orderedAscending }.map { i -> String in
+                let qty = (i["qty"] as? NSNumber)?.intValue ?? 1
+                let brand = (i["brand"] as? String) ?? ""
+                return (qty > 1 ? "\(qty)× " : "") + ((i["name"] as? String) ?? "") + (brand.isEmpty ? "" : " (\(brand))")
+            }
+            return ItemGroup(icon: icon, name: cat, items: labels)
+        }
+    }
+
     // Trgovina iz obvestila, ki ga je uporabnik tapnil (native.js takoj odpre nakupovanje).
     var pendingStoreId: String?
     private var shoppingFrom: CLLocation?
@@ -98,9 +132,10 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         if enabled { startBackgroundMonitoring() }
     }
 
-    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup]) {
+    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup], household hh: (url: String, code: String)?) {
         radius = r
         groups = open
+        household = hh
         if !list.isEmpty {
             stores = list
             if let loc = manager.location { lastFetch = lastFetch ?? loc }
@@ -241,9 +276,32 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     private func notifyEntered(regionId: String) {
+        guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups) }
+        // Partner je morda kaj dodal, medtem ko je bila aplikacija zaprta: preberemo skupen seznam.
+        let app = UIApplication.shared
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+        var req = URLRequest(url: url)
+        req.timeoutInterval = 6
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                var open = self.groups
+                if let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    open = Self.groupsOf(items: obj.values.compactMap { $0 as? [String: Any] })
+                    self.groups = open
+                } else if let data = data, String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
+                    open = []
+                }
+                self.showStoreNotification(regionId: regionId, open: open)
+                app.endBackgroundTask(task)
+            }
+        }.resume()
+    }
+
+    private func showStoreNotification(regionId: String, open: [ItemGroup]) {
         let id = String(regionId.dropFirst(storePrefix.count))
         guard enabled, let store = stores.first(where: { $0.id == id }) else { return }
-        let open = groups
         let count = open.reduce(0) { $0 + $1.items.count }
         guard count > 0 else { return }
         if UIApplication.shared.applicationState == .active { return } // odprta aplikacija to pokaže sama
@@ -418,8 +476,10 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
             return GeoStore(id: id, name: (s["name"] as? String) ?? "Trgovina", lat: lat, lon: lon,
                             chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String)
         }
+        var hh: (url: String, code: String)?
+        if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String { hh = (u, c) }
         DispatchQueue.main.async {
-            GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups)
+            GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups, household: hh)
             call.resolve()
         }
     }

@@ -99,7 +99,7 @@
     if (!api || !api.state) return;
     var s = api.state();
     var on = !!(s.settings && s.settings.locOn);
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [] };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.

@@ -86,6 +86,7 @@
   function save() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
     catch (e) { toast("Shranjevanje ni uspelo (poln pomnilnik brskalnika)."); }
+    if (window.__nakupkoAfterSave) window.__nakupkoAfterSave(); // skupen seznam (household.js)
   }
 
   // ---------- Pomočniki ----------
@@ -1461,5 +1462,5 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
+  window.__nakupko = { state: function () { return state; }, setItems: function (l) { state.items = l; save(); renderAll(); }, toast: toast, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
 })();
