@@ -127,6 +127,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count]
     }
 
+    func requestAlways() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        if manager.authorizationStatus == .notDetermined { manager.requestWhenInUseAuthorization() }
+        else { manager.requestAlwaysAuthorization() }
+    }
+
     private func requestPermissions() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         switch manager.authorizationStatus {
@@ -374,7 +380,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "shopping", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePendingStore", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -453,6 +460,11 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.resolve(st)
             }
         }
+    }
+
+    // Sistemsko vprašanje »Spremeni v Vedno dovoli« (iOS ga pokaže samo enkrat).
+    @objc func requestAlways(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { GeoManager.shared.requestAlways(); call.resolve() }
     }
 
     // Odpre Nastavitve → Nakupko (lokacija »Vedno«, obvestila).

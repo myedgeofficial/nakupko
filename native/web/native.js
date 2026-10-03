@@ -148,41 +148,86 @@
   if (window.MutationObserver) new MutationObserver(syncZoom).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("load", syncZoom);
 
-  // Stanje spremljanja v ozadju pod stikalom za lokacijo: kaj iPhone še potrebuje.
+  // Brez lokacije »Vedno« aplikacija v ozadju ne deluje: celozaslonsko okno z enim gumbom.
+  var isIOS = !Cap.getPlatform || Cap.getPlatform() === "ios";
+  var gateLater = false, askedAlways = false;
+  try { askedAlways = localStorage.getItem("nakupko-asked-always") === "1"; } catch (e) { /* nič */ }
+  function missingOf(s) {
+    var m = [];
+    if (s.authorization !== "always") m.push("Lokacija: <b>Vedno</b>");
+    if (s.precise === false) m.push("Natančna lokacija: <b>vklopljeno</b>");
+    if (!s.notifications) m.push("Obvestila: <b>Dovoli obvestila</b>");
+    return m;
+  }
+  function fixPermissions(s) {
+    // iOS prošnjo za »Vedno« pokaže samo enkrat; potem pomagajo le Nastavitve.
+    if (s.authorization === "whenInUse" && !askedAlways) {
+      askedAlways = true;
+      try { localStorage.setItem("nakupko-asked-always", "1"); } catch (e) { /* nič */ }
+      Geo.requestAlways().catch(function () {});
+      setTimeout(showBackgroundStatus, 2500);
+      return;
+    }
+    Geo.openSettings();
+  }
+  function showGate(s, missing) {
+    var g = document.getElementById("alwaysGate");
+    if (!missing.length || gateLater) { if (g) g.remove(); return; }
+    if (!g) {
+      g = document.createElement("div");
+      g.id = "alwaysGate";
+      g.style.cssText = "position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column;justify-content:center;padding:32px 24px calc(32px + env(safe-area-inset-bottom));text-align:center;color:#1b1b1f;font-size:17px;line-height:1.45";
+      document.body.appendChild(g);
+    }
+    g.innerHTML =
+      '<div style="font-size:56px;margin-bottom:8px">📍</div>' +
+      '<h2 style="margin:0 0 10px;font-size:24px">Vklopi lokacijo »Vedno«</h2>' +
+      '<p style="margin:0 0 18px;color:#5b5b66">Samo tako ti Nakupko pokaže seznam, ko prideš v trgovino, tudi ko je aplikacija zaprta.</p>' +
+      '<div style="background:#f4f1fb;border-radius:16px;padding:14px 16px;margin:0 auto 22px;text-align:left;max-width:340px">' +
+      '<div style="color:#5b5b66;font-size:15px;margin-bottom:6px">Stisni gumb, nato izberi:</div>' +
+      missing.map(function (m) { return '<div style="margin:4px 0">• ' + m + '</div>'; }).join("") +
+      '</div>' +
+      '<button id="gateGo" type="button" style="border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:#8A3FFC;color:#fff;width:100%;max-width:340px;margin:0 auto">Vklopi zdaj</button>' +
+      '<button id="gateLater" type="button" style="border:0;background:none;color:#8a8a96;padding:16px;font-size:15px;margin-top:6px">Kasneje</button>';
+    document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
+    document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
+  }
   function showBackgroundStatus() {
+    if (!isIOS) return;
     var st = document.getElementById("locStatus");
     var api = window.__nakupko;
-    if (!st || !api || !api.state || !(api.state().settings || {}).locOn) { var old = document.getElementById("bgStatus"); if (old) old.remove(); return; }
+    var on = api && api.state && (api.state().settings || {}).locOn;
+    if (!on) { var old = document.getElementById("bgStatus"); if (old) old.remove(); showGate({}, []); return; }
     Geo.getStatus().then(function (s) {
+      if (s.authorization === "notDetermined") return; // iOS še sprašuje
+      var missing = missingOf(s);
+      showGate(s, missing);
+      if (!st) return;
       var box = document.getElementById("bgStatus");
       if (!box) {
         box = document.createElement("div");
         box.id = "bgStatus";
-        box.className = "small";
         box.style.marginTop = "6px";
         st.parentNode.appendChild(box);
       }
-      var missing = [];
-      if (s.authorization !== "always") missing.push("Lokacija → Vedno");
-      if (s.precise === false) missing.push("Lokacija → Natančna lokacija");
-      if (!s.notifications) missing.push("Obvestila → Dovoli");
       box.textContent = "";
       if (!missing.length) {
         box.className = "small muted";
-        box.textContent = "✓ Deluje tudi, ko je aplikacija zaprta (" + s.regions + " trgovin v bližini).";
+        box.style.color = "";
+        box.textContent = "✓ Deluje tudi, ko je aplikacija zaprta.";
         return;
       }
       box.className = "small";
       box.style.color = "#c0392b";
-      box.appendChild(document.createTextNode("Ko je aplikacija zaprta, ne deluje. Vklopi: " + missing.join(", ") + ". "));
+      box.appendChild(document.createTextNode("Ko je aplikacija zaprta, ne deluje. "));
       var b = document.createElement("button");
-      b.type = "button"; b.className = "link"; b.textContent = "Odpri nastavitve";
-      b.onclick = function () { Geo.openSettings(); };
+      b.type = "button"; b.className = "link"; b.textContent = "Vklopi";
+      b.onclick = function () { gateLater = false; showGate(s, missing); };
       box.appendChild(b);
     }).catch(function () {});
   }
   window.addEventListener("load", function () { setTimeout(showBackgroundStatus, 1500); });
-  setInterval(showBackgroundStatus, 10000);
+  setInterval(showBackgroundStatus, 5000);
 
   // Navodila za dovoljenje naj kažejo na aplikacijo, ne na Safari.
   window.addEventListener("DOMContentLoaded", function () {
