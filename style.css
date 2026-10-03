@@ -193,6 +193,7 @@ input[type=text], input[type=search], textarea {
 .sbody { flex: 1; min-width: 0; }
 .sname { font-weight: 650; overflow-wrap: anywhere; }
 .shours { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.shours.closed { color: #C2410C; font-weight: 600; }
 .sright { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .dist { font-weight: 750; font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 #locStatus { margin: 0 0 12px; }

@@ -108,6 +108,113 @@
     return null;
   }
 
+  // Prikažemo samo prave trgovine: velike verige in dežurne trgovine (Korenček, Betka, Market Ekspres ...).
+  var DUTY_MATCH = /koren[cč]ek|betka|ekspres|de[zž]urn|non ?-?stop/i;
+  function storeKind(text, hours) {
+    var c = chainOf(text);
+    if (c) return c;
+    if (DUTY_MATCH.test(text || "") || /24\/7/.test(hours || "")) return "duty";
+    return null;
+  }
+  function allowedStore(s) { return s && s.id && (s.id.indexOf("test/") === 0 || !!(s.chain || s.duty)); }
+
+  // ---------- Delovni čas ----------
+  // Razume običajen OSM zapis, npr. "Mo-Sa 07:00-21:00; Su off; PH off".
+  var DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  var DAY_SL = ["v nedeljo", "v ponedeljek", "v torek", "v sredo", "v četrtek", "v petek", "v soboto"];
+  function easter(y) {
+    var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25),
+      g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4,
+      l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    var mon = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, mon - 1, day);
+  }
+  // Slovenski dela prosti dnevi (trgovine so po zakonu zaprte).
+  function isHoliday(dt) {
+    var md = (dt.getMonth() + 1) + "-" + dt.getDate();
+    if (["1-1", "1-2", "2-8", "4-27", "5-1", "5-2", "6-25", "8-15", "10-31", "11-1", "12-25", "12-26"].indexOf(md) >= 0) return true;
+    var e = easter(dt.getFullYear()), em = new Date(e.getFullYear(), e.getMonth(), e.getDate() + 1);
+    return dt.getMonth() === em.getMonth() && dt.getDate() === em.getDate();
+  }
+  function parseHours(str) {
+    str = (str || "").trim();
+    if (!str) return null;
+    if (/^24\/7$/.test(str)) return { always: true };
+    var days = {}, ph = null, ok = false;
+    // Pravila so ločena s ";" ali z vejico pred novim naborom dni ("Mo-Fr 07:00-20:00, Sa 07:00-13:00").
+    var raw = str.split(/\s*;\s*|\s*,\s*(?=(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s+(?:\d|off|closed))/), rules = [];
+    for (var q = 0; q < raw.length; q++) {
+      if (/^(?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s*,?\s*)+$/.test(raw[q]) && q + 1 < raw.length) raw[q + 1] = raw[q] + "," + raw[q + 1];
+      else rules.push(raw[q]);
+    }
+    for (var r = 0; r < rules.length; r++) {
+      var m = rules[r].match(/^((?:(?:Mo|Tu|We|Th|Fr|Sa|Su|PH)(?:-(?:Mo|Tu|We|Th|Fr|Sa|Su))?\s*,?\s*)+)\s*(.*)$/);
+      var sel, times;
+      if (m) { sel = m[1]; times = m[2].trim(); }
+      else if (/^\d/.test(rules[r])) { sel = "Mo-Su"; times = rules[r].trim(); }
+      else continue;
+      var spans = [];
+      if (!/^(off|closed)$/i.test(times)) {
+        var parts = times.split(/\s*,\s*/);
+        for (var p = 0; p < parts.length; p++) {
+          var t = parts[p].match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+          if (!t) { spans = null; break; }
+          spans.push([+t[1] * 60 + +t[2], +t[3] * 60 + +t[4]]);
+        }
+        if (!spans) continue;
+      }
+      ok = true;
+      sel.split(/\s*,\s*/).forEach(function (tok) {
+        tok = tok.trim(); if (!tok) return;
+        if (tok === "PH") { ph = spans; return; }
+        var ab = tok.split("-"), a = DAYS.indexOf(ab[0]), b = ab[1] ? DAYS.indexOf(ab[1]) : a;
+        if (a < 0 || b < 0) return;
+        for (var d = a, n = 0; n < 7; d = (d + 1) % 7, n++) { days[d] = spans; if (d === b) break; }
+      });
+    }
+    return ok ? { days: days, ph: ph } : null;
+  }
+  // Če trgovina urnika nima vpisanega: verige so ob nedeljah in praznikih zaprte, sicer predpostavimo, da je odprto.
+  var CHAIN_DEFAULT_HOURS = "Mo-Sa 07:00-21:00; Su off; PH off";
+  function spansFor(s, dt) {
+    var h = parseHours(s.hours || (s.chain ? CHAIN_DEFAULT_HOURS : ""));
+    if (h && h.always) return [[0, 1440]];
+    var hol = isHoliday(dt), dow = dt.getDay();
+    if (h) {
+      if (hol && h.ph !== null) return h.ph;
+      if (hol && s.chain) return [];
+      return h.days.hasOwnProperty(dow) ? h.days[dow] : [];
+    }
+    return null;
+  }
+  // Vrne {open: true/false/null, text: "Odprto do 21:00" | "Zaprto · odpre ob 7:30"}.
+  function hm(m) { return Math.floor(m / 60) + ":" + ("0" + (m % 60)).slice(-2); }
+  function openState(s, now) {
+    var r = openState0(s, now);
+    // Za verige brez vpisanega urnika uporabimo običajni delovni čas.
+    if (s.chain && !s.hours && r.open !== null) r.text += " (okvirno)";
+    return r;
+  }
+  function openState0(s, now) {
+    now = now || new Date();
+    var spans = spansFor(s, now);
+    if (spans === null) return { open: null, text: s.hours || "Urnik ni znan" };
+    var mins = now.getHours() * 60 + now.getMinutes();
+    for (var i = 0; i < spans.length; i++) {
+      var a = spans[i][0], b = spans[i][1];
+      if (b <= a) b += 1440;
+      if (mins >= a && mins < b) return { open: true, text: b - a >= 1440 ? "Odprto 24 ur" : "Odprto do " + hm(b % 1440) };
+    }
+    // Kdaj se odpre?
+    for (var k = 0; k < 8; k++) {
+      var dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + k);
+      var sp = spansFor(s, dt) || [];
+      var starts = sp.map(function (x) { return x[0]; }).filter(function (x) { return k > 0 || x > mins; }).sort(function (x, y) { return x - y; });
+      if (starts.length) return { open: false, text: "Zaprto · odpre " + (k === 0 ? "ob " : k === 1 ? "jutri ob " : DAY_SL[dt.getDay()] + " ob ") + hm(starts[0]) };
+    }
+    return { open: false, text: "Zaprto" };
+  }
+
   // ---------- Cene ----------
   // Vrne {price, est} za izdelek v verigi. Uvožene cene imajo prednost; če za verigo ni cene,
   // vzamemo povprečje uvoženih cen drugih trgovin; sicer oceno iz kataloga.
@@ -538,7 +645,11 @@
   var nearState = { id: null, since: 0 }, lastNearStore = null, activeStore = null, countdownTimer = null;
 
   if (state.storesCache && state.storesCache.list) {
-    stores = state.storesCache.list;
+    // Stari predpomnilnik je lahko vseboval tudi druge trgovine.
+    stores = state.storesCache.list.filter(function (s) {
+      if (s.duty === undefined) { s.duty = !s.chain && storeKind(s.name, s.hours) === "duty"; }
+      return allowedStore(s);
+    });
     lastFetchPos = state.storesCache.pos;
   }
 
@@ -605,9 +716,11 @@
             var lon = e.lon != null ? e.lon : (e.center && e.center.lon);
             if (lat == null || lon == null) return null;
             var nm = t.name || t.brand || t.operator || "Trgovina";
-            var chain = chainOf([t.brand, t.name, t.operator].join(" "));
+            var kind = storeKind([t.brand, t.name, t.operator].join(" "), t.opening_hours);
+            if (!kind) return null;
+            var chain = kind === "duty" ? null : kind;
             var addr = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
-            return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, lat: lat, lon: lon, hours: t.opening_hours || "" };
+            return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || "" };
           }).filter(Boolean);
           lastFetchPos = { lat: p.lat, lon: p.lon };
           state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now() };
@@ -686,6 +799,16 @@
     bar.innerHTML = "";
     var sub = fmtDist(n.d) + " · GPS ±" + Math.round(lastPos.acc) + " m";
     var info = el("div", { class: "detect-info" }, [el("b", { text: n.s.short }), el("span", { text: sub })]);
+    var os = openState(n.s);
+    if (os.open === false) {
+      // Trgovina je zaprta: seznama ne odpremo sami, le povemo, kdaj se odpre.
+      stopCountdown();
+      info.lastChild.textContent = os.text;
+      bar.appendChild(info);
+      bar.appendChild(el("button", { type: "button", onclick: function () { openStoreMode(n.s); } }, ["Vseeno odpri"]));
+      bar.classList.remove("hidden");
+      return;
+    }
     if (snoozed(n.s.id)) {
       bar.appendChild(info);
     } else {
@@ -706,12 +829,13 @@
     if (!list.length) { ul.appendChild(el("li", null, [el("span", { class: "muted", text: "V bližini ni najdenih trgovin." })])); return; }
     list.forEach(function (x) {
       var near = lastPos && inRange(x.d, lastPos.acc);
+      var os = openState(x.s);
       var badge = el("span", { class: "store-badge", style: "background:" + ((CHAIN_BY_KEY[x.s.chain] || {}).color || "#7A8A84") }, [(x.s.short || "?").charAt(0).toUpperCase()]);
       ul.appendChild(el("li", { class: near ? "near" : "" }, [
         badge,
         el("div", { class: "sbody" }, [
           el("div", { class: "sname", text: x.s.name }),
-          el("div", { class: "shours", text: (near ? "Tukaj si · " : "") + (x.s.hours ? x.s.hours : "Urnik ni podan") })
+          el("div", { class: "shours" + (os.open === false ? " closed" : ""), text: (near ? "Tukaj si · " : "") + os.text })
         ]),
         el("div", { class: "sright" }, [
           el("span", { class: "dist", text: fmtDist(x.d) }),
