@@ -42,7 +42,7 @@
       usageNames: {},
       prices: {},
       pricesUpdated: null,
-      settings: { locOn: false, radius: 75, delay: 15 },
+      settings: { locOn: true, locDefault2: true, radius: 75, delay: 15 },
       storesCache: null,
       dismissed: {},
       dismissN: {}
@@ -55,7 +55,10 @@
       if (raw) {
         var s = JSON.parse(raw);
         Object.keys(d).forEach(function (k) { if (s[k] === undefined || s[k] === null) s[k] = d[k]; });
+        var migrate = !(s.settings && s.settings.locDefault2);
         s.settings = Object.assign({}, d.settings, s.settings);
+        // Samodejno zaznavanje je privzeto vklopljeno (tudi za obstoječe uporabnike, enkrat).
+        if (migrate) { s.settings.locOn = true; s.settings.locDefault2 = true; }
         return s;
       }
     } catch (e) { /* prazno stanje */ }
@@ -430,7 +433,7 @@
       ul.appendChild(itemRow(it));
     });
     $("listEmpty").classList.toggle("hidden", items.length > 0);
-    $("listEmpty").textContent = filter === "store" && !st ? "Nisi v bližini trgovine. Vklopi lokacijo v zavihku Trgovine." : (filter === "done" ? "Še nič kupljenega." : "Seznam je prazen.");
+    $("listEmpty").textContent = filter === "store" && !st ? "Nisi v bližini trgovine. Vklopi zaznavanje trgovine v Nastavitvah." : (filter === "done" ? "Še nič kupljenega." : "Seznam je prazen.");
     if (filter === "store" && !st) $("listEmpty").classList.remove("hidden");
     $("countOpen").textContent = state.items.filter(function (i) { return !i.done; }).length;
     $("clearDone").classList.toggle("hidden", !state.items.some(function (i) { return i.done; }));
@@ -661,13 +664,13 @@
     setLocStatus("Iščem tvojo lokacijo …");
     watchId = navigator.geolocation.watchPosition(onPos, onPosErr, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
     state.settings.locOn = true; save();
-    $("btnLoc").textContent = "Izklopi lokacijo";
+    $("btnLoc").setAttribute("aria-checked", "true");
   }
   function stopLocation() {
     if (watchId !== null) navigator.geolocation.clearWatch(watchId);
     watchId = null;
     state.settings.locOn = false; save();
-    $("btnLoc").textContent = "Vklopi lokacijo";
+    $("btnLoc").setAttribute("aria-checked", "false");
     setLocStatus("Lokacija je izklopljena.");
     nearState = { id: null, since: 0 };
     stopCountdown();
@@ -677,7 +680,7 @@
     if (err.code === 1) {
       setLocStatus("Dostop do lokacije je zavrnjen. Na iPhonu: Nastavitve → Zasebnost → Lokacijske storitve → Safari → Med uporabo.");
       watchId = null;
-      $("btnLoc").textContent = "Vklopi lokacijo";
+      $("btnLoc").setAttribute("aria-checked", "false");
     } else {
       setLocStatus("Lokacije trenutno ne dobim (" + (err.message || "napaka") + "). Poskušam znova …");
     }
@@ -1138,7 +1141,7 @@
   }
   function askSize() {
     $("obTitle").textContent = "Kako velik naj bo prikaz?";
-    $("obText").textContent = "Izberi, kar ti je najlažje brati. Spremeniš lahko kadar koli v zavihku Cene.";
+    $("obText").textContent = "Izberi, kar ti je najlažje brati. Spremeniš lahko kadar koli v Nastavitvah.";
     renderSizeChoices($("onboardBox"), function (k) { setSize(k); $("onboard").classList.add("hidden"); toast("Prikaz: " + SIZES[k].label); });
     $("onboard").classList.remove("hidden");
   }
@@ -1258,7 +1261,7 @@
     renderQuick();
     renderReco();
     renderCompare();
-    if ($("tab-prices").classList.contains("active")) renderPriceTable();
+    if ($("pricesMore").open) renderPriceTable();
     renderStoreMode();
   }
 
@@ -1272,6 +1275,7 @@
       window.scrollTo(0, 0);
     });
   });
+  $("pricesMore").addEventListener("toggle", function () { if ($("pricesMore").open) renderPriceTable(); });
   document.querySelectorAll(".seg button").forEach(function (b) {
     b.addEventListener("click", function () {
       filter = b.dataset.filter;

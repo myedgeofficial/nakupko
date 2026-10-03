@@ -28,7 +28,7 @@
 <body>
   <header class="top">
     <div class="top-row">
-      <div class="brand"><img src="icon-full.svg" class="logo" alt=""> <span>Nakupko</span></div>
+      <div class="brand"><img src="icon.svg" class="logo" alt=""> <span>Nakupko</span></div>
       <button id="btnStoreMode" class="pill" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>
         V trgovini
@@ -76,7 +76,7 @@
       </div>
 
       <div class="card">
-        <div class="card-head"><h2>Pogosto kupuješ</h2><span class="muted small">en dotik in je na seznamu</span></div>
+        <div class="card-head"><h2>Pogosto kupuješ</h2></div>
         <div id="quick" class="chips"></div>
       </div>
 
@@ -95,32 +95,81 @@
       </div>
     </section>
 
-    <!-- TRGOVINE -->
+    <!-- NASTAVITVE -->
     <section id="tab-stores" class="tab">
-      <h1 class="page-title">Trgovine v bližini</h1>
-      <div class="card">
-        <p id="locStatus" class="muted">Vklopi lokacijo, da najdem živilske trgovine blizu tebe.</p>
-        <div class="row">
-          <button id="btnLoc" class="primary" type="button">Vklopi lokacijo</button>
-          <button id="btnRefreshStores" class="ghost" type="button">Osveži trgovine</button>
+      <h1 class="page-title">Nastavitve</h1>
+      <div class="card settings">
+        <div class="set-row">
+          <div class="set-text">
+            <b>Samodejno zaznaj trgovino</b>
+            <span id="locStatus" class="muted small">Ko prideš v trgovino, se seznam odpre sam.</span>
+          </div>
+          <button id="btnLoc" class="switch" type="button" role="switch" aria-checked="false" aria-label="Samodejno zaznaj trgovino"></button>
         </div>
-        <div class="row" style="margin-top:8px">
-          <button id="btnTest" class="ghost full" type="button">Preizkusi prihod v trgovino</button>
-        </div>
-      </div>
-      <ul id="storeList" class="stores"></ul>
-
-      <div class="card">
-        <h2>Zaznavanje trgovine</h2>
+        <details class="more">
+          <summary>Več možnosti</summary>
         <label class="field">Razdalja zaznave: <b id="radiusVal">75 m</b>
-          <input id="radius" type="range" min="30" max="150" step="5" value="75">
-        </label>
-        <label class="field">Samodejni »V trgovini« po: <b id="delayVal">15 s</b>
-          <input id="delay" type="range" min="5" max="60" step="5" value="15">
-        </label>
-        <p class="muted small">iPhone posodablja lokacijo samo, ko je Nakupko odprt na zaslonu. Ko ga odpreš pred trgovino, te zazna v nekaj sekundah. V trgovini lahko vedno tapneš »V trgovini« zgoraj.</p>
+            <input id="radius" type="range" min="30" max="150" step="5" value="75">
+          </label>
+          <label class="field">Seznam se odpre po: <b id="delayVal">15 s</b>
+            <input id="delay" type="range" min="5" max="60" step="5" value="15">
+          </label>
+          <div class="row">
+            <button id="btnTest" class="link" type="button">Preizkusi prihod v trgovino</button>
+            <button id="btnRefreshStores" class="link" type="button">Osveži trgovine</button>
+          </div>
+        </details>
       </div>
+      <ul id="storeList" class="stores hidden"></ul>
 
+      <details class="card">
+        <summary><h2 class="inline">Moje trgovine</h2></summary>
+        <div id="prefBox" class="pref-list"></div>
+        <div id="pref2Wrap">
+          <div class="card-head pref2-head"><h2>Druga izbira</h2><span class="muted small">neobvezno</span></div>
+          <div id="pref2Box" class="pref-list"></div>
+        </div>
+      </details>
+      <details class="card">
+        <summary><h2 class="inline">Velikost prikaza</h2></summary>
+        <div id="sizeBox" class="pref-list"></div>
+      </details>
+      <details id="pricesMore" class="card">
+        <summary><h2 class="inline">Cene po trgovinah</h2></summary>
+        <div id="tripBox2" class="sub trip-card hidden"></div>
+        <div class="sub">
+          <p class="muted small">Skupna cena tvojega seznama po trgovinah. Cene z * so ocene.</p>
+          <ul id="compare" class="compare"></ul>
+        </div>
+        <div class="sub">
+          <h2>Cenik izdelkov</h2>
+          <input id="priceSearch" type="search" placeholder="Poišči izdelek …" class="full">
+          <div id="priceTable" class="ptable"></div>
+        </div>
+        <div class="sub">
+          <h2>Tedenski cenik</h2>
+          <p class="muted small">Prave cene uvoziš z eno datoteko JSON (lahko jo pripravi ChatGPT ali Claude).</p>
+          <div class="row wrap">
+            <label class="primary filebtn">Uvozi cene<input id="importFile" type="file" accept="application/json,.json,.txt" hidden></label>
+            <button id="btnPaste" class="ghost" type="button">Prilepi JSON</button>
+            <button id="btnHelp" class="ghost" type="button">Navodila</button>
+            <button id="btnResetPrices" class="ghost" type="button">Ponastavi cene</button>
+          </div>
+          <p id="pricesInfo" class="muted small"></p>
+          <pre id="helpText" class="help hidden"></pre>
+          <div id="pasteBox" class="hidden">
+            <textarea id="pasteText" rows="5" class="full" placeholder='{"izdelki":[{"ime":"Mleko","cene":{"spar":1.19}}]}'></textarea>
+            <button id="btnPasteDo" class="primary" type="button">Uvozi prilepljeno</button>
+          </div>
+        </div>
+        <div class="sub">
+          <h2>Podatki</h2>
+          <div class="row wrap">
+            <button id="btnExport" class="ghost" type="button">Izvozi varnostno kopijo</button>
+            <label class="ghost filebtn">Uvozi kopijo<input id="importBackup" type="file" accept="application/json,.json" hidden></label>
+          </div>
+        </div>
+      </details>
       <details class="card">
         <summary><h2 class="inline">Bližnjica na iPhonu</h2></summary>
         <ol class="small">
@@ -133,55 +182,6 @@
       <p class="muted small">Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).</p>
     </section>
 
-    <!-- CENE -->
-    <section id="tab-prices" class="tab">
-      <h1 class="page-title">Kam po nakup?</h1>
-      <div class="card">
-        <div class="card-head"><h2>Velikost prikaza</h2><span class="muted small">po starosti</span></div>
-        <div id="sizeBox" class="pref-list"></div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h2>Moje trgovine</h2><span class="muted small">po teh računam cene</span></div>
-        <div id="prefBox" class="pref-list"></div>
-        <div id="pref2Wrap">
-          <div class="card-head pref2-head"><h2>Druga izbira</h2><span class="muted small">neobvezno</span></div>
-          <div id="pref2Box" class="pref-list"></div>
-        </div>
-      </div>
-      <div id="tripBox2" class="card trip-card hidden"></div>
-      <div class="card">
-        <p class="muted small">Skupna cena tvojega seznama po trgovinah. Cene z * so ocene.</p>
-        <ul id="compare" class="compare"></ul>
-      </div>
-      <div class="card">
-        <h2>Cenik izdelkov</h2>
-        <input id="priceSearch" type="search" placeholder="Poišči izdelek …" class="full">
-        <div id="priceTable" class="ptable"></div>
-      </div>
-      <div class="card">
-        <h2>Tedenski cenik</h2>
-        <p class="muted small">Prave cene uvoziš z eno datoteko JSON (lahko jo pripravi ChatGPT ali Claude).</p>
-        <div class="row wrap">
-          <label class="primary filebtn">Uvozi cene<input id="importFile" type="file" accept="application/json,.json,.txt" hidden></label>
-          <button id="btnPaste" class="ghost" type="button">Prilepi JSON</button>
-          <button id="btnHelp" class="ghost" type="button">Navodila</button>
-          <button id="btnResetPrices" class="ghost" type="button">Ponastavi cene</button>
-        </div>
-        <p id="pricesInfo" class="muted small"></p>
-        <pre id="helpText" class="help hidden"></pre>
-        <div id="pasteBox" class="hidden">
-          <textarea id="pasteText" rows="5" class="full" placeholder='{"izdelki":[{"ime":"Mleko","cene":{"spar":1.19}}]}'></textarea>
-          <button id="btnPasteDo" class="primary" type="button">Uvozi prilepljeno</button>
-        </div>
-      </div>
-      <div class="card">
-        <h2>Podatki</h2>
-        <div class="row wrap">
-          <button id="btnExport" class="ghost" type="button">Izvozi varnostno kopijo</button>
-          <label class="ghost filebtn">Uvozi kopijo<input id="importBackup" type="file" accept="application/json,.json" hidden></label>
-        </div>
-      </div>
-    </section>
   </main>
 
   <!-- NAČIN V TRGOVINI -->
@@ -210,17 +210,16 @@
   <div id="onboard" class="sheet-wrap hidden" role="dialog" aria-modal="true" aria-labelledby="obTitle">
     <div class="sheet">
       <div class="sheet-grip"></div>
-      <img src="icon-full.svg" class="sheet-logo" alt="">
+      <img src="icon.svg" class="sheet-logo" alt="">
       <h1 id="obTitle">Kje najraje nakupuješ?</h1>
-      <p id="obText" class="muted">Po tem bo Nakupko računal cene na seznamu. Izbiro lahko kadar koli spremeniš v zavihku Cene.</p>
+      <p id="obText" class="muted">Po tem bo Nakupko računal cene na seznamu. Izbiro lahko kadar koli spremeniš v Nastavitvah.</p>
       <div id="onboardBox" class="pref-list"></div>
     </div>
   </div>
 
   <nav class="tabs">
     <button data-tab="list" class="on" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2"/><circle cx="4.5" cy="12" r="1.2"/><circle cx="4.5" cy="18" r="1.2"/></svg>Seznam</button>
-    <button data-tab="stores" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/></svg>Trgovine</button>
-    <button data-tab="prices" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12V4h8l10 10-8 8L3 12z"/><circle cx="7.5" cy="8.5" r="1.4"/></svg>Cene</button>
+    <button data-tab="stores" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Nastavitve</button>
   </nav>
 
   <div id="toast" class="toast hidden" role="status"></div>
