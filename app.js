@@ -1394,6 +1394,20 @@
   });
 
   $("btnLoc").addEventListener("click", function () { if (watchId === null) startLocation(); else stopLocation(); });
+  // Ročni uvoz cen je samo za razvijalca: 7 hitrih tapov na naslov »Cene« ga pokaže ali skrije (velja za ta telefon).
+  function applyDevMode() { $("manualImport").classList.toggle("hidden", !state.settings.dev); }
+  applyDevMode();
+  var devTaps = 0, devTimer = null;
+  $("pricesTitle").addEventListener("click", function () {
+    devTaps++;
+    clearTimeout(devTimer);
+    devTimer = setTimeout(function () { devTaps = 0; }, 1500);
+    if (devTaps < 7) return;
+    devTaps = 0;
+    state.settings.dev = !state.settings.dev; save();
+    applyDevMode();
+    toast(state.settings.dev ? "Ročni uvoz cen je prikazan." : "Ročni uvoz cen je skrit.");
+  });
   $("btnTest").addEventListener("click", function () { window.scrollTo(0, 0); startTest(); });
   $("btnRefreshStores").addEventListener("click", function () {
     if (!lastPos) { startLocation(); return; }
