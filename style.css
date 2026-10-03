@@ -402,3 +402,8 @@ details.card > summary h2 { margin: 0; }
 details.card[open] > summary { margin-bottom: 12px; }
 .other { list-style: none; padding-top: 12px; }
 .other .list, .other .list.big { margin: 8px 0 0; padding: 0; background: none; box-shadow: none; border-radius: 0; opacity: .75; }
+
+/* ---------- Skupen seznam ---------- */
+.hh-code { font-size: 18px; margin: 0 0 4px; letter-spacing: .04em; }
+.hh-join { margin-top: 10px; }
+#hhBox .row { align-items: center; margin-top: 10px; }
