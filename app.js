@@ -1070,9 +1070,15 @@
     box.innerHTML = "";
     box.appendChild(table);
     var n = Object.keys(state.prices).length;
-    $("pricesInfo").textContent = n
-      ? "Uvoženih cen za " + n + " izdelkov" + (state.pricesUpdated ? ", posodobljeno " + new Date(state.pricesUpdated).toLocaleDateString("sl-SI") : "") + "."
-      : "Trenutno so prikazane okvirne ocene cen. Za točne cene uvozi tedenski cenik.";
+    var auto = Object.keys(BASE_PRICES).length;
+    var d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(PRICES_DATE || "");
+    var dateTxt = d ? Number(d[3]) + ". " + Number(d[2]) + ". " + d[1] : "";
+    $("pricesInfo").textContent = auto
+      ? "Cene se samodejno osvežujejo vsako noč ob 3h" + (dateTxt ? ", zadnja osvežitev " + dateTxt : "") + ". Zvezdica (*) pomeni, da za to trgovino ni cene in je prikazana ocena."
+      : "Samodejne cene še niso prenesene. Prikazane so okvirne ocene (*).";
+    $("importInfo").textContent = n
+      ? "Ročno uvoženih cen: " + n + (state.pricesUpdated ? ", uvoženo " + new Date(state.pricesUpdated).toLocaleDateString("sl-SI") : "") + "."
+      : "";
   }
 
   var HELP = [

@@ -152,20 +152,24 @@
           <div id="priceTable" class="ptable"></div>
         </div>
         <div class="sub">
-          <h2>Tedenski cenik</h2>
-          <p class="muted small">Prave cene uvoziš z eno datoteko JSON (lahko jo pripravi ChatGPT ali Claude).</p>
+          <h2>Cene</h2>
+          <p id="pricesInfo" class="muted small"></p>
+          <details class="more">
+          <summary>Ročni uvoz cen</summary>
+          <p class="muted small">Ni potreben, cene se osvežujejo same. Ročno uvožene cene imajo prednost pred samodejnimi.</p>
           <div class="row wrap">
             <label class="primary filebtn">Uvozi cene<input id="importFile" type="file" accept="application/json,.json,.txt" hidden></label>
             <button id="btnPaste" class="ghost" type="button">Prilepi JSON</button>
             <button id="btnHelp" class="ghost" type="button">Navodila</button>
             <button id="btnResetPrices" class="ghost" type="button">Ponastavi cene</button>
           </div>
-          <p id="pricesInfo" class="muted small"></p>
+          <p id="importInfo" class="muted small"></p>
           <pre id="helpText" class="help hidden"></pre>
           <div id="pasteBox" class="hidden">
             <textarea id="pasteText" rows="5" class="full" placeholder='{"izdelki":[{"ime":"Mleko","cene":{"spar":1.19}}]}'></textarea>
             <button id="btnPasteDo" class="primary" type="button">Uvozi prilepljeno</button>
           </div>
+          </details>
         </div>
         <div class="sub">
           <h2>Podatki</h2>
