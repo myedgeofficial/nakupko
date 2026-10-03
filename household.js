@@ -2,7 +2,7 @@
 // Seznam hrani Firebase Realtime Database (REST + EventSource, brez knjižnic).
 (function () {
   "use strict";
-  var DB = window.NAKUPKO_SYNC_URL || "";  // npr. https://nakupko-xxxx-default-rtdb.europe-west1.firebasedatabase.app
+  var DB = window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app";
   var CODE_KEY = "nakupko-household", DIRTY_KEY = "nakupko-household-dirty";
   var ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   var api = window.__nakupko;
