@@ -19,6 +19,7 @@
 		A1B2C3D42F00000100000001 /* NakupkoGeo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000100000002 /* NakupkoGeo.swift */; };
 		A1B2C3D42F00000200000002 /* ShoppingActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000200000001 /* ShoppingActivity.swift */; };
 		A1B2C3D42F00000200000003 /* ShoppingActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000200000001 /* ShoppingActivity.swift */; };
+		A1B2C3D42F00000400000001 /* NakupkoShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000400000002 /* NakupkoShortcuts.swift */; };
 		A1B2C3D42F00000200000005 /* NakupkoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000200000004 /* NakupkoWidget.swift */; };
 		A1B2C3D42F00000200000008 /* NakupkoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000200000007 /* NakupkoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		A1B2C3D42F00000300000001 /* StoreRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000300000002 /* StoreRules.swift */; };
@@ -62,6 +63,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C3D42F00000100000002 /* NakupkoGeo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NakupkoGeo.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000200000001 /* ShoppingActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoppingActivity.swift; sourceTree = "<group>"; };
+		A1B2C3D42F00000400000002 /* NakupkoShortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NakupkoShortcuts.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000200000004 /* NakupkoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NakupkoWidget.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000200000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D42F00000200000007 /* NakupkoWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NakupkoWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -115,6 +117,7 @@
 				A1B2C3D42F00000100000002 /* NakupkoGeo.swift */,
 				A1B2C3D42F00000300000002 /* StoreRules.swift */,
 				A1B2C3D42F00000200000001 /* ShoppingActivity.swift */,
+				A1B2C3D42F00000400000002 /* NakupkoShortcuts.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -251,6 +254,7 @@
 				A1B2C3D42F00000100000001 /* NakupkoGeo.swift in Sources */,
 				A1B2C3D42F00000300000001 /* StoreRules.swift in Sources */,
 				A1B2C3D42F00000200000002 /* ShoppingActivity.swift in Sources */,
+				A1B2C3D42F00000400000001 /* NakupkoShortcuts.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

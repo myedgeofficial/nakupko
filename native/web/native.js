@@ -237,8 +237,23 @@
     document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
   }
+  // Gumb Akcija (iPhone 15 Pro in novejši): Apple ga ne pusti nastaviti iz aplikacije, zato pokažemo pot.
+  function actionButtonHint() {
+    var st = document.getElementById("locStatus");
+    if (!st || document.getElementById("actionHint")) return;
+    var b = document.createElement("button");
+    b.id = "actionHint"; b.type = "button"; b.className = "link small";
+    b.style.display = "block"; b.style.marginTop = "10px";
+    b.textContent = "Nakupko na gumb Akcija";
+    b.onclick = function () {
+      alert("Nastavitve iPhona → Gumb Akcija → podrsaj do »Bližnjica« → Izberi bližnjico → Nakupko → Odpri Nakupko.\n\nPotem Nakupko odpreš tako, da držiš gumb Akcija.");
+    };
+    st.parentNode.appendChild(b);
+  }
+
   function showBackgroundStatus() {
     if (!isIOS) return;
+    actionButtonHint();
     var st = document.getElementById("locStatus");
     var api = window.__nakupko;
     var on = api && api.state && (api.state().settings || {}).locOn;
