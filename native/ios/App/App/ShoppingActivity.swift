@@ -90,6 +90,8 @@ enum LiveList {
 struct NextPageIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Naslednji izdelki"
     static var isDiscoverable: Bool = false
+    // Brez Face ID: tap deluje tudi na zaklenjenem telefonu.
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     init() {}
 
@@ -109,6 +111,8 @@ struct NextPageIntent: LiveActivityIntent {
 struct CheckItemIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Odkljukaj izdelek"
     static var isDiscoverable: Bool = false
+    // Brez Face ID: tap deluje tudi na zaklenjenem telefonu.
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
 
     @Parameter(title: "Izdelek")
     var itemId: String
