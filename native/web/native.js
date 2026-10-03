@@ -1,5 +1,5 @@
-// Nakupko iOS: most med spletno aplikacijo in iPhonom.
-// Naloži se le v iOS aplikaciji, pred app.js. Spletne kode ne spreminja:
+// Nakupko iOS/Android: most med spletno aplikacijo in telefonom.
+// Naloži se le v aplikaciji (iOS ali Android), pred app.js. Spletne kode ne spreminja:
 // 1) navigator.geolocation zamenja z iOS lokacijo (brez dodatnega vprašanja spletne strani),
 // 2) seznam trgovin in odprte izdelke pošilja iPhonu, ki trgovine spremlja tudi, ko je aplikacija zaprta.
 (function () {
@@ -26,7 +26,8 @@
     });
     return api;
   })();
-  document.documentElement.classList.add("native-ios");
+  var platform = Cap.getPlatform ? Cap.getPlatform() : "ios";
+  document.documentElement.classList.add("native-" + platform);
 
   // ---------- navigator.geolocation prek iOS ----------
   var watchers = {}, nextId = 1, posSub = null, errSub = null, lastNativePos = null, geoOverridden = false;
@@ -213,7 +214,6 @@
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
   }
   function showBackgroundStatus() {
-    if (!isIOS) return;
     var st = document.getElementById("locStatus");
     var api = window.__nakupko;
     var on = api && api.state && (api.state().settings || {}).locOn;
@@ -263,7 +263,7 @@
       });
       parts.push("najbližja " + best.n + " " + Math.round(best.d) + " m");
     } else parts.push("trgovin " + list.length);
-    return "iPhone: " + parts.join(" · ");
+    return (isIOS ? "iPhone: " : "Telefon: ") + parts.join(" · ");
   }
   function diag(text) {
     var st = document.getElementById("locStatus");
@@ -280,7 +280,10 @@
     var st = document.getElementById("locStatus");
     if (!st || !window.MutationObserver) return;
     new MutationObserver(function () {
-      if (/Safari/.test(st.textContent)) st.textContent = "Dostop do lokacije je zavrnjen. Na iPhonu: Nastavitve → Nakupko → Lokacija → Vedno.";
+      if (!/Safari/.test(st.textContent)) return;
+      st.textContent = platform === "android"
+        ? "Dostop do lokacije je zavrnjen. Na telefonu: Nastavitve → Aplikacije → Nakupko → Dovoljenja → Lokacija → Vedno dovoli."
+        : "Dostop do lokacije je zavrnjen. Na iPhonu: Nastavitve → Nakupko → Lokacija → Vedno.";
     }).observe(st, { childList: true, characterData: true, subtree: true });
   });
   document.addEventListener("visibilitychange", function () {

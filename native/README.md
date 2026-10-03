@@ -40,3 +40,36 @@ npm ci
 npm run sync
 open ios/App/App.xcodeproj
 ```
+
+# Nakupko za Android
+
+Ista spletna aplikacija v ovoju Capacitor (`android/`). Koda za ozadje je v
+`android/app/src/main/java/si/nakupko/app/` (GeoManager = Android različica NakupkoGeo.swift):
+
+- Spremlja do 60 najbližjih trgovin (geofence) in večje območje okoli tebe; ob premiku sam naloži nove trgovine.
+- Ko prideš v odprto trgovino in imaš kaj na seznamu, dobiš obvestilo z izdelki po oddelkih.
+- Med nakupovanjem je seznam v stalnem obvestilu (tudi na zaklenjenem zaslonu).
+- Dovoljenja: Lokacija **Vedno dovoli** in Obvestila.
+
+## Gradnja
+
+GitHub Actions (`.github/workflows/android.yml`) ob vsakem pushu na `main` (ali vejo `android`) zgradi
+`Nakupko.apk` in `Nakupko.aab` in ju objavi na
+https://github.com/myedgeofficial/nakupko/releases/tag/android
+
+Neposredna povezava za prijatelje: https://github.com/myedgeofficial/nakupko/releases/download/android/Nakupko.apk
+
+Podpisni ključ (enkrat, vedno isti, sicer posodobitve ne gredo čez): GitHub → Settings → Secrets and variables → Actions:
+- `ANDROID_KEYSTORE_B64` – keystore v base64
+- `ANDROID_KEYSTORE_PASSWORD` – geslo (alias `nakupko`)
+
+Ključa nikoli ne daj v repozitorij.
+
+## Lokalno
+
+```
+cd native
+npm ci
+npm run sync:android
+cd android && ./gradlew assembleDebug
+```
