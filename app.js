@@ -9,8 +9,27 @@
     { key: "lidl", name: "Lidl", factor: 0.87, color: "#1F5FBF", match: /lidl/i },
     { key: "hofer", name: "Hofer", factor: 0.86, color: "#2B3A78", match: /hofer|aldi/i },
     { key: "eurospin", name: "Eurospin", factor: 0.85, color: "#2B8FD6", match: /eurospin/i },
-    { key: "jager", name: "Jager", factor: 1.0, color: "#8A5A2B", match: /jager/i }
+    { key: "jager", name: "Jager", factor: 1.0, color: "#8A5A2B", match: /jager/i },
+    // Specializirane trgovine: zaznamo jih le, ko imaš na seznamu izdelke zanje (only).
+    { key: "babycenter", name: "Baby Center", factor: 1.05, color: "#E86A9A", match: /baby ?cent(er|ar)/i, only: /^otroci |plenic|robčk/i },
+    { key: "mrpet", name: "Mr. Pet", factor: 1.0, color: "#C4572B", match: /mr\.? ?pet\b/i, only: /^ljubljenčki /i },
+    { key: "premiumpet", name: "Premium Pet", factor: 1.0, color: "#3E6B8A", match: /premium ?pet\b/i, only: /^ljubljenčki /i },
+    { key: "obi", name: "OBI", factor: 1.0, color: "#F18E00", match: /\bobi\b/i, only: /^dom in vrt /i },
+    { key: "bauhaus", name: "Bauhaus", factor: 0.98, color: "#C8102E", match: /bauhaus/i, only: /^dom in vrt /i },
+    { key: "merkur", name: "Merkur", factor: 1.02, color: "#0B4EA2", match: /merkur/i, only: /^dom in vrt /i },
+    { key: "kalcer", name: "Kalcer", factor: 1.0, color: "#5B7F2B", match: /kalcer/i, only: /^dom in vrt /i }
   ];
+  // Ali trgovina prodaja izdelek: specializirane samo svoje, običajne vse razen orodja in vrta.
+  function sells(s, it) {
+    var c = CHAIN_BY_KEY[s && s.chain], t = (it.cat || "") + " " + it.name;
+    return c && c.only ? c.only.test(t) : !/^dom in vrt /i.test(t);
+  }
+  // Izdelki za drugo trgovino: zloženi na dnu seznama.
+  function otherSection(items, big, storeCtx) {
+    var sub = el("ul", { class: "list" + (big ? " big" : "") });
+    items.forEach(function (it) { sub.appendChild(itemRow(it, big, storeCtx)); });
+    return el("li", { class: "other" }, [el("details", { class: "more" }, [el("summary", { text: "Iz druge trgovine rabiš še (" + items.length + ")" }), sub])]);
+  }
   var CHAIN_BY_KEY = {};
   CHAINS.forEach(function (c) { CHAIN_BY_KEY[c.key] = c; });
   var COMPARE_CHAINS = ["spar", "mercator", "tus", "lidl", "hofer"];
@@ -18,7 +37,7 @@
     "Sadje in zelenjava": ["🥦", "#E3F3DF"], "Kruh in pecivo": ["🥖", "#F7EBDA"], "Mlečni izdelki": ["🥛", "#E4EEF8"],
     "Meso in ribe": ["🥩", "#F8E3E1"], "Shramba": ["🥫", "#F4E9DC"], "Prigrizki": ["🍫", "#F1E6F4"], "Pijače": ["🥤", "#DFF1F3"],
     "Zamrznjeno": ["🧊", "#E3ECF8"], "Gospodinjstvo": ["🧽", "#EEF0D9"], "Higiena": ["🧴", "#E9E6F6"], "Tobak": ["🚬", "#ECE7E2"], "Brez glutena": ["🌾", "#FBEFD9"], "Otroci": ["🍼", "#FDE8EF"], "Zdravje": ["💊", "#E6F4EE"],
-    "Ljubljenčki": ["🐾", "#F6ECDD"], "Drugo": ["🛒", "#E9EEEA"]
+    "Ljubljenčki": ["🐾", "#F6ECDD"], "Dom in vrt": ["🔨", "#E8EDE2"], "Drugo": ["🛒", "#E9EEEA"]
   };
   function chainDot(c) { return el("i", { class: "dot", style: "background:" + ((CHAIN_BY_KEY[c] || {}).color || "#999") }); }
 
@@ -410,18 +429,21 @@
     var ul = $("list");
     ul.innerHTML = "";
     var st = currentStore() || lastNearStore;
+    var other = [];
     var items = state.items.filter(function (i) {
       if (filter === "done") return i.done;
       if (i.done) return false;
       if (filter === "store") {
         if (!st) return true;
         var u = usualStoreInfo(i.name);
-        return !u || u.chain === st.chain || u.storeId === st.id;
+        if (sells(st, i) && (!u || u.chain === st.chain || u.storeId === st.id)) return true;
+        other.push(i);
+        return false;
       }
       return true;
     });
     // razvrsti po kategoriji (kot pot po trgovini)
-    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Tobak", "Ljubljenčki", "Drugo"];
+    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Tobak", "Brez glutena", "Otroci", "Zdravje", "Ljubljenčki", "Dom in vrt", "Drugo"];
     items.sort(function (a, b) { return order.indexOf(a.cat || "Drugo") - order.indexOf(b.cat || "Drugo"); });
     var lastCat = null;
     items.forEach(function (it) {
@@ -432,7 +454,8 @@
       }
       ul.appendChild(itemRow(it));
     });
-    $("listEmpty").classList.toggle("hidden", items.length > 0);
+    if (other.length) ul.appendChild(otherSection(other));
+    $("listEmpty").classList.toggle("hidden", items.length + other.length > 0);
     $("listEmpty").textContent = filter === "store" && !st ? "Nisi v bližini trgovine. Vklopi zaznavanje trgovine v Nastavitvah." : (filter === "done" ? "Še nič kupljenega." : "Seznam je prazen.");
     if (filter === "store" && !st) $("listEmpty").classList.remove("hidden");
     $("countOpen").textContent = state.items.filter(function (i) { return !i.done; }).length;
@@ -701,7 +724,7 @@
     if (fetching && !force) return;
     fetching = true;
     var q = "[out:json][timeout:20];(" +
-      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store)$\"](around:3000," + p.lat + "," + p.lon + ");" +
+      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre)$\"](around:3000," + p.lat + "," + p.lon + ");" +
       ");out center tags 120;";
     var tryAt = function (i) {
       if (i >= OVERPASS.length) {
@@ -741,6 +764,7 @@
     if (!lastPos || !stores.length) return null;
     var best = null;
     stores.forEach(function (s) {
+      if (CHAIN_BY_KEY[s.chain] && CHAIN_BY_KEY[s.chain].only && !state.items.some(function (i) { return !i.done && sells(s, i); })) return;
       var d = distM(lastPos, s);
       if (!best || d < best.d) best = { s: s, d: d };
     });
@@ -905,10 +929,13 @@
     if ($("storeMode").classList.contains("hidden")) return;
     var ul = $("smList");
     ul.innerHTML = "";
-    var open = state.items.filter(function (i) { return !i.done; });
+    var all = state.items.filter(function (i) { return !i.done; });
+    var open = all.filter(function (i) { return !activeStore || sells(activeStore, i); });
+    var other = all.filter(function (i) { return activeStore && !sells(activeStore, i); });
     // kupljeno pokažemo samo, če je bilo odkljukano zdaj v trgovini (da lahko razveljaviš)
     var done = state.items.filter(function (i) { return i.done && i.doneAt && i.doneAt >= storeModeOpenedAt; });
     open.concat(done).forEach(function (it) { ul.appendChild(itemRow(it, true, activeStore)); });
+    if (other.length) ul.appendChild(otherSection(other, true, activeStore));
     $("smEmpty").classList.toggle("hidden", open.length > 0);
     var total = open.length + done.length;
     $("smBar").style.width = (total ? Math.round(done.length / total * 100) : 100) + "%";
@@ -1157,12 +1184,12 @@
   var PAIR_MAX = 400, TRIP_MAX = 4000;
   function tripPlan() {
     if (pricesOff()) return null;
-    var open = state.items.filter(function (i) { return !i.done; });
+    var open = state.items.filter(function (i) { return !i.done && sells(null, i); });
     if (open.length < 2) return null;
     var ref = lastPos || lastFetchPos;
     if (!ref || !stores.length) return null;
     var allowed = myChains();
-    var cand = stores.filter(function (s) { return s.chain && CHAIN_BY_KEY[s.chain] && !/^test\//.test(s.id) && (!allowed || allowed.indexOf(s.chain) >= 0); })
+    var cand = stores.filter(function (s) { return s.chain && CHAIN_BY_KEY[s.chain] && !CHAIN_BY_KEY[s.chain].only && !/^test\//.test(s.id) && (!allowed || allowed.indexOf(s.chain) >= 0); })
       .map(function (s) { return { s: s, d: distM(ref, s) }; })
       .filter(function (x) { return x.d <= TRIP_MAX; })
       .sort(function (a, b) { return a.d - b.d; }).slice(0, 60);
