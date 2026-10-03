@@ -8,7 +8,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const ROOT = new URL("..", import.meta.url).pathname;
-const API = "https://www.polnakosarica.si/api/products";
+const API = process.env.PRICES_API || "https://www.polnakosarica.si/api/products";
 const STORES = { spar: "spar", mercator: "mercator", lidl: "lidl", hofer: "hofer", eurospin: "eurospin", tus: "tus" };
 const SKIP_CATS = new Set(["Tobak", "Dom in vrt"]);
 const UA = "Nakupko/1.0 (+https://github.com/myedgeofficial/nakupko)";
@@ -62,15 +62,33 @@ function quantile(arr, q) {
   return s[Math.min(s.length - 1, Math.floor((s.length - 1) * q))];
 }
 
+// Če vir zapre dostop (403, prazni odgovori, izpad), skripta konča z napako in workflow odpre
+// GitHub issue (= e-mail lastniku).
+const stat = { ok: 0, fail: 0, codes: {} };
+function blocked(why) {
+  console.log(`::error::VIR NE DELUJE: ${why}. Statusi: ${JSON.stringify(stat.codes)}`);
+  fs.writeFileSync(ROOT + ".price-error", `${why}\nStatusi odgovorov: ${JSON.stringify(stat.codes)}\n`);
+  process.exit(2);
+}
 async function get(url, tries = 3) {
   for (let i = 0; i < tries; i++) {
+    let code = "napaka";
     try {
       const r = await fetch(url, { headers: { "User-Agent": UA, Accept: "application/json" }, signal: AbortSignal.timeout(20000) });
-      if (r.ok) return await r.json();
-      if (r.status < 500 && r.status !== 429) return null;
+      code = r.status;
+      if (r.ok) {
+        const d = await r.json().catch(() => null);
+        if (d && Array.isArray(d.products)) { stat.ok++; stat.codes[200] = (stat.codes[200] || 0) + 1; return d; }
+        code = "ni-JSON";
+      }
     } catch { /* ponovi */ }
+    stat.codes[code] = (stat.codes[code] || 0) + 1;
+    if (typeof code === "number" && code < 500 && code !== 429) break;
     await new Promise((res) => setTimeout(res, 2000 * (i + 1)));
   }
+  stat.fail++;
+  // hiter izhod: prvih 30 poizvedb skoraj vse neuspešne
+  if (stat.ok + stat.fail >= 30 && stat.fail > (stat.ok + stat.fail) * 0.8) blocked("polnakosarica.si ne vrača cen (večina poizvedb neuspešnih)");
   return null;
 }
 async function search(q) {
@@ -159,10 +177,9 @@ await Promise.all([worker(), worker(), worker()]);
 
 console.log("Oddelki vira:", JSON.stringify(Object.entries(CATS).sort((a, b) => b[1] - a[1]).slice(0, 60)));
 console.log(`Katalog: ${catalog.length}, z novimi cenami: ${results.length}`);
-if (results.length < 50) {
-  console.log("Premalo zadetkov (vir verjetno ne deluje) – cene ostanejo nespremenjene.");
-  process.exit(0);
-}
+console.log(`Poizvedbe: uspešne ${stat.ok}, neuspešne ${stat.fail}`, JSON.stringify(stat.codes));
+if (stat.fail > (stat.ok + stat.fail) * 0.3) blocked(`polnakosarica.si: ${stat.fail} od ${stat.ok + stat.fail} poizvedb neuspešnih`);
+if (results.length < 150) blocked(`polnakosarica.si vrača premalo zadetkov (${results.length} izdelkov, običajno ~540) – morda so spremenili ali zaprli dostop`);
 
 // --- združi s starimi (trgovina brez nove cene obdrži staro) ---
 const seenStores = new Set(results.flatMap((r) => Object.keys(r.cene)));

@@ -8,9 +8,15 @@ on:
     - cron: "5 1 * * *"   # 03:05 poleti (CEST)
     - cron: "5 2 * * *"   # 03:05 pozimi (CET)
   workflow_dispatch:
+    inputs:
+      preizkus_alarma:
+        description: "Preizkusi obvestilo (simuliraj zaprt dostop)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: prices
@@ -36,7 +42,10 @@ jobs:
         with:
           node-version: 22
       - name: Poberi cene
+        id: fetch
         if: steps.when.outputs.run == 'yes'
+        env:
+          PRICES_API: ${{ inputs.preizkus_alarma && 'https://www.polnakosarica.si/api/ni-tega' || '' }}
         run: node scripts/update-prices.mjs
       - name: Shrani, če se je kaj spremenilo
         if: steps.when.outputs.run == 'yes' && github.ref == 'refs/heads/main'
@@ -52,3 +61,26 @@ jobs:
       - name: Predogled sprememb (testna veja)
         if: steps.when.outputs.run == 'yes' && github.ref != 'refs/heads/main'
         run: git diff --stat; git diff prices.js | head -c 3000 || true
+      - name: Obvesti lastnika, če vir cen ne deluje (GitHub issue = e-mail)
+        if: failure() && steps.fetch.outcome == 'failure' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WHY=$(cat .price-error 2>/dev/null || echo "Skripta za cene se je končala z napako.")
+          BODY="Nočna osvežitev cen ($(TZ=Europe/Ljubljana date '+%d. %m. %Y %H:%M')) ni uspela.
+
+          $WHY
+
+          Cene v aplikaciji ostajajo od zadnjega uspešnega dne, nič se ne pokvari, a niso več sveže.
+          Dnevnik: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          N=$(gh issue list --state open --search "Cene se ne osvežujejo in:title" --json number --jq '.[0].number')
+          if [ -n "$N" ]; then gh issue comment "$N" --body "$BODY"
+          else gh issue create --title "Cene se ne osvežujejo: polnakosarica.si ne deluje" --body "$BODY" --assignee "${{ github.repository_owner }}"; fi
+      - name: Zapri opozorilo, ko vir spet deluje
+        if: success() && steps.fetch.outcome == 'success' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for N in $(gh issue list --state open --search "Cene se ne osvežujejo in:title" --json number --jq '.[].number'); do
+            gh issue close "$N" --comment "Cene se spet osvežujejo ($(TZ=Europe/Ljubljana date '+%d. %m. %Y'))."
+          done
