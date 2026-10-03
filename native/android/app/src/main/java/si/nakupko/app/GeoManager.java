@@ -137,8 +137,9 @@ final class GeoManager {
             .putLong("fetchLon", Double.doubleToLongBits(l.getLongitude())).apply();
     }
 
-    void configure(boolean on, float r, JSONArray stores, JSONArray groups) {
-        SharedPreferences.Editor e = prefs.edit().putFloat("radius", r).putString("groups", groups.toString()).putBoolean("enabled", on);
+    void configure(boolean on, float r, JSONArray stores, JSONArray groups, String hhUrl, String hhCode) {
+        SharedPreferences.Editor e = prefs.edit().putFloat("radius", r).putString("groups", groups.toString()).putBoolean("enabled", on)
+            .putString("hhUrl", hhUrl == null ? "" : hhUrl).putString("hhCode", hhCode == null ? "" : hhCode);
         e.apply();
         if (stores.length() > 0) {
             prefs.edit().putString("stores", stores.toString()).apply();
@@ -331,8 +332,85 @@ final class GeoManager {
     }
 
     // ---------- Vstop v trgovino ----------
-    void onEnteredStore(String requestId) {
-        if (!requestId.startsWith(STORE_PREFIX) || !enabled()) return;
+    // Skupen seznam (household.js): ob prihodu v trgovino preberemo najnovejši seznam s strežnika.
+    // done se pokliče, ko je obvestilo poslano (za sprejemnik v ozadju).
+    void onEnteredStore(String requestId, Runnable done) {
+        if (!requestId.startsWith(STORE_PREFIX) || !enabled()) { done.run(); return; }
+        String url = prefs.getString("hhUrl", ""), code = prefs.getString("hhCode", "");
+        if (url.isEmpty() || code.isEmpty()) { showStoreNotification(requestId, json("groups")); done.run(); return; }
+        new Thread(() -> {
+            JSONArray open = null;
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(url + "/h/" + URLEncoder.encode(code, "UTF-8") + "/items.json").openConnection();
+                c.setConnectTimeout(6000);
+                c.setReadTimeout(6000);
+                ByteArrayOutputStream buf = new ByteArrayOutputStream();
+                try (InputStream in = c.getInputStream()) {
+                    byte[] b = new byte[8192];
+                    int n;
+                    while ((n = in.read(b)) > 0) buf.write(b, 0, n);
+                }
+                String body = buf.toString("UTF-8").trim();
+                if (body.equals("null")) open = new JSONArray();
+                else {
+                    JSONObject obj = new JSONObject(body);
+                    List<JSONObject> items = new ArrayList<>();
+                    for (Iterator<String> it = obj.keys(); it.hasNext(); ) {
+                        JSONObject i = obj.optJSONObject(it.next());
+                        if (i != null) items.add(i);
+                    }
+                    open = groupsOf(items);
+                }
+            } catch (Exception ignored) {}
+            final JSONArray result = open;
+            main.post(() -> {
+                if (result != null) prefs.edit().putString("groups", result.toString()).apply();
+                showStoreNotification(requestId, result != null ? result : json("groups"));
+                done.run();
+            });
+        }).start();
+    }
+
+    private static final String[][] CATS = {
+        {"Sadje in zelenjava", "🥦"}, {"Kruh in pecivo", "🥖"}, {"Mlečni izdelki", "🥛"}, {"Meso in ribe", "🥩"},
+        {"Shramba", "🥫"}, {"Brez glutena", "🌾"}, {"Prigrizki", "🍫"}, {"Pijače", "🥤"}, {"Zamrznjeno", "🧊"},
+        {"Otroci", "🍼"}, {"Gospodinjstvo", "🧽"}, {"Higiena", "🧴"}, {"Zdravje", "💊"}, {"Tobak", "🚬"},
+        {"Ljubljenčki", "🐾"}, {"Drugo", "🛒"}
+    };
+
+    // Enako kot groupsOf() v native.js: odprti izdelki po oddelkih.
+    static JSONArray groupsOf(List<JSONObject> items) {
+        java.util.Map<String, List<JSONObject>> by = new java.util.HashMap<>();
+        for (JSONObject i : items) {
+            if (i.optBoolean("done", false)) continue;
+            String name = i.optString("name", "");
+            if (name.isEmpty()) continue;
+            String c = i.optString("cat", "Drugo");
+            boolean known = false;
+            for (String[] k : CATS) if (k[0].equals(c)) known = true;
+            if (!known) c = "Drugo";
+            if (!by.containsKey(c)) by.put(c, new ArrayList<>());
+            by.get(c).add(i);
+        }
+        java.text.Collator sl = java.text.Collator.getInstance(new Locale("sl"));
+        JSONArray out = new JSONArray();
+        for (String[] k : CATS) {
+            List<JSONObject> list = by.get(k[0]);
+            if (list == null) continue;
+            list.sort((a, b) -> sl.compare(a.optString("name"), b.optString("name")));
+            JSONArray labels = new JSONArray();
+            for (JSONObject i : list) {
+                int qty = i.optInt("qty", 1);
+                String brand = i.optString("brand", "");
+                labels.put((qty > 1 ? qty + "× " : "") + i.optString("name") + (brand.isEmpty() ? "" : " (" + brand + ")"));
+            }
+            try { out.put(new JSONObject().put("icon", k[1]).put("name", k[0]).put("items", labels)); } catch (Exception ignored) {}
+        }
+        return out;
+    }
+
+    private void showStoreNotification(String requestId, JSONArray groups) {
+        if (!enabled()) return;
         String id = requestId.substring(STORE_PREFIX.length());
         JSONObject store = null;
         JSONArray stores = json("stores");
@@ -341,7 +419,6 @@ final class GeoManager {
             if (s != null && id.equals(s.optString("id"))) { store = s; break; }
         }
         if (store == null) return;
-        JSONArray groups = json("groups");
         int count = 0;
         StringBuilder body = new StringBuilder();
         for (int i = 0; i < groups.length(); i++) {

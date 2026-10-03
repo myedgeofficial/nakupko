@@ -21,7 +21,11 @@ public class GeofenceReceiver extends BroadcastReceiver {
         GeofencingEvent event = GeofencingEvent.fromIntent(intent);
         if (event == null || event.hasError() || event.getTriggeringGeofences() == null) return;
         if (event.getGeofenceTransition() == Geofence.GEOFENCE_TRANSITION_ENTER) {
-            for (Geofence g : event.getTriggeringGeofences()) geo.onEnteredStore(g.getRequestId());
+            // Skupen seznam preberemo s strežnika, zato počakamo, da je obvestilo poslano.
+            PendingResult pending = goAsync();
+            java.util.List<Geofence> list = event.getTriggeringGeofences();
+            java.util.concurrent.atomic.AtomicInteger left = new java.util.concurrent.atomic.AtomicInteger(list.size());
+            for (Geofence g : list) geo.onEnteredStore(g.getRequestId(), () -> { if (left.decrementAndGet() == 0) pending.finish(); });
             return;
         }
         Location loc = event.getTriggeringLocation();

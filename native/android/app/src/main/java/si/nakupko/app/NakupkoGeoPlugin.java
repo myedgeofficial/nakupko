@@ -136,7 +136,10 @@ public class NakupkoGeoPlugin extends Plugin {
         boolean wasOn = geo.enabled();
         JSArray stores = call.getArray("stores", new JSArray());
         JSArray groups = call.getArray("groups", new JSArray());
-        geo.configure(Boolean.TRUE.equals(call.getBoolean("enabled", false)), call.getFloat("radius", 75f), stores, groups);
+        JSObject hh = call.getObject("household", null);
+        String hhUrl = hh == null ? null : hh.optString("url", null);
+        String hhCode = hh == null ? null : hh.optString("code", null);
+        geo.configure(Boolean.TRUE.equals(call.getBoolean("enabled", false)), call.getFloat("radius", 75f), stores, groups, hhUrl, hhCode);
         if (!wasOn && geo.enabled()) askExtraPermissions();
         call.resolve();
     }
