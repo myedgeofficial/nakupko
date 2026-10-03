@@ -1,6 +1,6 @@
 // Nakupko deluje tudi brez povezave. Ob novi verziji povečaj številko.
-var CACHE = "nakupko-v5-9";
-var FILES = ["./", "index.html", "style.css", "app.js", "products.js", "products-extra.js", "icon-rules.js", "prices.js", "manifest.webmanifest", "icon.svg", "icon-full.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
+var CACHE = "nakupko-v5-10";
+var FILES = ["./", "index.html", "style.css", "app.js", "household.js", "products.js", "products-extra.js", "icon-rules.js", "prices.js", "manifest.webmanifest", "icon.svg", "icon-full.svg", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
 });
