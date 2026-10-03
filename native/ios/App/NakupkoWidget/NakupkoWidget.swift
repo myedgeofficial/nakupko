@@ -105,22 +105,23 @@ struct ItemGrid: View {
                 HStack(spacing: 8) {
                     Link(destination: URL(string: "nakupko://seznam")!) {
                         Label("Odpri seznam", systemImage: "list.bullet")
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(orange))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(orange)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(orange.opacity(0.12)))
                     }
                     Spacer()
                     if hidden > 0 {
                         Text("\(start + 1)–\(start + list.count) od \(items.count)").font(.caption).foregroundColor(.gray)
                         Button(intent: NextPageIntent()) {
                             Text(start + list.count >= items.count ? "Na začetek ↺" : "Naprej ›")
-                                .font(.caption.weight(.semibold))
-                                .foregroundColor(orange)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 4)
-                                .background(Capsule().fill(orange.opacity(0.12)))
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(orange))
+                                .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
                     }

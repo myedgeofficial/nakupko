@@ -32,6 +32,15 @@ enum LiveList {
     static let maxItems = 30
     static let perPage = 4
 
+    // Isti dnevnik kot GeoManager.log (Nastavitve → razvijalski način).
+    static func log(_ text: String) {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        var l = defaults.stringArray(forKey: "geo.log") ?? []
+        l.append(f.string(from: Date()) + " " + text)
+        defaults.set(Array(l.suffix(30)), forKey: "geo.log")
+    }
+
     // Stran, ki še obstaja (po odkljukanju se seznam skrajša).
     static func clampPage(_ page: Int?, count: Int) -> Int {
         let p = page ?? 0
@@ -46,6 +55,7 @@ enum LiveList {
     }
 
     static func markDone(_ id: String) async {
+        log("kljukica: \(id) (seznamov: \(Activity<ShoppingAttributes>.activities.count))")
         let now = Date().timeIntervalSince1970 * 1000
         // Aplikacija to prebere ob naslednjem odprtju (native.js → takeDone).
         var pending = defaults.dictionary(forKey: "live.done") as? [String: Double] ?? [:]
@@ -84,10 +94,12 @@ struct NextPageIntent: LiveActivityIntent {
     init() {}
 
     func perform() async throws -> some IntentResult {
+        LiveList.log("naprej (seznamov: \(Activity<ShoppingAttributes>.activities.count))")
         for a in Activity<ShoppingAttributes>.activities {
             var s = a.content.state
             let next = (s.page ?? 0) + 1
             s.page = next * LiveList.perPage < s.items.count ? next : 0
+            LiveList.log("  stran \(s.page ?? 0), izdelkov \(s.items.count)")
             await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
         }
         return .result()
