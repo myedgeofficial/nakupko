@@ -1,0 +1,19 @@
+name: probe
+on:
+  push:
+    branches: [cene-nocno]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+          p() { echo "=================== $1"; curl -sSL -m 25 -A "$UA" -H "Accept: application/json, text/html" -o o.txt -w "HTTP %{http_code} %{size_download}B %{url_effective}\n" "$1"; head -c ${2:-1500} o.txt; echo; }
+          p "https://mercatoronline.si/products/browseProducts/getProducts?limit=2&offset=0&filterData%5Bsearch%5D=gauda" 4000
+          p "https://search-spar.spar-ics.com/fact-finder/rest/v4/search/products_lmos_si?query=gauda&page=1&hitsPerPage=2" 4000
+          p "https://www.lidl.si/q/api/search?q=gauda&assortment=SI&locale=sl_SI&version=v2.0.0&fetchsize=2" 4000
+          p "https://www.hofer.si/sl/iskanje.html?q=gauda" 1500
+          p "https://www.polnakosarica.si/" 2000
+          p "https://www.polnakosarica.si/api/products?search=gauda" 1500
+          p "https://www.tus.si/?s=gauda" 1000
+          p "https://www.eurospin.si/" 500
