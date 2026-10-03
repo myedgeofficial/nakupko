@@ -114,8 +114,6 @@ async function pricesFor(p) {
   const catRe = CAT_RE[p[1]];
   if (catRe) { const f = found.filter((x) => catRe.test(norm(x.category_name))); if (f.length) found = f; }
   const first = want[0];
-  const starts = found.filter((x) => norm(x.name).startsWith(first));
-  if (starts.length) found = starts;
   const pk = pack(unit);
   const byStore = {};
   const sale = {};
@@ -127,11 +125,13 @@ async function pricesFor(p) {
       if (pk.kind === "kos") v = sp.actionPrice ?? sp.regularPrice;
       else { const u = perUnit(prod, sp, pk.kind); v = u == null ? null : u * pk.amount; }
       if (!(v > 0)) continue;
-      (byStore[st] = byStore[st] || []).push({ v, sale: sp.actionPrice != null && sp.actionPrice < sp.regularPrice });
+      (byStore[st] = byStore[st] || []).push({ v, sale: sp.actionPrice != null && sp.actionPrice < sp.regularPrice, starts: norm(prod.name).startsWith(first) });
     }
   }
   const cene = {};
-  for (const [st, list] of Object.entries(byStore)) {
+  for (let [st, list] of Object.entries(byStore)) {
+    // v vsaki trgovini raje izdelki, katerih ime se začne z iskanim (»Banane«, ne »Čips banana«)
+    if (list.some((x) => x.starts)) list = list.filter((x) => x.starts);
     const vals = list.map((x) => x.v);
     const v = quantile(vals, pk.kind === "kos" ? 0.5 : 0.25);
     cene[st] = Math.round(v * 100) / 100;
