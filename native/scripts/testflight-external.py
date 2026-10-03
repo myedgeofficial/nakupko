@@ -32,8 +32,12 @@ def call(method, path, body=None, ok_errors=()):
             return json.loads(data) if data else {}
     except urllib.error.HTTPError as e:
         text = e.read().decode(errors="replace")
+        try:  # ena vrstica, da je napaka vidna v povzetku na GitHubu
+            text = "; ".join(f"{x.get('code')}: {x.get('detail')}" for x in json.loads(text).get("errors", [])) or text
+        except ValueError:
+            text = " ".join(text.split())
         if e.code in ok_errors:
-            print(f"  ({method} {path}: {e.code}, nadaljujem)")
+            print(f"::warning::{method} {path}: {e.code} {text[:400]}")
             return None
         sys.exit(f"::warning::App Store Connect {method} {path}: {e.code} {text[:500]}")
 
@@ -77,6 +81,10 @@ for g in groups:
     call("POST", f"/betaGroups/{g['id']}/relationships/builds", {"data": [{"type": "builds", "id": bid}]}, ok_errors=(409,))
     print("Dodano v skupino:", g["attributes"]["name"])
 
-call("POST", "/betaAppReviewSubmissions",
-     {"data": {"type": "betaAppReviewSubmissions", "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}}, ok_errors=(409,))
-print(f"::notice::Gradnja {BUILD} je dodana zunanjim testerjem in poslana v pregled.")
+# Apple hkrati pregleduje le eno gradnjo; če kakšna že čaka, se ta pošlje, ko jo ročno potrdiš ali ob naslednji.
+r = call("POST", "/betaAppReviewSubmissions",
+         {"data": {"type": "betaAppReviewSubmissions", "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}}, ok_errors=(409, 422))
+if r is None:
+    print(f"::notice::Gradnja {BUILD} je dodana zunanjim testerjem; v pregled ni šla (glej zgoraj, verjetno že čaka druga).")
+else:
+    print(f"::notice::Gradnja {BUILD} je dodana zunanjim testerjem in poslana v pregled.")
