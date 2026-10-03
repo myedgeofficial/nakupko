@@ -36,6 +36,11 @@ jobs:
           cache: npm
           cache-dependency-path: native/package-lock.json
 
+      - name: Preizkusi pravila trgovin (verige, delovni čas, prazniki)
+        run: |
+          xcrun swiftc ios/App/App/StoreRules.swift tests/main.swift -o "$RUNNER_TEMP/storerules"
+          "$RUNNER_TEMP/storerules"
+
       - name: Pripravi spletni del in Capacitor
         run: |
           npm ci

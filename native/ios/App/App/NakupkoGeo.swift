@@ -18,6 +18,9 @@ struct GeoStore: Codable {
     let name: String
     let lat: Double
     let lon: Double
+    var chain: String? = nil
+    var duty: Bool? = nil
+    var hours: String? = nil
 }
 
 final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationCenterDelegate {
@@ -206,8 +209,13 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                     let center = e["center"] as? [String: Any]
                     guard let lat = (e["lat"] as? Double) ?? (center?["lat"] as? Double),
                           let lon = (e["lon"] as? Double) ?? (center?["lon"] as? Double) else { return nil }
-                    let name = (tags["name"] as? String) ?? (tags["brand"] as? String) ?? "Trgovina"
-                    return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon)
+                    let name = (tags["name"] as? String) ?? (tags["brand"] as? String) ?? (tags["operator"] as? String) ?? "Trgovina"
+                    let hours = (tags["opening_hours"] as? String) ?? ""
+                    let text = [tags["brand"], tags["name"], tags["operator"]].compactMap { $0 as? String }.joined(separator: " ")
+                    // Samo verige in dežurne trgovine, kot v aplikaciji.
+                    guard let kind = StoreRules.kind(text: text, hours: hours) else { return nil }
+                    return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
+                                    chain: kind.chain, duty: kind.duty, hours: hours)
                 }
                 guard !list.isEmpty else { return }
                 self.stores = list
@@ -224,6 +232,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let count = open.reduce(0) { $0 + $1.items.count }
         guard count > 0 else { return }
         if UIApplication.shared.applicationState == .active { return } // odprta aplikacija to pokaže sama
+        // Zaprta trgovina (npr. ob 6h pred Sparom, ki odpre ob 7:30): brez obvestila.
+        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
         let now = Date().timeIntervalSince1970
         var sent = notified
         if let last = sent[id], now - last < renotifyAfter { return }
@@ -375,7 +385,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
             guard let id = s["id"] as? String,
                   let lat = (s["lat"] as? NSNumber)?.doubleValue,
                   let lon = (s["lon"] as? NSNumber)?.doubleValue else { return nil }
-            return GeoStore(id: id, name: (s["name"] as? String) ?? "Trgovina", lat: lat, lon: lon)
+            return GeoStore(id: id, name: (s["name"] as? String) ?? "Trgovina", lat: lat, lon: lon,
+                            chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String)
         }
         DispatchQueue.main.async {
             GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups)

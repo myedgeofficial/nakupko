@@ -81,8 +81,9 @@
     var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [] };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
-      cfg.stores = list.filter(function (x) { return !/^test\//.test(x.id); }).map(function (x) {
-        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon };
+      // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
+      cfg.stores = list.filter(function (x) { return !/^test\//.test(x.id) && (x.chain || x.duty); }).map(function (x) {
+        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: x.chain || null, duty: !!x.duty, hours: x.hours || "" };
       });
       cfg.groups = groupsOf((s.items || []).filter(function (i) { return !i.done; }));
     }
