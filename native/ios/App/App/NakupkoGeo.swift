@@ -40,7 +40,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private let maxStoreRegions = 19
     private let homeRadius: CLLocationDistance = 1500
     private let refetchDistance: CLLocationDistance = 2500
-    private let renotifyAfter: TimeInterval = 45 * 60
+    private let renotifyAfter: TimeInterval = 15 * 60
 
     var onPosition: (([String: Any]) -> Void)?
     var onError: (([String: Any]) -> Void)?
