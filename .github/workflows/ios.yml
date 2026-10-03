@@ -67,7 +67,19 @@ jobs:
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           KEY_PATH="$RUNNER_TEMP/AuthKey_$KEY_ID.p8"
-          printf '%s\n' "$KEY_P8" > "$KEY_PATH"
+          # Ključ uredimo v pravilen PEM, tudi če je bil prilepljen z Windows koncem vrstic,
+          # v eni vrstici ali brez vrstic BEGIN/END.
+          python3 - "$KEY_PATH" <<'PY'
+          import os, re, sys, textwrap
+          raw = os.environ["KEY_P8"].replace("\ufeff", "").replace("\\n", "\n")
+          body = re.sub(r"-----(BEGIN|END)[A-Z ]*-----", "", raw)
+          body = re.sub(r"[^A-Za-z0-9+/=]", "", body)
+          if len(body) < 100:
+              sys.exit("::error::APPSTORE_KEY_P8 je prazen ali prekratek. Prilepi celotno vsebino datoteke .p8.")
+          pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PRIVATE KEY-----\n"
+          open(sys.argv[1], "w").write(pem)
+          print(f"Ključ pripravljen ({len(body)} znakov).")
+          PY
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
           BUILD_NUMBER="$(date -u +%Y%m%d%H%M)"
           sed "s/TEAM_ID/$TEAM_ID/" ../../ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
