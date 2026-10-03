@@ -43,6 +43,63 @@ function sendApns(tokens, title, body) {
   return Promise.all(tokens.map(one)).finally(() => client.close());
 }
 
+// Zažene seznam na zaklenjenem zaslonu (Live Activity, iOS 17.2+) s pushom »push-to-start«.
+function sendLiveStart(token, store, state) {
+  if (!token || !process.env.APNS_KEY_P8) return Promise.resolve({ status: 0, data: "brez ključa" });
+  const jwt = apnsJwt();
+  const client = http2.connect("https://api.push.apple.com");
+  const left = (state.items || []).length;
+  const payload = JSON.stringify({
+    aps: {
+      timestamp: Math.floor(Date.now() / 1000),
+      event: "start",
+      "content-state": state,
+      "attributes-type": "ShoppingAttributes",
+      attributes: { store },
+      "stale-date": Math.floor(Date.now() / 1000) + 4 * 3600,
+      alert: {
+        title: "🛒 " + store,
+        body: left + (left === 1 ? " izdelek" : left === 2 ? " izdelka" : left < 5 ? " izdelki" : " izdelkov") + " na seznamu. Kljukaj kar na zaklenjenem zaslonu."
+      }
+    }
+  });
+  return new Promise((resolve) => {
+    const req = client.request({
+      ":method": "POST",
+      ":path": "/3/device/" + token,
+      authorization: "bearer " + jwt,
+      "apns-topic": BUNDLE_ID + ".push-type.liveactivity",
+      "apns-push-type": "liveactivity",
+      "apns-priority": "10"
+    });
+    let status = 0, data = "";
+    req.on("response", (h) => { status = h[":status"]; });
+    req.on("data", (c) => { data += c; });
+    req.on("end", () => resolve({ status, data }));
+    req.on("error", (e) => resolve({ status: 0, data: String(e) }));
+    req.end(payload);
+  }).finally(() => client.close());
+}
+
+exports.liveStart = onValueCreated({
+  ref: "/la/{dev}/starts/{start}",
+  instance: "nakupko-8ad19-default-rtdb",
+  region: "europe-west1",
+  timeoutSeconds: 30,
+  memory: "128MiB"
+}, async (event) => {
+  const v = event.data.val() || {};
+  const state = v.state || {};
+  const items = Array.isArray(state.items) ? state.items.slice(0, 30).map((i) => ({
+    id: String(i.id || ""), label: String(i.label || "").slice(0, 40), icon: String(i.icon || "🛒").slice(0, 4)
+  })).filter((i) => i.id && i.label) : [];
+  const clean = { items, done: 0, total: items.length };
+  const res = items.length ? await sendLiveStart(String(v.token || ""), String(v.store || "Trgovina").slice(0, 40), clean) : { status: 0, data: "prazen seznam" };
+  console.log("liveStart", event.params.dev, v.store, res.status, res.data);
+  // Seznam in žeton ne ostaneta na strežniku.
+  await event.data.ref.remove();
+});
+
 function sendFcm(tokens, title, body) {
   if (!tokens.length) return Promise.resolve(null);
   return admin.messaging().sendEachForMulticast({ tokens, notification: { title, body } }).catch((e) => ({ error: String(e) }));

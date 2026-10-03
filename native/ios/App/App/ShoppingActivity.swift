@@ -1,5 +1,6 @@
 import Foundation
 import ActivityKit
+import AppIntents
 
 // Skupno za aplikacijo in pripomoček na zaklenjenem zaslonu (Live Activity).
 struct ItemGroup: Codable, Hashable {
@@ -8,11 +9,76 @@ struct ItemGroup: Codable, Hashable {
     var items: [String]
 }
 
+// Izdelek na zaklenjenem zaslonu: id je isti kot v aplikaciji (in skupnem seznamu).
+struct LiveItem: Codable, Hashable {
+    var id: String
+    var label: String
+    var icon: String
+}
+
 struct ShoppingAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
-        var groups: [ItemGroup]
+        var items: [LiveItem]
         var done: Int
         var total: Int
     }
     var store: String
+}
+
+// Odkljukanje z zaklenjenega zaslona. Teče v aplikaciji (tudi ko je zaprta), brez odpiranja.
+enum LiveList {
+    static let defaults = UserDefaults.standard
+    static let maxItems = 30
+
+    // Live Activity sprejme največ 4 KB: omejimo število in dolžino imen.
+    static func fit(_ list: [LiveItem]) -> [LiveItem] {
+        list.prefix(maxItems).map { i in
+            LiveItem(id: i.id, label: i.label.count > 34 ? String(i.label.prefix(33)) + "…" : i.label, icon: i.icon)
+        }
+    }
+
+    static func markDone(_ id: String) async {
+        let now = Date().timeIntervalSince1970 * 1000
+        // Aplikacija to prebere ob naslednjem odprtju (native.js → takeDone).
+        var pending = defaults.dictionary(forKey: "live.done") as? [String: Double] ?? [:]
+        pending[id] = now
+        defaults.set(pending, forKey: "live.done")
+        // Odprti izdelki za obvestila ob prihodu v trgovino.
+        if let data = defaults.data(forKey: "geo.items"), var open = try? JSONDecoder().decode([LiveItem].self, from: data) {
+            open.removeAll { $0.id == id }
+            defaults.set(try? JSONEncoder().encode(open), forKey: "geo.items")
+        }
+        for a in Activity<ShoppingAttributes>.activities {
+            var s = a.content.state
+            guard let idx = s.items.firstIndex(where: { $0.id == id }) else { continue }
+            s.items.remove(at: idx)
+            s.done += 1
+            await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
+        }
+        // Skupen seznam: odkljukano vidijo tudi ostali člani.
+        if let u = defaults.string(forKey: "geo.hh.url"), let c = defaults.string(forKey: "geo.hh.code"),
+           !u.isEmpty, !c.isEmpty, let url = URL(string: "\(u)/h/\(c)/items/\(id).json") {
+            var req = URLRequest(url: url)
+            req.httpMethod = "PATCH"
+            req.timeoutInterval = 8
+            req.httpBody = try? JSONSerialization.data(withJSONObject: ["done": true, "doneAt": Int(now)])
+            _ = try? await URLSession.shared.data(for: req)
+        }
+    }
+}
+
+struct CheckItemIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Odkljukaj izdelek"
+    static var isDiscoverable: Bool = false
+
+    @Parameter(title: "Izdelek")
+    var itemId: String
+
+    init() {}
+    init(itemId: String) { self.itemId = itemId }
+
+    func perform() async throws -> some IntentResult {
+        await LiveList.markDone(itemId)
+        return .result()
+    }
 }

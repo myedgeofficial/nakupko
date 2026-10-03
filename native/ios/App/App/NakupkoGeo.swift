@@ -40,7 +40,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private let maxStoreRegions = 19
     private let homeRadius: CLLocationDistance = 1500
     private let refetchDistance: CLLocationDistance = 2500
-    private let renotifyAfter: TimeInterval = 15 * 60
+    // Isto trgovino znova javimo po 3 minutah (GPS na robu parkirišča niha), partnerja pa po 45.
+    private let renotifyAfter: TimeInterval = 3 * 60
+    private let visitAgainAfter: TimeInterval = 45 * 60
 
     var onPosition: (([String: Any]) -> Void)?
     var onError: (([String: Any]) -> Void)?
@@ -63,6 +65,26 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             return (try? JSONDecoder().decode([ItemGroup].self, from: data)) ?? []
         }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "geo.groups") }
+    }
+    // Odprti izdelki z id-ji (za kljukanje na zaklenjenem zaslonu).
+    private var liveItems: [LiveItem] {
+        get {
+            guard let data = defaults.data(forKey: "geo.items") else { return [] }
+            return (try? JSONDecoder().decode([LiveItem].self, from: data)) ?? []
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "geo.items") }
+    }
+    // Žeton, s katerim strežnik zažene seznam na zaklenjenem zaslonu (iOS 17.2+).
+    private var startToken: String? {
+        get { defaults.string(forKey: "live.startToken") }
+        set { defaults.set(newValue, forKey: "live.startToken") }
+    }
+    private var deviceId: String {
+        if let d = defaults.string(forKey: "live.device"), d.count == 16 { return d }
+        let alpha = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        let d = String((0..<16).map { _ in alpha.randomElement()! })
+        defaults.set(d, forKey: "live.device")
+        return d
     }
     // Skupen seznam (household.js): ob prihodu v trgovino preberemo najnovejši seznam s strežnika.
     private var household: Household? {
@@ -119,6 +141,25 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
     }
 
+    // Enako kot liveItemsOf() v native.js: odprti izdelki v vrstnem redu oddelkov.
+    static func liveItemsOf(items: [[String: Any]]) -> [LiveItem] {
+        let open = items.filter { ($0["done"] as? Bool) != true && !((($0["name"] as? String) ?? "").isEmpty) && $0["id"] is String }
+        func catIndex(_ i: [String: Any]) -> Int {
+            let c = (i["cat"] as? String) ?? "Drugo"
+            return categories.firstIndex(where: { $0.0 == c }) ?? (categories.count - 1)
+        }
+        return open.sorted {
+            let a = catIndex($0), b = catIndex($1)
+            if a != b { return a < b }
+            return (($0["name"] as? String) ?? "").localizedCompare(($1["name"] as? String) ?? "") == .orderedAscending
+        }.map { i in
+            let qty = (i["qty"] as? NSNumber)?.intValue ?? 1
+            let brand = (i["brand"] as? String) ?? ""
+            let label = (qty > 1 ? "\(qty)× " : "") + ((i["name"] as? String) ?? "") + (brand.isEmpty ? "" : " (\(brand))")
+            return LiveItem(id: i["id"] as! String, label: label, icon: categories[catIndex(i)].1)
+        }
+    }
+
     // Trgovina iz obvestila, ki ga je uporabnik tapnil (native.js takoj odpre nakupovanje).
     var pendingStoreId: String?
     private var shoppingFrom: CLLocation?
@@ -159,11 +200,20 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         if enabled { startBackgroundMonitoring() }
         UIApplication.shared.registerForRemoteNotifications()
+        if #available(iOS 17.2, *) {
+            Task { [weak self] in
+                for await data in Activity<ShoppingAttributes>.pushToStartTokenUpdates {
+                    let hex = data.map { String(format: "%02x", $0) }.joined()
+                    await MainActor.run { self?.startToken = hex }
+                }
+            }
+        }
     }
 
-    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup], household hh: Household?) {
+    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup], items: [LiveItem], household hh: Household?) {
         radius = r
         groups = open
+        liveItems = items
         household = hh
         registerMember()
         if !list.isEmpty {
@@ -331,7 +381,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
         let now = Date().timeIntervalSince1970
         var sent = visitSent
-        if let last = sent[id], now - last < renotifyAfter { return }
+        if let last = sent[id], now - last < visitAgainAfter { return }
         sent = sent.filter { now - $0.value < 24 * 3600 }
         sent[id] = now
         visitSent = sent
@@ -368,7 +418,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     private func notifyEntered(regionId: String) {
         reportVisit(storeId: String(regionId.dropFirst(storePrefix.count)))
-        guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups) }
+        guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups, items: liveItems) }
         // Partner je morda kaj dodal, medtem ko je bila aplikacija zaprta: preberemo skupen seznam.
         let app = UIApplication.shared
         var task: UIBackgroundTaskIdentifier = .invalid
@@ -379,19 +429,24 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 var open = self.groups
+                var live = self.liveItems
                 if let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    open = Self.groupsOf(items: obj.values.compactMap { $0 as? [String: Any] })
+                    let all = obj.values.compactMap { $0 as? [String: Any] }
+                    open = Self.groupsOf(items: all)
+                    live = Self.liveItemsOf(items: all)
                     self.groups = open
+                    self.liveItems = live
                 } else if let data = data, String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
                     open = []
+                    live = []
                 }
-                self.showStoreNotification(regionId: regionId, open: open)
+                self.showStoreNotification(regionId: regionId, open: open, items: live)
                 app.endBackgroundTask(task)
             }
         }.resume()
     }
 
-    private func showStoreNotification(regionId: String, open: [ItemGroup]) {
+    private func showStoreNotification(regionId: String, open: [ItemGroup], items: [LiveItem]) {
         let id = String(regionId.dropFirst(storePrefix.count))
         guard enabled, let store = stores.first(where: { $0.id == id }) else { return }
         let count = open.reduce(0) { $0 + $1.items.count }
@@ -406,6 +461,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         sent[id] = now
         notified = sent
 
+        // iOS 17.2+: strežnik na zaklenjenem zaslonu odpre seznam, ki ga lahko kljukaš. Sicer navadno obvestilo.
+        if !items.isEmpty, startLive(store: store.name, items: items, completion: { [weak self] ok in
+            if !ok { self?.postStoreNotification(id: id, store: store, open: open, count: count) }
+        }) { return }
+        postStoreNotification(id: id, store: store, open: open, count: count)
+    }
+
+    private func postStoreNotification(id: String, store: GeoStore, open: [ItemGroup], count: Int) {
         let content = UNMutableNotificationContent()
         content.title = "🛒 \(store.name) · \(count) \(count == 1 ? "izdelek" : count == 2 ? "izdelka" : count < 5 ? "izdelki" : "izdelkov")"
         // Ena vrstica na oddelek; ves seznam se vidi, ko obvestilo razpreš.
@@ -419,8 +482,41 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         UNUserNotificationCenter.current().add(request)
     }
 
+    // Prošnja strežniku (Firebase funkcija liveStart), da pošlje push, ki zažene Live Activity.
+    // Vrne false, če to na tem iPhonu ni mogoče (takrat pokažemo navadno obvestilo).
+    private func startLive(store: String, items: [LiveItem], completion: @escaping (Bool) -> Void) -> Bool {
+        guard #available(iOS 17.2, *), ActivityAuthorizationInfo().areActivitiesEnabled, let token = startToken,
+              let base = household?.url ?? defaults.string(forKey: "geo.dbUrl"),
+              let url = URL(string: "\(base)/la/\(deviceId)/starts.json") else { return false }
+        if Activity<ShoppingAttributes>.activities.contains(where: { $0.attributes.store == store }) { return true }
+        let list = LiveList.fit(items)
+        let state: [String: Any] = [
+            "items": list.map { ["id": $0.id, "label": $0.label, "icon": $0.icon] },
+            "done": 0, "total": list.count
+        ]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 6
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["token": token, "store": store, "state": state, "at": [".sv": "timestamp"]])
+        let app = UIApplication.shared
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+        URLSession.shared.dataTask(with: req) { _, resp, _ in
+            let ok = (resp as? HTTPURLResponse)?.statusCode == 200
+            DispatchQueue.main.async { completion(ok); app.endBackgroundTask(task) }
+        }.resume()
+        return true
+    }
+
+    // Ko zapustiš trgovino, seznam z zaklenjenega zaslona umaknemo.
+    private func endLive(store: String) {
+        for a in Activity<ShoppingAttributes>.activities where a.attributes.store == store {
+            Task { await a.end(nil, dismissalPolicy: .default) }
+        }
+    }
+
     // ---------- Seznam na zaklenjenem zaslonu (Live Activity) ----------
-    func shopping(active: Bool, store: String, groups list: [ItemGroup], done: Int, total: Int) {
+    func shopping(active: Bool, store: String, items list: [LiveItem], done: Int, total: Int) {
         guard #available(iOS 16.2, *) else { return }
         let current = Activity<ShoppingAttributes>.activities
         guard active else {
@@ -430,7 +526,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         if shoppingFrom == nil { shoppingFrom = manager.location }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let state = ShoppingAttributes.ContentState(groups: Self.fit(list), done: done, total: total)
+        let state = ShoppingAttributes.ContentState(items: LiveList.fit(list), done: done, total: total)
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(4 * 3600))
         if let a = current.first(where: { $0.attributes.store == store }) {
             Task { await a.update(content) }
@@ -505,6 +601,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         if region.identifier.hasPrefix(storePrefix) {
             let id = String(region.identifier.dropFirst(storePrefix.count))
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
+            if let store = stores.first(where: { $0.id == id }) { endLive(store: store.name) }
             reportLeft(storeId: id)
             return
         }
@@ -539,6 +636,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shopping", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePendingStore", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "takeDone", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise)
@@ -562,6 +660,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let on = call.getBool("enabled") ?? false
         let radius = call.getDouble("radius") ?? 75
         let groups = Self.parseGroups(call)
+        let items = Self.parseItems(call)
+        let dbUrl = call.getString("dbUrl")
         let stores: [GeoStore] = (call.getArray("stores", JSObject.self) ?? []).compactMap { s in
             guard let id = s["id"] as? String,
                   let lat = (s["lat"] as? NSNumber)?.doubleValue,
@@ -574,7 +674,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
             hh = Household(url: u, code: c, member: (h["member"] as? String) ?? "", name: (h["name"] as? String) ?? "")
         }
         DispatchQueue.main.async {
-            GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups, household: hh)
+            if let u = dbUrl, !u.isEmpty { UserDefaults.standard.set(u, forKey: "geo.dbUrl") }
+            GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups, items: items, household: hh)
             call.resolve()
         }
     }
@@ -586,14 +687,30 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    static func parseItems(_ call: CAPPluginCall) -> [LiveItem] {
+        (call.getArray("items", JSObject.self) ?? []).compactMap { i in
+            guard let id = i["id"] as? String, let label = i["label"] as? String else { return nil }
+            return LiveItem(id: id, label: label, icon: (i["icon"] as? String) ?? "🛒")
+        }
+    }
+
+    // Izdelki, odkljukani na zaklenjenem zaslonu, odkar je bila aplikacija nazadnje odprta.
+    @objc func takeDone(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let d = UserDefaults.standard.dictionary(forKey: "live.done") as? [String: Double] ?? [:]
+            UserDefaults.standard.removeObject(forKey: "live.done")
+            call.resolve(["ids": d])
+        }
+    }
+
     @objc func shopping(_ call: CAPPluginCall) {
         let active = call.getBool("active") ?? false
         let store = call.getString("store") ?? "Nakupovanje"
-        let groups = Self.parseGroups(call)
+        let items = Self.parseItems(call)
         let done = call.getInt("done") ?? 0
         let total = call.getInt("total") ?? 0
         DispatchQueue.main.async {
-            GeoManager.shared.shopping(active: active, store: store, groups: groups, done: done, total: total)
+            GeoManager.shared.shopping(active: active, store: store, items: items, done: done, total: total)
             call.resolve()
         }
     }

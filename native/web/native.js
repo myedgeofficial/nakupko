@@ -21,7 +21,7 @@
     var api = {
       addListener: function (event, cb) { return Cap.addListener("NakupkoGeo", event, cb); }
     };
-    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "setZoom", "openSettings", "requestAlways"].forEach(function (m) {
+    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways"].forEach(function (m) {
       api[m] = function (opts) { return Cap.nativePromise("NakupkoGeo", m, opts || {}); };
     });
     return api;
@@ -91,6 +91,13 @@
     });
   }
 
+  // Izdelki z id-ji za kljukanje na zaklenjenem zaslonu (vrstni red oddelkov, nato abecedno).
+  function liveItemsOf(items) {
+    function ci(i) { var k = -1; CATS.forEach(function (c, n) { if (c[0] === (i.cat || "Drugo")) k = n; }); return k < 0 ? CATS.length - 1 : k; }
+    return items.slice().sort(function (a, b) { return ci(a) - ci(b) || a.name.localeCompare(b.name, "sl"); })
+      .map(function (i) { return { id: i.id, label: itemLabel(i), icon: CATS[ci(i)][1] }; });
+  }
+
   // ---------- Sinhronizacija z iPhonom (spremljanje trgovin v ozadju) ----------
   var lastSent = "";
   function sync() {
@@ -98,7 +105,7 @@
     if (!api || !api.state) return;
     var s = api.state();
     var on = !!(s.settings && s.settings.locOn);
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
@@ -106,6 +113,7 @@
         return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: x.chain || null, duty: !!x.duty, hours: x.hours || "" };
       });
       cfg.groups = groupsOf((s.items || []).filter(function (i) { return !i.done; }));
+      cfg.items = liveItemsOf((s.items || []).filter(function (i) { return !i.done; }));
     }
     var key = JSON.stringify(cfg);
     if (key === lastSent) return;
@@ -115,7 +123,7 @@
 
   // ---------- Seznam na zaklenjenem zaslonu med nakupovanjem ----------
   // Ko je odprt način »V trgovini«, iPhone pokaže preostale izdelke na zaklenjenem zaslonu.
-  var lastShop = "", shopStartedAt = 0;
+  var lastShop = "", shopStartedAt = 0, shopWasActive = false;
   function syncShopping() {
     var api = window.__nakupko, sm = document.getElementById("storeMode");
     if (!api || !api.state || !sm) return;
@@ -128,11 +136,15 @@
       var done = items.filter(function (i) { return i.done && i.doneAt && i.doneAt >= shopStartedAt; }).length;
       var title = (document.getElementById("smTitle") || {}).textContent || "Nakupovanje";
       msg.store = title.split(",")[0];
-      msg.groups = groupsOf(open);
+      msg.items = liveItemsOf(open);
       msg.done = done;
       msg.total = open.length + done;
+      shopWasActive = true;
     } else {
       shopStartedAt = 0;
+      // Seznam, ki ga je ob prihodu odprl iPhone sam, pustimo pri miru, dokler ne zapustiš trgovine.
+      if (!shopWasActive) return;
+      shopWasActive = false;
     }
     var key = JSON.stringify(msg);
     if (key === lastShop) return;
@@ -155,6 +167,19 @@
     }).catch(function () {});
   }
   setInterval(sync, 4000);
+
+  // Izdelki, odkljukani na zaklenjenem zaslonu, se odkljukajo tudi v aplikaciji.
+  function applyLiveDone() {
+    var api = window.__nakupko;
+    if (!api || !api.state || !api.toggle) return;
+    Geo.takeDone().then(function (r) {
+      var ids = (r && r.ids) || {};
+      Object.keys(ids).forEach(function (id) {
+        var it = (api.state().items || []).find(function (i) { return i.id === id; });
+        if (it && !it.done) api.toggle(id);
+      });
+    }).catch(function () {});
+  }
 
   // Velikost prikaza (Mlajši / Srednja leta / Starejši): povečamo celo stran prek iPhona.
   var lastZoom = 0;
@@ -285,7 +310,7 @@
   });
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden") { sync(); syncShopping(); }
-    else { setTimeout(openFromNotification, 300); setTimeout(showBackgroundStatus, 500); }
+    else { setTimeout(applyLiveDone, 200); setTimeout(openFromNotification, 300); setTimeout(showBackgroundStatus, 500); }
   });
-  window.addEventListener("load", function () { setTimeout(sync, 500); setTimeout(openFromNotification, 800); });
+  window.addEventListener("load", function () { setTimeout(applyLiveDone, 300); setTimeout(sync, 500); setTimeout(openFromNotification, 800); });
 })();
