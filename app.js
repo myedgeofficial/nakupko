@@ -1523,5 +1523,5 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, toggle: function (id) { toggleItem(id); }, setItems: function (l) { state.items = l; save(); renderAll(); }, toast: toast, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
+  window.__nakupko = { state: function () { return state; }, toggle: function (id) { toggleItem(id); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, setItems: function (l) { state.items = l; save(); renderAll(); }, toast: toast, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
 })();
