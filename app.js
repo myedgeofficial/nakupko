@@ -55,9 +55,10 @@
       if (raw) {
         var s = JSON.parse(raw);
         Object.keys(d).forEach(function (k) { if (s[k] === undefined || s[k] === null) s[k] = d[k]; });
+        var migrate = !(s.settings && s.settings.locDefault2);
         s.settings = Object.assign({}, d.settings, s.settings);
         // Samodejno zaznavanje je privzeto vklopljeno (tudi za obstoječe uporabnike, enkrat).
-        if (!s.settings.locDefault2) { s.settings.locOn = true; s.settings.locDefault2 = true; }
+        if (migrate) { s.settings.locOn = true; s.settings.locDefault2 = true; }
         return s;
       }
     } catch (e) { /* prazno stanje */ }
