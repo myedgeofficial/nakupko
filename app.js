@@ -9,8 +9,13 @@
     { key: "lidl", name: "Lidl", factor: 0.87, color: "#1F5FBF", match: /lidl/i },
     { key: "hofer", name: "Hofer", factor: 0.86, color: "#2B3A78", match: /hofer|aldi/i },
     { key: "eurospin", name: "Eurospin", factor: 0.85, color: "#2B8FD6", match: /eurospin/i },
-    { key: "jager", name: "Jager", factor: 1.0, color: "#8A5A2B", match: /jager/i }
+    { key: "jager", name: "Jager", factor: 1.0, color: "#8A5A2B", match: /jager/i },
+    // Specializirane trgovine: zaznamo jih le, ko imaš na seznamu izdelke zanje (only).
+    { key: "babycenter", name: "Baby Center", factor: 1.05, color: "#E86A9A", match: /baby ?cent(er|ar)/i, only: /^otroci |plenic|robčk/i },
+    { key: "mrpet", name: "Mr. Pet", factor: 1.0, color: "#C4572B", match: /mr\.? ?pet\b/i, only: /^ljubljenčki /i },
+    { key: "premiumpet", name: "Premium Pet", factor: 1.0, color: "#3E6B8A", match: /premium ?pet\b/i, only: /^ljubljenčki /i }
   ];
+  function specialFor(s, it) { var c = CHAIN_BY_KEY[s && s.chain]; return !c || !c.only || c.only.test((it.cat || "") + " " + it.name); }
   var CHAIN_BY_KEY = {};
   CHAINS.forEach(function (c) { CHAIN_BY_KEY[c.key] = c; });
   var COMPARE_CHAINS = ["spar", "mercator", "tus", "lidl", "hofer"];
@@ -416,12 +421,13 @@
       if (filter === "store") {
         if (!st) return true;
         var u = usualStoreInfo(i.name);
+        if (!specialFor(st, i)) return false;
         return !u || u.chain === st.chain || u.storeId === st.id;
       }
       return true;
     });
     // razvrsti po kategoriji (kot pot po trgovini)
-    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Tobak", "Ljubljenčki", "Drugo"];
+    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Tobak", "Brez glutena", "Otroci", "Zdravje", "Ljubljenčki", "Drugo"];
     items.sort(function (a, b) { return order.indexOf(a.cat || "Drugo") - order.indexOf(b.cat || "Drugo"); });
     var lastCat = null;
     items.forEach(function (it) {
@@ -701,7 +707,7 @@
     if (fetching && !force) return;
     fetching = true;
     var q = "[out:json][timeout:20];(" +
-      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store)$\"](around:3000," + p.lat + "," + p.lon + ");" +
+      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet)$\"](around:3000," + p.lat + "," + p.lon + ");" +
       ");out center tags 120;";
     var tryAt = function (i) {
       if (i >= OVERPASS.length) {
@@ -741,6 +747,7 @@
     if (!lastPos || !stores.length) return null;
     var best = null;
     stores.forEach(function (s) {
+      if (CHAIN_BY_KEY[s.chain] && CHAIN_BY_KEY[s.chain].only && !state.items.some(function (i) { return !i.done && specialFor(s, i); })) return;
       var d = distM(lastPos, s);
       if (!best || d < best.d) best = { s: s, d: d };
     });
@@ -1162,7 +1169,7 @@
     var ref = lastPos || lastFetchPos;
     if (!ref || !stores.length) return null;
     var allowed = myChains();
-    var cand = stores.filter(function (s) { return s.chain && CHAIN_BY_KEY[s.chain] && !/^test\//.test(s.id) && (!allowed || allowed.indexOf(s.chain) >= 0); })
+    var cand = stores.filter(function (s) { return s.chain && CHAIN_BY_KEY[s.chain] && !CHAIN_BY_KEY[s.chain].only && !/^test\//.test(s.id) && (!allowed || allowed.indexOf(s.chain) >= 0); })
       .map(function (s) { return { s: s, d: distM(ref, s) }; })
       .filter(function (x) { return x.d <= TRIP_MAX; })
       .sort(function (a, b) { return a.d - b.d; }).slice(0, 60);
