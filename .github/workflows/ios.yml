@@ -82,6 +82,7 @@ jobs:
           PY
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
           BUILD_NUMBER="$(date -u +%Y%m%d%H%M)"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
           sed "s/TEAM_ID/$TEAM_ID/" ../../ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
 
           xcodebuild -project App.xcodeproj -scheme App -configuration Release \
@@ -107,3 +108,15 @@ jobs:
 
           rm -f "$KEY_PATH"
           echo "::notice::Gradnja $BUILD_NUMBER je naložena. Na TestFlightu bo vidna, ko jo Apple obdela (običajno 5–15 minut)."
+
+      - name: Pošlji zunanjim testerjem
+        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true'
+        continue-on-error: true
+        timeout-minutes: 50
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography || python3 -m pip install --quiet pyjwt cryptography
+          python3 native/scripts/testflight-external.py
