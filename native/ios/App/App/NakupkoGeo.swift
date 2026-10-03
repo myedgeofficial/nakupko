@@ -87,8 +87,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.distanceFilter = 5
-        manager.pausesLocationUpdatesAutomatically = true
+        // Brez samodejnega premora: po premoru iOS lokacije ne pošilja več, dokler je ne zaženemo znova.
+        manager.pausesLocationUpdatesAutomatically = false
+        manager.activityType = .otherNavigation
         UNUserNotificationCenter.current().delegate = self
+        NotificationCenter.default.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self, self.watching else { return }
+            self.manager.startUpdatingLocation()
+        }
         if enabled { startBackgroundMonitoring() }
     }
 
@@ -176,6 +182,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             region.notifyOnEntry = true
             region.notifyOnExit = false
             manager.startMonitoring(for: region)
+            // Če si že v trgovini, ko začnemo spremljati, iOS vstopa ne javi; zato vprašamo za stanje.
+            manager.requestState(for: region)
         }
         let home = CLCircularRegion(center: loc.coordinate, radius: homeRadius, identifier: homeId)
         home.notifyOnEntry = false
@@ -329,6 +337,10 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         if region.identifier.hasPrefix(storePrefix) { notifyEntered(regionId: region.identifier) }
     }
 
+    func locationManager(_ manager: CLLocationManager, didDetermineState state: CLRegionState, for region: CLRegion) {
+        if state == .inside && region.identifier.hasPrefix(storePrefix) { notifyEntered(regionId: region.identifier) }
+    }
+
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         guard region.identifier == homeId else { return }
         if let loc = manager.location { refreshRegions(around: loc) } else { manager.requestLocation() }
@@ -361,7 +373,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shopping", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePendingStore", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -432,7 +445,22 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func getStatus(_ call: CAPPluginCall) {
-        DispatchQueue.main.async { call.resolve(GeoManager.shared.status()) }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            DispatchQueue.main.async {
+                var st = GeoManager.shared.status()
+                st["notifications"] = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+                st["precise"] = CLLocationManager().accuracyAuthorization == .fullAccuracy
+                call.resolve(st)
+            }
+        }
+    }
+
+    // Odpre Nastavitve → Nakupko (lokacija »Vedno«, obvestila).
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            call.resolve()
+        }
     }
 }
 

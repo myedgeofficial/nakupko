@@ -149,6 +149,42 @@
   if (window.MutationObserver) new MutationObserver(syncZoom).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("load", syncZoom);
 
+  // Stanje spremljanja v ozadju pod stikalom za lokacijo: kaj iPhone še potrebuje.
+  function showBackgroundStatus() {
+    var st = document.getElementById("locStatus");
+    var api = window.__nakupko;
+    if (!st || !api || !api.state || !(api.state().settings || {}).locOn) { var old = document.getElementById("bgStatus"); if (old) old.remove(); return; }
+    Geo.getStatus().then(function (s) {
+      var box = document.getElementById("bgStatus");
+      if (!box) {
+        box = document.createElement("div");
+        box.id = "bgStatus";
+        box.className = "small";
+        box.style.marginTop = "6px";
+        st.parentNode.appendChild(box);
+      }
+      var missing = [];
+      if (s.authorization !== "always") missing.push("Lokacija → Vedno");
+      if (s.precise === false) missing.push("Lokacija → Natančna lokacija");
+      if (!s.notifications) missing.push("Obvestila → Dovoli");
+      box.textContent = "";
+      if (!missing.length) {
+        box.className = "small muted";
+        box.textContent = "✓ Deluje tudi, ko je aplikacija zaprta (" + s.regions + " trgovin v bližini).";
+        return;
+      }
+      box.className = "small";
+      box.style.color = "#c0392b";
+      box.appendChild(document.createTextNode("Ko je aplikacija zaprta, ne deluje. Vklopi: " + missing.join(", ") + ". "));
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "link"; b.textContent = "Odpri nastavitve";
+      b.onclick = function () { Geo.openSettings(); };
+      box.appendChild(b);
+    }).catch(function () {});
+  }
+  window.addEventListener("load", function () { setTimeout(showBackgroundStatus, 1500); });
+  setInterval(showBackgroundStatus, 10000);
+
   // Navodila za dovoljenje naj kažejo na aplikacijo, ne na Safari.
   window.addEventListener("DOMContentLoaded", function () {
     var st = document.getElementById("locStatus");
@@ -162,7 +198,7 @@
   });
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden") { sync(); syncShopping(); }
-    else setTimeout(openFromNotification, 300);
+    else { setTimeout(openFromNotification, 300); setTimeout(showBackgroundStatus, 500); }
   });
   window.addEventListener("load", function () { setTimeout(sync, 500); setTimeout(openFromNotification, 800); });
 })();
