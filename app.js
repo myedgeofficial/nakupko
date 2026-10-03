@@ -42,7 +42,7 @@
       usageNames: {},
       prices: {},
       pricesUpdated: null,
-      settings: { locOn: false, radius: 75, delay: 15 },
+      settings: { locOn: true, locDefault2: true, radius: 75, delay: 15 },
       storesCache: null,
       dismissed: {},
       dismissN: {}
@@ -56,6 +56,8 @@
         var s = JSON.parse(raw);
         Object.keys(d).forEach(function (k) { if (s[k] === undefined || s[k] === null) s[k] = d[k]; });
         s.settings = Object.assign({}, d.settings, s.settings);
+        // Samodejno zaznavanje je privzeto vklopljeno (tudi za obstoječe uporabnike, enkrat).
+        if (!s.settings.locDefault2) { s.settings.locOn = true; s.settings.locDefault2 = true; }
         return s;
       }
     } catch (e) { /* prazno stanje */ }
