@@ -137,6 +137,18 @@
   }
   setInterval(sync, 4000);
 
+  // Velikost prikaza (Mlajši / Srednja leta / Starejši): povečamo celo stran prek iPhona.
+  var lastZoom = 0;
+  function syncZoom() {
+    var c = document.documentElement.classList;
+    var z = c.contains("size-senior") ? 1.25 : c.contains("size-mid") ? 1.1 : 1;
+    if (z === lastZoom) return;
+    lastZoom = z;
+    Geo.setZoom({ zoom: z }).catch(function () { lastZoom = 0; });
+  }
+  if (window.MutationObserver) new MutationObserver(syncZoom).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  window.addEventListener("load", syncZoom);
+
   // Navodila za dovoljenje naj kažejo na aplikacijo, ne na Safari.
   window.addEventListener("DOMContentLoaded", function () {
     var st = document.getElementById("locStatus");

@@ -360,7 +360,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setConfig", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shopping", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "takePendingStore", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "takePendingStore", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -409,6 +410,15 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let total = call.getInt("total") ?? 0
         DispatchQueue.main.async {
             GeoManager.shared.shopping(active: active, store: store, groups: groups, done: done, total: total)
+            call.resolve()
+        }
+    }
+
+    // Velikost prikaza za starejše: iPhone poveča celo stran enakomerno.
+    @objc func setZoom(_ call: CAPPluginCall) {
+        let zoom = min(max(call.getDouble("zoom") ?? 1, 0.8), 1.6)
+        DispatchQueue.main.async { [weak self] in
+            self?.bridge?.webView?.pageZoom = CGFloat(zoom)
             call.resolve()
         }
     }
