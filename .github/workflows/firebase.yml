@@ -1,0 +1,53 @@
+name: Strežnik (Firebase)
+
+# Objavi pravila baze in funkcijo za obvestila »član je v trgovini«.
+# Potrebne skrivnosti: FIREBASE_SERVICE_ACCOUNT (JSON), APNS_KEY_P8, APNS_KEY_ID, APPLE_TEAM_ID.
+on:
+  push:
+    branches: [main]
+    paths: ["firebase/**", ".github/workflows/firebase.yml"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firebase
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Preveri skrivnosti
+        id: check
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::warning::Manjka skrivnost FIREBASE_SERVICE_ACCOUNT, objava preskočena."; echo "ok=no" >> "$GITHUB_OUTPUT"; else echo "ok=yes" >> "$GITHUB_OUTPUT"; fi
+      - name: Namesti
+        if: steps.check.outputs.ok == 'yes'
+        run: npm ci --prefix functions
+      - name: Objavi
+        if: steps.check.outputs.ok == 'yes'
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          python3 - <<'PY'
+          import os, re
+          p8 = os.environ.get("APNS_KEY_P8", "").strip()
+          body = re.sub(r"-----[A-Z ]+-----|\\n|\s", "", p8)
+          pem = ("-----BEGIN PRIVATE KEY-----\\n" + "\\n".join(body[i:i+64] for i in range(0, len(body), 64)) + "\\n-----END PRIVATE KEY-----") if body else ""
+          with open("functions/.env", "w") as f:
+              f.write(f'APNS_KEY_ID={os.environ.get("APNS_KEY_ID", "")}\n')
+              f.write(f'APPLE_TEAM_ID={os.environ.get("APPLE_TEAM_ID", "")}\n')
+              f.write(f'APNS_KEY_P8="{pem}"\n')
+          print("Ključ za obvestila:", "da" if body else "manjka")
+          PY
+          npx --yes firebase-tools@14 deploy --only database,functions --project nakupko-8ad19 --non-interactive --force
+          rm -f "$RUNNER_TEMP/sa.json" functions/.env
