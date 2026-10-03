@@ -15,7 +15,17 @@
     }
     return;
   }
-  var Geo = Cap.registerPlugin("NakupkoGeo");
+  // Brez @capacitor/core (spletna aplikacija nima bundlerja) registerPlugin ne obstaja,
+  // zato iPhone kličemo neposredno prek mostu Capacitor.
+  var Geo = Cap.registerPlugin ? Cap.registerPlugin("NakupkoGeo") : (function () {
+    var api = {
+      addListener: function (event, cb) { return Cap.addListener("NakupkoGeo", event, cb); }
+    };
+    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "setZoom", "openSettings", "requestAlways"].forEach(function (m) {
+      api[m] = function (opts) { return Cap.nativePromise("NakupkoGeo", m, opts || {}); };
+    });
+    return api;
+  })();
   document.documentElement.classList.add("native-ios");
 
   // ---------- navigator.geolocation prek iOS ----------
