@@ -86,6 +86,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         defaults.set(d, forKey: "live.device")
         return d
     }
+    // Kratek dnevnik zaznavanja (zadnjih 30 dogodkov), viden v Nastavitvah v razvijalskem načinu.
+    func log(_ text: String) {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        var l = defaults.stringArray(forKey: "geo.log") ?? []
+        l.append(f.string(from: Date()) + " " + text)
+        defaults.set(Array(l.suffix(30)), forKey: "geo.log")
+    }
     // Skupen seznam (household.js): ob prihodu v trgovino preberemo najnovejši seznam s strežnika.
     private var household: Household? {
         get {
@@ -239,7 +247,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         case .denied, .restricted: auth = "denied"
         default: auth = "notDetermined"
         }
-        return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count, "push": pushToken != nil]
+        return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count, "push": pushToken != nil, "liveToken": startToken != nil, "log": defaults.stringArray(forKey: "geo.log") ?? []]
     }
 
     func requestAlways() {
@@ -417,6 +425,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     private func notifyEntered(regionId: String) {
+        let sid = String(regionId.dropFirst(storePrefix.count))
+        log("vstop: " + (stores.first(where: { $0.id == sid })?.name ?? sid))
         reportVisit(storeId: String(regionId.dropFirst(storePrefix.count)))
         guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups, items: liveItems) }
         // Partner je morda kaj dodal, medtem ko je bila aplikacija zaprta: preberemo skupen seznam.
@@ -448,24 +458,53 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     private func showStoreNotification(regionId: String, open: [ItemGroup], items: [LiveItem]) {
         let id = String(regionId.dropFirst(storePrefix.count))
-        guard enabled, let store = stores.first(where: { $0.id == id }) else { return }
+        guard enabled, let store = stores.first(where: { $0.id == id }) else { return log("  preskok: trgovine ni na seznamu") }
         let count = open.reduce(0) { $0 + $1.items.count }
-        guard count > 0 else { return }
-        if UIApplication.shared.applicationState == .active { return } // odprta aplikacija to pokaže sama
+        guard count > 0 else { return log("  preskok: seznam je prazen") }
+        if UIApplication.shared.applicationState == .active { return log("  preskok: aplikacija je odprta") }
         // Zaprta trgovina (npr. ob 6h pred Sparom, ki odpre ob 7:30): brez obvestila.
-        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
+        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return log("  preskok: trgovina je zaprta (\(store.hours ?? "?"))") }
         let now = Date().timeIntervalSince1970
         var sent = notified
-        if let last = sent[id], now - last < renotifyAfter { return }
+        if let last = sent[id], now - last < renotifyAfter { return log("  preskok: obvestilo pred \(Int(now - last)) s") }
         sent = sent.filter { now - $0.value < 24 * 3600 }
         sent[id] = now
         notified = sent
 
         // iOS 17.2+: strežnik na zaklenjenem zaslonu odpre seznam, ki ga lahko kljukaš. Sicer navadno obvestilo.
         if !items.isEmpty, startLive(store: store.name, items: items, completion: { [weak self] ok in
-            if !ok { self?.postStoreNotification(id: id, store: store, open: open, count: count) }
+            guard let self = self else { return }
+            if !ok { self.log("  strežnik ni dosegljiv → obvestilo"); return self.postStoreNotification(id: id, store: store, open: open, count: count) }
+            self.log("  prošnja za seznam poslana")
+            // Če seznam na zaklenjenem zaslonu v 12 s ne pride (push ni uspel), pokažemo navadno obvestilo.
+            let app = UIApplication.shared
+            var task: UIBackgroundTaskIdentifier = .invalid
+            task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
+                if Activity<ShoppingAttributes>.activities.contains(where: { $0.attributes.store == store.name }) {
+                    self.log("  seznam na zaklenjenem zaslonu ✓")
+                } else {
+                    self.log("  seznama ni → obvestilo")
+                    self.postStoreNotification(id: id, store: store, open: open, count: count)
+                }
+                self.fetchLiveResult()
+                app.endBackgroundTask(task)
+            }
         }) { return }
+        log("  navadno obvestilo" + (startToken == nil ? " (ni žetona za seznam)" : ""))
         postStoreNotification(id: id, store: store, open: open, count: count)
+    }
+
+    // Odgovor Applovega strežnika za zadnji zagon seznama (zapiše ga funkcija liveStart).
+    private func fetchLiveResult() {
+        guard let base = household?.url ?? defaults.string(forKey: "geo.dbUrl"),
+              let url = URL(string: "\(base)/la/\(deviceId)/result.json") else { return }
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            let st = (obj["status"] as? NSNumber)?.intValue ?? 0
+            let why = (obj["data"] as? String) ?? ""
+            DispatchQueue.main.async { self?.log("  Apple: \(st) \(why.prefix(80))") }
+        }.resume()
     }
 
     private func postStoreNotification(id: String, store: GeoStore, open: [ItemGroup], count: Int) {
@@ -608,7 +647,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         if region.identifier.hasPrefix(storePrefix) {
             let id = String(region.identifier.dropFirst(storePrefix.count))
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
-            if let store = stores.first(where: { $0.id == id }) { endLive(store: store.name) }
+            if let store = stores.first(where: { $0.id == id }) { log("izhod: " + store.name); endLive(store: store.name) }
             reportLeft(storeId: id)
             return
         }

@@ -265,6 +265,7 @@
     Geo.getStatus().then(function (s) {
       clearTimeout(timer);
       diag(diagText(s));
+      showLog(s);
       if (s.authorization === "notDetermined") return; // iOS še sprašuje
       var missing = missingOf(s);
       showGate(s, missing);
@@ -307,6 +308,16 @@
       parts.push("najbližja " + best.n + " " + Math.round(best.d) + " m");
     } else parts.push("trgovin " + list.length);
     return "iPhone: " + parts.join(" · ");
+  }
+  // Dnevnik zaznavanja trgovin: samo v razvijalskem načinu (7 tapov na »Cene«).
+  function showLog(s) {
+    var st = document.getElementById("locStatus"), api = window.__nakupko;
+    var box = document.getElementById("geoLog");
+    var dev = api && api.state && (api.state().settings || {}).dev;
+    if (!st || !dev) { if (box) box.remove(); return; }
+    if (!box) { box = document.createElement("pre"); box.id = "geoLog"; box.className = "small muted"; box.style.cssText = "white-space:pre-wrap;margin:6px 0 0;font-size:12px;line-height:1.4"; st.parentNode.appendChild(box); }
+    var lines = (s.log || []).slice(-12).reverse();
+    box.textContent = "Seznam na zaklenjenem zaslonu: " + (s.liveToken ? "pripravljen" : "ni žetona (odpri aplikacijo)") + "\n" + (lines.length ? lines.join("\n") : "Še ni zaznanih trgovin.");
   }
   function diag(text) {
     var st = document.getElementById("locStatus");
