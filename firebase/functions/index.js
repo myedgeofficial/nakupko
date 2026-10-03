@@ -96,8 +96,9 @@ exports.liveStart = onValueCreated({
   const clean = { items, done: 0, total: items.length };
   const res = items.length ? await sendLiveStart(String(v.token || ""), String(v.store || "Trgovina").slice(0, 40), clean) : { status: 0, data: "prazen seznam" };
   console.log("liveStart", event.params.dev, v.store, res.status, res.data);
-  // Seznam in žeton ne ostaneta na strežniku.
+  // Seznam in žeton ne ostaneta na strežniku; ostane le odgovor Appla (za dnevnik v aplikaciji).
   await event.data.ref.remove();
+  await admin.database().ref("/la/" + event.params.dev + "/result").set({ status: res.status || 0, data: String(res.data || "").slice(0, 200), store: String(v.store || ""), at: Date.now() });
 });
 
 function sendFcm(tokens, title, body) {
