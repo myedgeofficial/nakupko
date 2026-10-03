@@ -345,7 +345,7 @@ textarea { width: 100%; margin: 10px 0; }
 /* ---------- Barve: preliv samo na ikoni, drugje ena barva (bolj umirjeno, kot na iPhonu) ---------- */
 :root { --violet: #8A3FFC; --violet-soft: #F2ECFF; }
 .primary, .addbtn, .pill, .badge, .done .check, .detect { background: var(--violet); border-color: transparent; }
-.sheet-logo, .logo { background: var(--grad); }
+.sheet-logo, .logo { background: none; border-radius: 0; object-fit: contain; }
 .done .check { border-color: transparent; }
 .progress-bar { background: var(--violet); }
 .pill, .addbtn, .primary, .logo { box-shadow: none; }
