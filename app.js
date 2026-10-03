@@ -1258,7 +1258,7 @@
     renderQuick();
     renderReco();
     renderCompare();
-    if ($("tab-prices").classList.contains("active")) renderPriceTable();
+    if ($("pricesMore").open) renderPriceTable();
     renderStoreMode();
   }
 
@@ -1272,6 +1272,7 @@
       window.scrollTo(0, 0);
     });
   });
+  $("pricesMore").addEventListener("toggle", function () { if ($("pricesMore").open) renderPriceTable(); });
   document.querySelectorAll(".seg button").forEach(function (b) {
     b.addEventListener("click", function () {
       filter = b.dataset.filter;

@@ -387,3 +387,16 @@ textarea { width: 100%; margin: 10px 0; }
 input[type="range"] { accent-color: var(--violet); }
 .link { color: var(--violet); }
 .settings .link { font-size: 15px; padding-top: 8px; }
+
+/* Preprosto: na začetnem zaslonu le število in ocena košarice */
+.hero-label, .hero-best { display: none !important; }
+.hero-total { font-size: 20px; color: var(--muted); font-weight: 650; }
+details.more { margin-top: 10px; }
+details.more > summary, details.card > summary { cursor: pointer; list-style: none; color: var(--ink); font-weight: 650; }
+details.more > summary { color: var(--violet); font-size: 15px; }
+details > summary::-webkit-details-marker { display: none; }
+details.card > summary::after { content: "›"; float: right; color: var(--muted); font-size: 22px; line-height: 1; transition: transform .2s; }
+details.card[open] > summary::after { transform: rotate(90deg); }
+details .sub { margin-top: 14px; }
+details.card > summary h2 { margin: 0; }
+details.card[open] > summary { margin-bottom: 12px; }
