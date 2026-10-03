@@ -309,7 +309,12 @@
     }).observe(st, { childList: true, characterData: true, subtree: true });
   });
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "hidden") { sync(); syncShopping(); }
+    if (document.visibilityState === "hidden") {
+      // Zaklepanje med odštevanjem »odpiram čez …«: nakupovanje odpremo takoj, da je seznam na zaklenjenem zaslonu.
+      var sm = document.getElementById("storeMode"), btn = document.querySelector("#detectBar:not(.hidden) button");
+      if (btn && sm && sm.classList.contains("hidden") && /odpiram/.test((document.getElementById("detectBar") || {}).textContent || "")) btn.click();
+      sync(); syncShopping();
+    }
     else { setTimeout(applyLiveDone, 200); setTimeout(openFromNotification, 300); setTimeout(showBackgroundStatus, 500); }
   });
   window.addEventListener("load", function () { setTimeout(applyLiveDone, 300); setTimeout(sync, 500); setTimeout(openFromNotification, 800); });

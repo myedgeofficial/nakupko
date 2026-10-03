@@ -533,7 +533,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             for other in current where other.id != a.id { Task { await other.end(nil, dismissalPolicy: .immediate) } }
         } else {
             for a in current { Task { await a.end(nil, dismissalPolicy: .immediate) } }
-            _ = try? Activity.request(attributes: ShoppingAttributes(store: store), content: content, pushType: nil)
+            do {
+                _ = try Activity.request(attributes: ShoppingAttributes(store: store), content: content, pushType: nil)
+            } catch {
+                // Aplikacija je že v ozadju (npr. zaklenil si telefon med odštevanjem): seznam zažene strežnik.
+                _ = startLive(store: store, items: list, completion: { _ in })
+            }
         }
     }
 

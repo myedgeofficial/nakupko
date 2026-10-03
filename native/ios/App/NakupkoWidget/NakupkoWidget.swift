@@ -30,7 +30,7 @@ struct ShoppingLiveActivity: Widget {
                     Text("\(context.state.done)/\(context.state.total)").font(.headline).foregroundColor(orange)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ItemGrid(items: context.state.items, shown: 4, dark: true)
+                    ItemGrid(items: context.state.items, shown: 4, dark: true, big: false)
                 }
             } compactLeading: {
                 Image(systemName: "cart.fill").foregroundColor(orange)
@@ -48,19 +48,18 @@ struct LockScreenList: View {
     let state: ShoppingAttributes.ContentState
 
     var body: some View {
+        // iOS dovoli Live Activity visoko največ ~160 pt: brez vrstice napredka, da izdelki dobijo več prostora.
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label(store, systemImage: "cart.fill").font(.headline).foregroundColor(.black).lineLimit(1)
                 Spacer()
                 Text(state.items.isEmpty ? "Vse v košarici ✓" : "\(state.done)/\(state.total)")
-                    .font(.subheadline.weight(.semibold)).foregroundColor(orange)
+                    .font(.headline).foregroundColor(orange)
             }
-            if state.total > 0 {
-                ProgressView(value: Double(state.done), total: Double(max(state.total, 1))).tint(orange)
-            }
-            ItemGrid(items: state.items, shown: maxShown, dark: false)
+            ItemGrid(items: state.items, shown: maxShown, dark: false, big: true)
         }
-        .padding(14)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 }
 
@@ -69,6 +68,7 @@ struct ItemGrid: View {
     let items: [LiveItem]
     let shown: Int
     let dark: Bool
+    let big: Bool
 
     var body: some View {
         let list = Array(items.prefix(shown))
@@ -80,16 +80,16 @@ struct ItemGrid: View {
                     ForEach(row, id: \.self) { item in
                         Button(intent: CheckItemIntent(itemId: item.id)) {
                             HStack(spacing: 5) {
-                                Image(systemName: "circle").font(.footnote).foregroundColor(orange)
+                                Image(systemName: "circle").font(big ? .body : .footnote).foregroundColor(orange)
                                 Text(item.icon + " " + item.label)
-                                    .font(.footnote)
+                                    .font(big ? .callout.weight(.medium) : .footnote)
                                     .foregroundColor(dark ? .white : .black)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                                 Spacer(minLength: 0)
                             }
-                            .padding(.vertical, 5)
-                            .padding(.horizontal, 7)
+                            .padding(.vertical, big ? 7 : 5)
+                            .padding(.horizontal, big ? 9 : 7)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(RoundedRectangle(cornerRadius: 9).fill(dark ? Color.white.opacity(0.12) : orange.opacity(0.08)))
                         }
