@@ -79,6 +79,15 @@ async function search(q) {
 }
 
 let apiOk = 0;
+const CATS = {};
+const CAT_RE = {
+  "Sadje in zelenjava": /sadje|zelenjav/,
+  "Meso in ribe": /meso|mesn|rib|perutnin|morsk/,
+  "Mlečni izdelki": /mle|sir|jajc|jogurt/,
+  "Kruh in pecivo": /kruh|pecivo|pekov/,
+  "Pijače": /pijac|sok|voda|pivo|vino|kava|caj/,
+  "Zamrznjeno": /zamrz|smrz/,
+};
 async function pricesFor(p) {
   const [name, , , , unit] = p;
   const words = norm(name).split(" ").filter((w) => w.length >= 3);
@@ -92,6 +101,7 @@ async function pricesFor(p) {
     return !BAD.some((b) => n.includes(b) && !nq.includes(b));
   };
   let found = (await search(name)).filter(fits);
+  found.forEach((x) => { CATS[x.category_name] = (CATS[x.category_name] || 0) + 1; });
   if (found.length < 2 && words.length > 1) {
     const longest = words.slice().sort((a, b) => b.length - a.length)[0];
     const more = (await search(longest)).filter(fits);
@@ -100,6 +110,12 @@ async function pricesFor(p) {
   }
   apiOk++;
   if (!found.length) return null;
+  // raje pravi oddelek (sveže sadje, ne čips; meso, ne začimba) in izdelki, ki se začnejo z imenom
+  const catRe = CAT_RE[p[1]];
+  if (catRe) { const f = found.filter((x) => catRe.test(norm(x.category_name))); if (f.length) found = f; }
+  const first = want[0];
+  const starts = found.filter((x) => norm(x.name).startsWith(first));
+  if (starts.length) found = starts;
   const pk = pack(unit);
   const byStore = {};
   const sale = {};
@@ -124,7 +140,7 @@ async function pricesFor(p) {
   if (!Object.keys(cene).length) return null;
   // nesmiselne odstopanje (napačen zadetek): zavrži cene, ki so >4× od mediane trgovin
   const med = quantile(Object.values(cene), 0.5);
-  for (const st of Object.keys(cene)) if (cene[st] > med * 4 || cene[st] < med / 4) { delete cene[st]; delete sale[st]; }
+  for (const st of Object.keys(cene)) if (cene[st] > med * 2.5 || cene[st] < med / 2.5) { delete cene[st]; delete sale[st]; }
   return { ime: name, cene, akcija: Object.keys(sale) };
 }
 
@@ -141,6 +157,7 @@ async function worker() {
 }
 await Promise.all([worker(), worker(), worker()]);
 
+console.log("Oddelki vira:", JSON.stringify(Object.entries(CATS).sort((a, b) => b[1] - a[1]).slice(0, 60)));
 console.log(`Katalog: ${catalog.length}, z novimi cenami: ${results.length}`);
 if (results.length < 50) {
   console.log("Premalo zadetkov (vir verjetno ne deluje) – cene ostanejo nespremenjene.");
@@ -175,4 +192,5 @@ fs.writeFileSync(ROOT + "prices.json", JSON.stringify(out));
 fs.writeFileSync(ROOT + "prices.js",
   `// Cene se osvežijo vsako noč ob ~3h (scripts/update-prices.mjs). Vir: polnakosarica.si (Spar, Mercator, Lidl, Hofer, Eurospin, Tuš).\nwindow.NAKUPKO_PRICES = ${JSON.stringify(out)};\n`);
 console.log(`Spremenjenih izdelkov: ${changed}, skupaj s cenami: ${izdelki.length}`);
-for (const r of results.slice(0, 40)) console.log(" ", r.ime, JSON.stringify(r.cene), r.akcija.length ? "akcija:" + r.akcija.join(",") : "");
+const SHOW = /^(Banane|Lubenica|Paprika|Por|Sir |Mozzarella|Parmezan|Feta|Mleto|Pi..an|Hrenovke|Pr.ut|.unka|Jajca|Kruh|Kava|Pivo|Maslo|Jogurt)/;
+for (const r of results.filter((r) => SHOW.test(r.ime))) console.log(" ", r.ime, JSON.stringify(r.cene), r.akcija.length ? "akcija:" + r.akcija.join(",") : "");

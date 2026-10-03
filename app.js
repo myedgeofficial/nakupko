@@ -241,12 +241,36 @@
   // Vrne {price, est} za izdelek v verigi. Uvožene cene imajo prednost; če za verigo ni cene,
   // vzamemo povprečje uvoženih cen drugih trgovin; sicer oceno iz kataloga.
   // Cene, ki jih je Nakupko poiskal na spletu (prices.js); uvožene cene jih prepišejo.
-  var BASE_PRICES = {};
-  ((window.NAKUPKO_PRICES && window.NAKUPKO_PRICES.izdelki) || []).forEach(function (e) {
-    var rec = {};
-    Object.keys(e.cene || {}).forEach(function (c) { if (typeof e.cene[c] === "number" && e.cene[c] > 0) rec[c] = e.cene[c]; });
-    if (Object.keys(rec).length) BASE_PRICES[norm(e.ime)] = rec;
-  });
+  // Cene se osvežijo vsako noč; aplikacija (tudi iPhone/Android) si sveže prenese sama.
+  var BASE_PRICES = {}, PRICES_DATE = "";
+  function useBasePrices(data) {
+    if (!data || !data.izdelki) return;
+    BASE_PRICES = {}; PRICES_DATE = data.datum || "";
+    data.izdelki.forEach(function (e) {
+      var rec = {};
+      Object.keys(e.cene || {}).forEach(function (c) { if (typeof e.cene[c] === "number" && e.cene[c] > 0) rec[c] = e.cene[c]; });
+      if (Object.keys(rec).length) BASE_PRICES[norm(e.ime)] = rec;
+    });
+  }
+  var PRICES_URL = "https://myedgeofficial.github.io/nakupko/prices.json";
+  (function () {
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem("nakupko-prices") || "null"); } catch (e) { /* nič */ }
+    var bundled = window.NAKUPKO_PRICES;
+    useBasePrices(cached && (!bundled || (cached.datum || "") > (bundled.datum || "")) ? cached : bundled);
+  })();
+  function refreshPrices() {
+    if (!window.fetch) return;
+    fetch(PRICES_URL + "?d=" + new Date().toISOString().slice(0, 13), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.izdelki || (d.datum || "") <= PRICES_DATE) return;
+        try { localStorage.setItem("nakupko-prices", JSON.stringify(d)); } catch (e) { /* poln */ }
+        useBasePrices(d);
+        renderAll();
+      })
+      .catch(function () { /* brez povezave */ });
+  }
   function priceFor(name, chain) {
     var key = norm(name);
     var imp = Object.assign({}, BASE_PRICES[key] || {}, state.prices[key] || {});
@@ -384,9 +408,24 @@
     if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it.name, chain); if (p.price == null) p = null; }
     if (!p) { p = prefPrice(it.name); if (p) chain = p.chain; }
     if (!p) return null;
+    var kg = perKg(it.name);
+    var txt = kg ? eur(p.price / kg.amount) + "/" + kg.unit : eur(p.price * q);
     return el("span", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
-      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), eur(p.price * q) + (p.est ? "*" : "")
+      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : "")
     ]);
+  }
+  // Sir, meso, ribe ipd. so v zelo različnih pakiranjih: pokažemo ceno na kg (izdelki na kg vedno).
+  var PER_KG_RE = /\bsir|sirni|mozzarel|parmez|feta|gorgonzol|mascarpon|ricott|brie|camembert|grana|skuta|cottage|halloumi/;
+  function perKg(name) {
+    var p = CATALOG_BY_KEY[norm(name)];
+    if (!p) return null;
+    var m = String(p.unit || "").replace(",", ".").match(/^\s*([\d.]+)?\s*(g|kg)\s*$/i);
+    if (!m) return null;
+    var amount = (m[1] ? parseFloat(m[1]) : 1) / (m[2].toLowerCase() === "g" ? 1000 : 1);
+    if (!(amount > 0)) return null;
+    if (m[2].toLowerCase() === "kg" && amount === 1) return { amount: 1, unit: "kg" };
+    if (p.cat === "Meso in ribe" || (p.cat === "Mlečni izdelki" && PER_KG_RE.test(norm(p.name)))) return { amount: amount, unit: "kg" };
+    return null;
   }
   // ---------- Ikone izdelkov ----------
   // Barvne ikone (Microsoft Fluent Emoji, MIT) iz mape icons/, izbrane po imenu izdelka; sicer po kategoriji.
@@ -1450,6 +1489,8 @@
   priceKeysClean();
   renderAll();
   renderStores();
+  refreshPrices();
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshPrices(); });
   setInterval(checkRemote, 10000);
   checkRemote();
   if (/[?&]test\b/.test(location.search)) startTest();
