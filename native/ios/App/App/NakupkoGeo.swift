@@ -127,6 +127,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count]
     }
 
+    func requestAlways() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        if manager.authorizationStatus == .notDetermined { manager.requestWhenInUseAuthorization() }
+        else { manager.requestAlwaysAuthorization() }
+    }
+
     private func requestPermissions() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         switch manager.authorizationStatus {
@@ -166,7 +172,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private func refreshRegions(around loc: CLLocation) {
         guard enabled, CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return }
         // Natančnost območij v iOS je ~100 m, zato manjši polmer ne pomaga.
-        let r = min(max(radius, 100), 300)
+        // Vsaj 150 m, da iOS zazna tudi mimovožnjo; obvestilo je tiho in izgine, ko greš naprej.
+        let r = min(max(radius, 150), 300)
         let nearest = stores
             .map { ($0, loc.distance(from: CLLocation(latitude: $0.lat, longitude: $0.lon))) }
             .filter { $0.1 < 8000 }
@@ -176,11 +183,11 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         for region in manager.monitoredRegions where region.identifier.hasPrefix(storePrefix) && !wanted.contains(region.identifier) {
             manager.stopMonitoring(for: region)
         }
-        let existing = Set(manager.monitoredRegions.map { $0.identifier })
-        for (store, _) in nearest where !existing.contains(storePrefix + store.id) {
+        let existing = Set(manager.monitoredRegions.compactMap { ($0 as? CLCircularRegion).map { "\($0.identifier)@\($0.radius)@\($0.notifyOnExit)" } })
+        for (store, _) in nearest where !existing.contains("\(storePrefix + store.id)@\(r)@true") {
             let region = CLCircularRegion(center: CLLocationCoordinate2D(latitude: store.lat, longitude: store.lon), radius: r, identifier: storePrefix + store.id)
             region.notifyOnEntry = true
-            region.notifyOnExit = false
+            region.notifyOnExit = true
             manager.startMonitoring(for: region)
             // Če si že v trgovini, ko začnemo spremljati, iOS vstopa ne javi; zato vprašamo za stanje.
             manager.requestState(for: region)
@@ -253,7 +260,10 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         content.title = "🛒 \(store.name) · \(count) \(count == 1 ? "izdelek" : count == 2 ? "izdelka" : count < 5 ? "izdelki" : "izdelkov")"
         // Ena vrstica na oddelek; ves seznam se vidi, ko obvestilo razpreš.
         content.body = open.map { "\($0.icon) \($0.items.joined(separator: ", "))" }.joined(separator: "\n")
-        content.sound = .default
+        // Tiho: brez zvoka; ko greš mimo trgovine, obvestilo samo izgine (didExitRegion).
+        content.sound = nil
+        content.interruptionLevel = .active
+        content.relevanceScore = 1
         content.userInfo = ["storeId": id]
         let request = UNNotificationRequest(identifier: "store-\(id)", content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
@@ -342,6 +352,11 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        if region.identifier.hasPrefix(storePrefix) {
+            let id = String(region.identifier.dropFirst(storePrefix.count))
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
+            return
+        }
         guard region.identifier == homeId else { return }
         if let loc = manager.location { refreshRegions(around: loc) } else { manager.requestLocation() }
     }
@@ -374,7 +389,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "shopping", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePendingStore", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -453,6 +469,11 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.resolve(st)
             }
         }
+    }
+
+    // Sistemsko vprašanje »Spremeni v Vedno dovoli« (iOS ga pokaže samo enkrat).
+    @objc func requestAlways(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { GeoManager.shared.requestAlways(); call.resolve() }
     }
 
     // Odpre Nastavitve → Nakupko (lokacija »Vedno«, obvestila).

@@ -5,13 +5,32 @@
 (function () {
   "use strict";
   var Cap = window.Capacitor;
-  if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) return;
-  var Geo = Cap.registerPlugin("NakupkoGeo");
+  if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) {
+    // Diagnostika: v aplikaciji brez povezave z iPhonom to pokažemo v Nastavitvah.
+    if (/Nakupko|iPhone/.test(navigator.userAgent) && !/Safari\//.test(navigator.userAgent)) {
+      window.addEventListener("load", function () {
+        var st = document.getElementById("locStatus");
+        if (st) { var d = document.createElement("div"); d.className = "small"; d.style.color = "#c0392b"; d.textContent = "iPhone: povezava ni naložena (" + (Cap ? "ni native" : "ni Capacitor") + ")"; st.parentNode.appendChild(d); }
+      });
+    }
+    return;
+  }
+  // Brez @capacitor/core (spletna aplikacija nima bundlerja) registerPlugin ne obstaja,
+  // zato iPhone kličemo neposredno prek mostu Capacitor.
+  var Geo = Cap.registerPlugin ? Cap.registerPlugin("NakupkoGeo") : (function () {
+    var api = {
+      addListener: function (event, cb) { return Cap.addListener("NakupkoGeo", event, cb); }
+    };
+    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "setZoom", "openSettings", "requestAlways"].forEach(function (m) {
+      api[m] = function (opts) { return Cap.nativePromise("NakupkoGeo", m, opts || {}); };
+    });
+    return api;
+  })();
   var platform = Cap.getPlatform ? Cap.getPlatform() : "ios";
   document.documentElement.classList.add("native-" + platform);
 
   // ---------- navigator.geolocation prek iOS ----------
-  var watchers = {}, nextId = 1, posSub = null, errSub = null;
+  var watchers = {}, nextId = 1, posSub = null, errSub = null, lastNativePos = null, geoOverridden = false;
   function toPosition(d) {
     return {
       coords: { latitude: d.lat, longitude: d.lon, accuracy: d.acc, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
@@ -24,6 +43,7 @@
   function ensureListeners() {
     if (posSub) return;
     posSub = Geo.addListener("position", function (d) {
+      lastNativePos = d;
       Object.keys(watchers).forEach(function (id) { var w = watchers[id]; if (w) w.ok(toPosition(d)); });
     });
     errSub = Geo.addListener("locationError", function (e) {
@@ -46,7 +66,7 @@
       var id = geo.watchPosition(function (p) { geo.clearWatch(id); ok(p); }, function (e) { geo.clearWatch(id); if (err) err(e); });
     }
   };
-  try { Object.defineProperty(navigator, "geolocation", { value: geo, configurable: true }); }
+  try { Object.defineProperty(navigator, "geolocation", { value: geo, configurable: true }); geoOverridden = navigator.geolocation === geo; }
   catch (e) { /* ostane spletna lokacija */ }
 
   // ---------- Odprti izdelki po oddelkih (vrstni red kot pot po trgovini) ----------
@@ -149,41 +169,111 @@
   if (window.MutationObserver) new MutationObserver(syncZoom).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   window.addEventListener("load", syncZoom);
 
-  // Stanje spremljanja v ozadju pod stikalom za lokacijo: kaj iPhone še potrebuje.
+  // Brez lokacije »Vedno« aplikacija v ozadju ne deluje: celozaslonsko okno z enim gumbom.
+  var isIOS = !Cap.getPlatform || Cap.getPlatform() === "ios";
+  var gateLater = false, askedAlways = false;
+  try { askedAlways = localStorage.getItem("nakupko-asked-always") === "1"; } catch (e) { /* nič */ }
+  function missingOf(s) {
+    var m = [];
+    if (s.authorization !== "always") m.push("Lokacija: <b>Vedno</b>");
+    if (s.precise === false) m.push("Natančna lokacija: <b>vklopljeno</b>");
+    if (!s.notifications) m.push("Obvestila: <b>Dovoli obvestila</b>");
+    return m;
+  }
+  function fixPermissions(s) {
+    // iOS prošnjo za »Vedno« pokaže samo enkrat; potem pomagajo le Nastavitve.
+    if (s.authorization === "whenInUse" && !askedAlways) {
+      askedAlways = true;
+      try { localStorage.setItem("nakupko-asked-always", "1"); } catch (e) { /* nič */ }
+      Geo.requestAlways().catch(function () {});
+      setTimeout(showBackgroundStatus, 2500);
+      return;
+    }
+    Geo.openSettings();
+  }
+  function showGate(s, missing) {
+    var g = document.getElementById("alwaysGate");
+    if (!missing.length || gateLater) { if (g) g.remove(); return; }
+    if (!g) {
+      g = document.createElement("div");
+      g.id = "alwaysGate";
+      g.style.cssText = "position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column;justify-content:center;padding:32px 24px calc(32px + env(safe-area-inset-bottom));text-align:center;color:#1b1b1f;font-size:17px;line-height:1.45";
+      document.body.appendChild(g);
+    }
+    g.innerHTML =
+      '<div style="font-size:56px;margin-bottom:8px">📍</div>' +
+      '<h2 style="margin:0 0 10px;font-size:24px">Vklopi lokacijo »Vedno«</h2>' +
+      '<p style="margin:0 0 18px;color:#5b5b66">Samo tako ti Nakupko pokaže seznam, ko prideš v trgovino, tudi ko je aplikacija zaprta.</p>' +
+      '<div style="background:#f4f1fb;border-radius:16px;padding:14px 16px;margin:0 auto 22px;text-align:left;max-width:340px">' +
+      '<div style="color:#5b5b66;font-size:15px;margin-bottom:6px">Stisni gumb, nato izberi:</div>' +
+      missing.map(function (m) { return '<div style="margin:4px 0">• ' + m + '</div>'; }).join("") +
+      '</div>' +
+      '<button id="gateGo" type="button" style="border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:#8A3FFC;color:#fff;width:100%;max-width:340px;margin:0 auto">Vklopi zdaj</button>' +
+      '<button id="gateLater" type="button" style="border:0;background:none;color:#8a8a96;padding:16px;font-size:15px;margin-top:6px">Kasneje</button>';
+    document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
+    document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
+  }
   function showBackgroundStatus() {
     var st = document.getElementById("locStatus");
     var api = window.__nakupko;
-    if (!st || !api || !api.state || !(api.state().settings || {}).locOn) { var old = document.getElementById("bgStatus"); if (old) old.remove(); return; }
+    var on = api && api.state && (api.state().settings || {}).locOn;
+    if (!on) { var old = document.getElementById("bgStatus"); if (old) old.remove(); showGate({}, []); return; }
+    var timer = setTimeout(function () { diag("iPhone se ne odziva (getStatus)"); }, 4000);
     Geo.getStatus().then(function (s) {
+      clearTimeout(timer);
+      diag(diagText(s));
+      if (s.authorization === "notDetermined") return; // iOS še sprašuje
+      var missing = missingOf(s);
+      showGate(s, missing);
+      if (!st) return;
       var box = document.getElementById("bgStatus");
       if (!box) {
         box = document.createElement("div");
         box.id = "bgStatus";
-        box.className = "small";
         box.style.marginTop = "6px";
         st.parentNode.appendChild(box);
       }
-      var missing = [];
-      if (s.authorization !== "always") missing.push("Lokacija → Vedno");
-      if (s.precise === false) missing.push("Lokacija → Natančna lokacija");
-      if (!s.notifications) missing.push("Obvestila → Dovoli");
       box.textContent = "";
       if (!missing.length) {
         box.className = "small muted";
-        box.textContent = "✓ Deluje tudi, ko je aplikacija zaprta (" + s.regions + " trgovin v bližini).";
+        box.style.color = "";
+        box.textContent = "✓ Deluje tudi, ko je aplikacija zaprta.";
         return;
       }
       box.className = "small";
       box.style.color = "#c0392b";
-      box.appendChild(document.createTextNode("Ko je aplikacija zaprta, ne deluje. Vklopi: " + missing.join(", ") + ". "));
+      box.appendChild(document.createTextNode("Ko je aplikacija zaprta, ne deluje. "));
       var b = document.createElement("button");
-      b.type = "button"; b.className = "link"; b.textContent = "Odpri nastavitve";
-      b.onclick = function () { Geo.openSettings(); };
+      b.type = "button"; b.className = "link"; b.textContent = "Vklopi";
+      b.onclick = function () { gateLater = false; showGate(s, missing); };
       box.appendChild(b);
-    }).catch(function () {});
+    }).catch(function (e) { clearTimeout(timer); diag("iPhone napaka: " + (e && e.message || e)); });
+  }
+  // Kratka diagnostika za testiranje: kaj iPhone ve in kako daleč je najbližja trgovina.
+  function diagText(s) {
+    var parts = ["lokacija " + s.authorization, "obvestila " + (s.notifications ? "da" : "ne"), "spremljam " + s.regions + "/" + s.stores];
+    if (!geoOverridden) parts.push("spletna lokacija");
+    var list = ((window.__nakupko && window.__nakupko.state().storesCache) || {}).list || [];
+    if (lastNativePos && list.length) {
+      var best = null;
+      list.forEach(function (x) {
+        var dLat = (x.lat - lastNativePos.lat) * 111320, dLon = (x.lon - lastNativePos.lon) * 111320 * Math.cos(x.lat * Math.PI / 180);
+        var d = Math.sqrt(dLat * dLat + dLon * dLon);
+        if (!best || d < best.d) best = { d: d, n: x.short || x.name };
+      });
+      parts.push("najbližja " + best.n + " " + Math.round(best.d) + " m");
+    } else parts.push("trgovin " + list.length);
+    return (isIOS ? "iPhone: " : "Telefon: ") + parts.join(" · ");
+  }
+  function diag(text) {
+    var st = document.getElementById("locStatus");
+    if (!st) return;
+    var d = document.getElementById("geoDiag");
+    if (!d) { d = document.createElement("div"); d.id = "geoDiag"; d.className = "small muted"; d.style.marginTop = "4px"; st.parentNode.appendChild(d); }
+    d.textContent = text;
   }
   window.addEventListener("load", function () { setTimeout(showBackgroundStatus, 1500); });
-  setInterval(showBackgroundStatus, 10000);
+  setInterval(showBackgroundStatus, 5000);
 
   // Navodila za dovoljenje naj kažejo na aplikacijo, ne na Safari.
   window.addEventListener("DOMContentLoaded", function () {

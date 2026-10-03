@@ -160,7 +160,7 @@ final class GeoManager {
         JSONObject o = new JSONObject();
         try {
             o.put("enabled", enabled());
-            o.put("authorization", !hasLocation() ? "denied" : hasBackground() ? "always" : "whenInUse");
+            o.put("authorization", !hasLocation() ? "notDetermined" : hasBackground() ? "always" : "whenInUse");
             o.put("precise", granted(Manifest.permission.ACCESS_FINE_LOCATION));
             o.put("notifications", hasNotifications());
             o.put("regions", enabled() && hasBackground() ? prefs.getInt("regions", 0) : 0);

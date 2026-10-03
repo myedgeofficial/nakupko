@@ -85,6 +85,22 @@ public class NakupkoGeoPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void requestAlways(PluginCall call) {
+        askedExtra = false;
+        getActivity().runOnUiThread(this::askExtraPermissions);
+        call.resolve();
+    }
+
+    // Velikost prikaza (Mlajši / Srednja leta / Starejši): povečamo celo stran, kot na iPhonu.
+    @PluginMethod
+    public void setZoom(PluginCall call) {
+        double z = call.getDouble("zoom", 1.0);
+        String js = "document.documentElement.style.zoom='" + (z == 1.0 ? "" : String.valueOf(z)) + "'";
+        getActivity().runOnUiThread(() -> getBridge().getWebView().evaluateJavascript(js, null));
+        call.resolve();
+    }
+
+    @PluginMethod
     public void openSettings(PluginCall call) {
         Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", getContext().getPackageName(), null));
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
