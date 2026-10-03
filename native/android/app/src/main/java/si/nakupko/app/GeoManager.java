@@ -161,7 +161,9 @@ final class GeoManager {
         try {
             o.put("enabled", enabled());
             o.put("authorization", !hasLocation() ? "denied" : hasBackground() ? "always" : "whenInUse");
+            o.put("precise", granted(Manifest.permission.ACCESS_FINE_LOCATION));
             o.put("notifications", hasNotifications());
+            o.put("regions", enabled() && hasBackground() ? prefs.getInt("regions", 0) : 0);
             o.put("stores", json("stores").length());
         } catch (Exception ignored) {}
         return o;
@@ -253,7 +255,7 @@ final class GeoManager {
             .setCircularRegion(loc.getLatitude(), loc.getLongitude(), HOME_RADIUS)
             .setExpirationDuration(Geofence.NEVER_EXPIRE)
             .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT).build());
-        prefs.edit().putLong("homeLat", Double.doubleToLongBits(loc.getLatitude()))
+        prefs.edit().putInt("regions", fences.size() - 1).putLong("homeLat", Double.doubleToLongBits(loc.getLatitude()))
             .putLong("homeLon", Double.doubleToLongBits(loc.getLongitude())).apply();
         GeofencingRequest req = new GeofencingRequest.Builder().setInitialTrigger(0).addGeofences(fences).build();
         PendingIntent pi = geofenceIntent();

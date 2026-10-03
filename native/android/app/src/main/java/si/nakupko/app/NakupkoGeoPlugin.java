@@ -1,8 +1,12 @@
 package si.nakupko.app;
 
 import android.Manifest;
+import android.content.Intent;
 import android.location.Location;
+import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
+import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -13,8 +17,6 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
-import java.util.ArrayList;
-import java.util.List;
 import org.json.JSONArray;
 
 // Most do spletnega dela (native.js) – enak vmesnik kot NakupkoGeo na iPhonu.
@@ -26,7 +28,7 @@ import org.json.JSONArray;
 )
 public class NakupkoGeoPlugin extends Plugin {
     private GeoManager geo;
-    private boolean askedExtra;
+    private boolean askedExtra, askedNotifications;
 
     @Override
     public void load() {
@@ -63,17 +65,31 @@ public class NakupkoGeoPlugin extends Plugin {
         geo.foreground = false;
     }
 
-    // Za obvestila v ozadju: obvestila (Android 13+) in lokacija »Vedno dovoli« (Android 10+).
-    // Android dovoli le eno vprašanje naenkrat, zato drugo pride ob naslednji vrnitvi v aplikacijo.
+    // Za delovanje v ozadju: najprej lokacija »Vedno dovoli« (Android 10+), nato obvestila (Android 13+).
+    // Android dovoli le eno vprašanje naenkrat, zato drugo pride, ko se uporabnik vrne v aplikacijo.
+    // Lokacijo »Vedno« vprašamo ob vsakem zagonu aplikacije, dokler je ni.
     private void askExtraPermissions() {
         if (!geo.enabled() || !geo.hasLocation() || getActivity() == null) return;
-        List<String> ask = new ArrayList<>();
-        if (!geo.hasNotifications() && Build.VERSION.SDK_INT >= 33) ask.add(Manifest.permission.POST_NOTIFICATIONS);
-        else if (!geo.hasBackground() && Build.VERSION.SDK_INT >= 29 && !askedExtra) {
+        if (!geo.hasBackground() && Build.VERSION.SDK_INT >= 29) {
+            if (askedExtra) return;
             askedExtra = true;
-            ask.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+            // Android 11+ odpre stran z dovoljenji, kjer mora uporabnik sam izbrati »Vedno dovoli«.
+            Toast.makeText(getContext(), "Izberi »Vedno dovoli«, da te Nakupko opozori v trgovini.", Toast.LENGTH_LONG).show();
+            ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 7010);
+            return;
         }
-        if (!ask.isEmpty()) ActivityCompat.requestPermissions(getActivity(), ask.toArray(new String[0]), 7010);
+        if (!geo.hasNotifications() && Build.VERSION.SDK_INT >= 33 && !askedNotifications) {
+            askedNotifications = true;
+            ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.POST_NOTIFICATIONS}, 7011);
+        }
+    }
+
+    @PluginMethod
+    public void openSettings(PluginCall call) {
+        Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", getContext().getPackageName(), null));
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        getContext().startActivity(i);
+        call.resolve();
     }
 
     @PluginMethod
