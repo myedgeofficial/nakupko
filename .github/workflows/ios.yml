@@ -121,4 +121,4 @@ jobs:
           KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
         run: |
           python3 -m pip install --quiet --break-system-packages pyjwt cryptography || python3 -m pip install --quiet pyjwt cryptography
-          python3 native/scripts/testflight-external.py
+          python3 scripts/testflight-external.py
