@@ -242,12 +242,36 @@
   // Vrne {price, est} za izdelek v verigi. Uvožene cene imajo prednost; če za verigo ni cene,
   // vzamemo povprečje uvoženih cen drugih trgovin; sicer oceno iz kataloga.
   // Cene, ki jih je Nakupko poiskal na spletu (prices.js); uvožene cene jih prepišejo.
-  var BASE_PRICES = {};
-  ((window.NAKUPKO_PRICES && window.NAKUPKO_PRICES.izdelki) || []).forEach(function (e) {
-    var rec = {};
-    Object.keys(e.cene || {}).forEach(function (c) { if (typeof e.cene[c] === "number" && e.cene[c] > 0) rec[c] = e.cene[c]; });
-    if (Object.keys(rec).length) BASE_PRICES[norm(e.ime)] = rec;
-  });
+  // Cene se osvežijo vsako noč; aplikacija (tudi iPhone/Android) si sveže prenese sama.
+  var BASE_PRICES = {}, PRICES_DATE = "";
+  function useBasePrices(data) {
+    if (!data || !data.izdelki) return;
+    BASE_PRICES = {}; PRICES_DATE = data.datum || "";
+    data.izdelki.forEach(function (e) {
+      var rec = {};
+      Object.keys(e.cene || {}).forEach(function (c) { if (typeof e.cene[c] === "number" && e.cene[c] > 0) rec[c] = e.cene[c]; });
+      if (Object.keys(rec).length) BASE_PRICES[norm(e.ime)] = rec;
+    });
+  }
+  var PRICES_URL = "https://myedgeofficial.github.io/nakupko/prices.json";
+  (function () {
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem("nakupko-prices") || "null"); } catch (e) { /* nič */ }
+    var bundled = window.NAKUPKO_PRICES;
+    useBasePrices(cached && (!bundled || (cached.datum || "") > (bundled.datum || "")) ? cached : bundled);
+  })();
+  function refreshPrices() {
+    if (!window.fetch) return;
+    fetch(PRICES_URL + "?d=" + new Date().toISOString().slice(0, 13), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.izdelki || (d.datum || "") <= PRICES_DATE) return;
+        try { localStorage.setItem("nakupko-prices", JSON.stringify(d)); } catch (e) { /* poln */ }
+        useBasePrices(d);
+        renderAll();
+      })
+      .catch(function () { /* brez povezave */ });
+  }
   function priceFor(name, chain) {
     var key = norm(name);
     var imp = Object.assign({}, BASE_PRICES[key] || {}, state.prices[key] || {});
@@ -385,9 +409,24 @@
     if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it.name, chain); if (p.price == null) p = null; }
     if (!p) { p = prefPrice(it.name); if (p) chain = p.chain; }
     if (!p) return null;
+    var kg = perKg(it.name);
+    var txt = kg ? eur(p.price / kg.amount) + "/" + kg.unit : eur(p.price * q);
     return el("span", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
-      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), eur(p.price * q) + (p.est ? "*" : "")
+      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : "")
     ]);
+  }
+  // Sir, meso, ribe ipd. so v zelo različnih pakiranjih: pokažemo ceno na kg (izdelki na kg vedno).
+  var PER_KG_RE = /\bsir|sirni|mozzarel|parmez|feta|gorgonzol|mascarpon|ricott|brie|camembert|grana|skuta|cottage|halloumi/;
+  function perKg(name) {
+    var p = CATALOG_BY_KEY[norm(name)];
+    if (!p) return null;
+    var m = String(p.unit || "").replace(",", ".").match(/^\s*([\d.]+)?\s*(g|kg)\s*$/i);
+    if (!m) return null;
+    var amount = (m[1] ? parseFloat(m[1]) : 1) / (m[2].toLowerCase() === "g" ? 1000 : 1);
+    if (!(amount > 0)) return null;
+    if (m[2].toLowerCase() === "kg" && amount === 1) return { amount: 1, unit: "kg" };
+    if (p.cat === "Meso in ribe" || (p.cat === "Mlečni izdelki" && PER_KG_RE.test(norm(p.name)))) return { amount: amount, unit: "kg" };
+    return null;
   }
   // ---------- Ikone izdelkov ----------
   // Barvne ikone (Microsoft Fluent Emoji, MIT) iz mape icons/, izbrane po imenu izdelka; sicer po kategoriji.
@@ -1031,9 +1070,15 @@
     box.innerHTML = "";
     box.appendChild(table);
     var n = Object.keys(state.prices).length;
-    $("pricesInfo").textContent = n
-      ? "Uvoženih cen za " + n + " izdelkov" + (state.pricesUpdated ? ", posodobljeno " + new Date(state.pricesUpdated).toLocaleDateString("sl-SI") : "") + "."
-      : "Trenutno so prikazane okvirne ocene cen. Za točne cene uvozi tedenski cenik.";
+    var auto = Object.keys(BASE_PRICES).length;
+    var d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(PRICES_DATE || "");
+    var dateTxt = d ? Number(d[3]) + ". " + Number(d[2]) + ". " + d[1] : "";
+    $("pricesInfo").textContent = auto
+      ? "Cene se samodejno osvežujejo vsako noč ob 3h" + (dateTxt ? ", zadnja osvežitev " + dateTxt : "") + ". Zvezdica (*) pomeni, da za to trgovino ni cene in je prikazana ocena."
+      : "Samodejne cene še niso prenesene. Prikazane so okvirne ocene (*).";
+    $("importInfo").textContent = n
+      ? "Ročno uvoženih cen: " + n + (state.pricesUpdated ? ", uvoženo " + new Date(state.pricesUpdated).toLocaleDateString("sl-SI") : "") + "."
+      : "";
   }
 
   var HELP = [
@@ -1349,6 +1394,20 @@
   });
 
   $("btnLoc").addEventListener("click", function () { if (watchId === null) startLocation(); else stopLocation(); });
+  // Ročni uvoz cen je samo za razvijalca: 7 hitrih tapov na naslov »Cene« ga pokaže ali skrije (velja za ta telefon).
+  function applyDevMode() { $("manualImport").classList.toggle("hidden", !state.settings.dev); }
+  applyDevMode();
+  var devTaps = 0, devTimer = null;
+  $("pricesTitle").addEventListener("click", function () {
+    devTaps++;
+    clearTimeout(devTimer);
+    devTimer = setTimeout(function () { devTaps = 0; }, 1500);
+    if (devTaps < 7) return;
+    devTaps = 0;
+    state.settings.dev = !state.settings.dev; save();
+    applyDevMode();
+    toast(state.settings.dev ? "Ročni uvoz cen je prikazan." : "Ročni uvoz cen je skrit.");
+  });
   $("btnTest").addEventListener("click", function () { window.scrollTo(0, 0); startTest(); });
   $("btnRefreshStores").addEventListener("click", function () {
     if (!lastPos) { startLocation(); return; }
@@ -1451,6 +1510,8 @@
   priceKeysClean();
   renderAll();
   renderStores();
+  refreshPrices();
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshPrices(); });
   setInterval(checkRemote, 10000);
   checkRemote();
   if (/[?&]test\b/.test(location.search)) startTest();

@@ -260,7 +260,7 @@ window.NAKUPKO_PRODUCTS = [
   ["Cigarete Eve", "Tobak", ["Red Divine", "Blue Mystique"], 5.50, "20 kos", true],
   ["Cigarete Benson & Hedges", "Tobak", ["Red", "Blue"], 5.20, "20 kos", true],
   ["Cigarete Austin", "Tobak", ["Red", "Blue"], 4.80, "20 kos", true],
-  ["Tobačne palčke (IQOS)", "Tobak", ["Terea", "Heets"], 5.30, "20 kos", true],
+  ["Tobačne palčke (IQOS)", "Tobak", ["Terea Amber", "Terea Bronze", "Terea Russet", "Terea Sienna", "Terea Silver", "Terea Soft Fuse", "Terea Teak", "Terea Turquoise", "Terea Yellow", "Heets Bronze", "Heets Sienna", "Heets Silver", "Heets Turquoise", "Heets Yellow"], 5.00, "20 kos", true],
   ["Tobak za zvijanje", "Tobak", ["Pueblo", "Golden Virginia", "Drum", "Chesterfield"], 9.50, "30 g", true],
   ["Papirčki za zvijanje", "Tobak", ["OCB", "Rizla", "Smoking"], 0.99, "kos"],
   ["Filtri za zvijanje", "Tobak", ["OCB", "Rizla", "Smoking"], 1.49, "kos"],
