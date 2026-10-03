@@ -575,7 +575,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             ])
         }
         // Ko odideš iz trgovine, seznam z zaklenjenega zaslona umaknemo.
-        if let from = shoppingFrom, loc.distance(from: from) > 800 { shopping(active: false, store: "", groups: [], done: 0, total: 0) }
+        if let from = shoppingFrom, loc.distance(from: from) > 800 { shopping(active: false, store: "", items: [], done: 0, total: 0) }
         guard enabled else { return }
         let home = manager.monitoredRegions.first { $0.identifier == homeId } as? CLCircularRegion
         if home == nil || loc.distance(from: CLLocation(latitude: home!.center.latitude, longitude: home!.center.longitude)) > homeRadius * 0.6 {
