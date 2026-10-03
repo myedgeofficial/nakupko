@@ -526,7 +526,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         if shoppingFrom == nil { shoppingFrom = manager.location }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let state = ShoppingAttributes.ContentState(items: LiveList.fit(list), done: done, total: total)
+        let fitted = LiveList.fit(list)
+        let keepPage = current.first(where: { $0.attributes.store == store })?.content.state.page
+        let state = ShoppingAttributes.ContentState(items: fitted, done: done, total: total, page: LiveList.clampPage(keepPage, count: fitted.count))
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(4 * 3600))
         if let a = current.first(where: { $0.attributes.store == store }) {
             Task { await a.update(content) }

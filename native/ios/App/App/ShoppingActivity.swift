@@ -21,6 +21,7 @@ struct ShoppingAttributes: ActivityAttributes {
         var items: [LiveItem]
         var done: Int
         var total: Int
+        var page: Int? = nil   // stran izdelkov (gumb »Naprej ›«)
     }
     var store: String
 }
@@ -29,6 +30,13 @@ struct ShoppingAttributes: ActivityAttributes {
 enum LiveList {
     static let defaults = UserDefaults.standard
     static let maxItems = 30
+    static let perPage = 4
+
+    // Stran, ki še obstaja (po odkljukanju se seznam skrajša).
+    static func clampPage(_ page: Int?, count: Int) -> Int {
+        let p = page ?? 0
+        return p * perPage < count ? p : 0
+    }
 
     // Live Activity sprejme največ 4 KB: omejimo število in dolžino imen.
     static func fit(_ list: [LiveItem]) -> [LiveItem] {
@@ -53,6 +61,7 @@ enum LiveList {
             guard let idx = s.items.firstIndex(where: { $0.id == id }) else { continue }
             s.items.remove(at: idx)
             s.done += 1
+            s.page = clampPage(s.page, count: s.items.count)
             await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
         }
         // Skupen seznam: odkljukano vidijo tudi ostali člani.
@@ -64,6 +73,24 @@ enum LiveList {
             req.httpBody = try? JSONSerialization.data(withJSONObject: ["done": true, "doneAt": Int(now)])
             _ = try? await URLSession.shared.data(for: req)
         }
+    }
+}
+
+// »Naprej ›«: naslednji 4 izdelki; po zadnji strani spet na začetek.
+struct NextPageIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Naslednji izdelki"
+    static var isDiscoverable: Bool = false
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        for a in Activity<ShoppingAttributes>.activities {
+            var s = a.content.state
+            let next = (s.page ?? 0) + 1
+            s.page = next * LiveList.perPage < s.items.count ? next : 0
+            await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
+        }
+        return .result()
     }
 }
 

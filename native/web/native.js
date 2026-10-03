@@ -157,6 +157,9 @@
   function openFromNotification() {
     Geo.takePendingStore().then(function (r) {
       if (!r || !r.storeId) return;
+      var api = window.__nakupko, sm0 = document.getElementById("storeMode");
+      // Iz seznama na zaklenjenem zaslonu: nakupovanje odpremo takoj.
+      if (r.storeId === "live" && api && api.openStore) { if (sm0 && sm0.classList.contains("hidden")) api.openStore(); return; }
       var tries = 0;
       var t = setInterval(function () {
         var sm = document.getElementById("storeMode");

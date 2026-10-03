@@ -12,12 +12,13 @@ struct NakupkoWidgets: WidgetBundle {
 }
 
 private let orange = Color(red: 0.95, green: 0.42, blue: 0.11)
-private let maxShown = 6
+private let maxShown = LiveList.perPage
 
 struct ShoppingLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ShoppingAttributes.self) { context in
             LockScreenList(store: context.attributes.store, state: context.state)
+                .widgetURL(URL(string: "nakupko://seznam"))
                 .activityBackgroundTint(Color.white)
                 .activitySystemActionForegroundColor(orange)
         } dynamicIsland: { context in
@@ -30,7 +31,7 @@ struct ShoppingLiveActivity: Widget {
                     Text("\(context.state.done)/\(context.state.total)").font(.headline).foregroundColor(orange)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ItemGrid(items: context.state.items, shown: 4, dark: true, big: false)
+                    ItemGrid(items: context.state.items, page: 0, shown: 4, dark: true, big: false)
                 }
             } compactLeading: {
                 Image(systemName: "cart.fill").foregroundColor(orange)
@@ -56,7 +57,7 @@ struct LockScreenList: View {
                 Text(state.items.isEmpty ? "Vse v košarici ✓" : "\(state.done)/\(state.total)")
                     .font(.headline).foregroundColor(orange)
             }
-            ItemGrid(items: state.items, shown: maxShown, dark: false, big: true)
+            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: false, big: true)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -66,12 +67,14 @@ struct LockScreenList: View {
 // Izdelki v dveh stolpcih; tap odkljuka izdelek, naslednji se pomaknejo gor.
 struct ItemGrid: View {
     let items: [LiveItem]
+    let page: Int
     let shown: Int
     let dark: Bool
     let big: Bool
 
     var body: some View {
-        let list = Array(items.prefix(shown))
+        let start = page * shown < items.count ? page * shown : 0
+        let list = Array(items[start..<min(start + shown, items.count)])
         let rows = stride(from: 0, to: list.count, by: 2).map { Array(list[$0..<min($0 + 2, list.count)]) }
         let hidden = items.count - list.count
         VStack(alignment: .leading, spacing: 5) {
@@ -98,7 +101,31 @@ struct ItemGrid: View {
                     if row.count == 1 { Spacer().frame(maxWidth: .infinity) }
                 }
             }
-            if hidden > 0 {
+            if big {
+                HStack(spacing: 8) {
+                    Link(destination: URL(string: "nakupko://seznam")!) {
+                        Label("Odpri seznam", systemImage: "list.bullet")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(orange))
+                    }
+                    Spacer()
+                    if hidden > 0 {
+                        Text("\(start + 1)–\(start + list.count) od \(items.count)").font(.caption).foregroundColor(.gray)
+                        Button(intent: NextPageIntent()) {
+                            Text(start + list.count >= items.count ? "Na začetek ↺" : "Naprej ›")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(orange)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(orange.opacity(0.12)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } else if hidden > 0 {
                 Text("in še \(hidden) …").font(.caption).foregroundColor(.gray)
             }
         }
