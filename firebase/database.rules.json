@@ -1,0 +1,19 @@
+{
+  "rules": {
+    "h": {
+      "$code": {
+        ".read": "$code.matches(/^[A-Z0-9]{10}$/)",
+        ".write": "$code.matches(/^[A-Z0-9]{10}$/)",
+        "items": {
+          "$id": { ".validate": "newData.hasChildren(['id', 'name'])" }
+        },
+        "members": {
+          "$member": { ".validate": "$member.matches(/^[A-Z0-9]{10}$/)" }
+        },
+        "visits": {
+          "$visit": { ".validate": "newData.hasChildren(['member', 'store'])" }
+        }
+      }
+    }
+  }
+}
