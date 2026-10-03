@@ -5,12 +5,21 @@
 (function () {
   "use strict";
   var Cap = window.Capacitor;
-  if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) return;
+  if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) {
+    // Diagnostika: v aplikaciji brez povezave z iPhonom to pokažemo v Nastavitvah.
+    if (/Nakupko|iPhone/.test(navigator.userAgent) && !/Safari\//.test(navigator.userAgent)) {
+      window.addEventListener("load", function () {
+        var st = document.getElementById("locStatus");
+        if (st) { var d = document.createElement("div"); d.className = "small"; d.style.color = "#c0392b"; d.textContent = "iPhone: povezava ni naložena (" + (Cap ? "ni native" : "ni Capacitor") + ")"; st.parentNode.appendChild(d); }
+      });
+    }
+    return;
+  }
   var Geo = Cap.registerPlugin("NakupkoGeo");
   document.documentElement.classList.add("native-ios");
 
   // ---------- navigator.geolocation prek iOS ----------
-  var watchers = {}, nextId = 1, posSub = null, errSub = null;
+  var watchers = {}, nextId = 1, posSub = null, errSub = null, lastNativePos = null, geoOverridden = false;
   function toPosition(d) {
     return {
       coords: { latitude: d.lat, longitude: d.lon, accuracy: d.acc, altitude: null, altitudeAccuracy: null, heading: null, speed: null },
@@ -23,6 +32,7 @@
   function ensureListeners() {
     if (posSub) return;
     posSub = Geo.addListener("position", function (d) {
+      lastNativePos = d;
       Object.keys(watchers).forEach(function (id) { var w = watchers[id]; if (w) w.ok(toPosition(d)); });
     });
     errSub = Geo.addListener("locationError", function (e) {
@@ -45,7 +55,7 @@
       var id = geo.watchPosition(function (p) { geo.clearWatch(id); ok(p); }, function (e) { geo.clearWatch(id); if (err) err(e); });
     }
   };
-  try { Object.defineProperty(navigator, "geolocation", { value: geo, configurable: true }); }
+  try { Object.defineProperty(navigator, "geolocation", { value: geo, configurable: true }); geoOverridden = navigator.geolocation === geo; }
   catch (e) { /* ostane spletna lokacija */ }
 
   // ---------- Odprti izdelki po oddelkih (vrstni red kot pot po trgovini) ----------
@@ -198,7 +208,10 @@
     var api = window.__nakupko;
     var on = api && api.state && (api.state().settings || {}).locOn;
     if (!on) { var old = document.getElementById("bgStatus"); if (old) old.remove(); showGate({}, []); return; }
+    var timer = setTimeout(function () { diag("iPhone se ne odziva (getStatus)"); }, 4000);
     Geo.getStatus().then(function (s) {
+      clearTimeout(timer);
+      diag(diagText(s));
       if (s.authorization === "notDetermined") return; // iOS še sprašuje
       var missing = missingOf(s);
       showGate(s, missing);
@@ -224,7 +237,30 @@
       b.type = "button"; b.className = "link"; b.textContent = "Vklopi";
       b.onclick = function () { gateLater = false; showGate(s, missing); };
       box.appendChild(b);
-    }).catch(function () {});
+    }).catch(function (e) { clearTimeout(timer); diag("iPhone napaka: " + (e && e.message || e)); });
+  }
+  // Kratka diagnostika za testiranje: kaj iPhone ve in kako daleč je najbližja trgovina.
+  function diagText(s) {
+    var parts = ["lokacija " + s.authorization, "obvestila " + (s.notifications ? "da" : "ne"), "spremljam " + s.regions + "/" + s.stores];
+    if (!geoOverridden) parts.push("spletna lokacija");
+    var list = ((window.__nakupko && window.__nakupko.state().storesCache) || {}).list || [];
+    if (lastNativePos && list.length) {
+      var best = null;
+      list.forEach(function (x) {
+        var dLat = (x.lat - lastNativePos.lat) * 111320, dLon = (x.lon - lastNativePos.lon) * 111320 * Math.cos(x.lat * Math.PI / 180);
+        var d = Math.sqrt(dLat * dLat + dLon * dLon);
+        if (!best || d < best.d) best = { d: d, n: x.short || x.name };
+      });
+      parts.push("najbližja " + best.n + " " + Math.round(best.d) + " m");
+    } else parts.push("trgovin " + list.length);
+    return "iPhone: " + parts.join(" · ");
+  }
+  function diag(text) {
+    var st = document.getElementById("locStatus");
+    if (!st) return;
+    var d = document.getElementById("geoDiag");
+    if (!d) { d = document.createElement("div"); d.id = "geoDiag"; d.className = "small muted"; d.style.marginTop = "4px"; st.parentNode.appendChild(d); }
+    d.textContent = text;
   }
   window.addEventListener("load", function () { setTimeout(showBackgroundStatus, 1500); });
   setInterval(showBackgroundStatus, 5000);
