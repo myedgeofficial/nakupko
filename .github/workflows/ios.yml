@@ -90,6 +90,15 @@ jobs:
             NAKUPKO_BUNDLE_ID="$BUNDLE_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             archive | tail -n 80
 
+          # Obvestila (aps-environment): nepodpisan arhiv nima pravic, zato aplikacijo podpišemo
+          # lokalno (ad-hoc) s pravicami; izvoz jih prenese v pravi podpis za App Store.
+          APP="$RUNNER_TEMP/Nakupko.xcarchive/Products/Applications/App.app"
+          for n in "$APP"/Frameworks/*.framework "$APP"/Frameworks/*.dylib "$APP"/PlugIns/*.appex; do
+            [ -e "$n" ] && codesign --force --sign - "$n" || true
+          done
+          codesign --force --sign - --entitlements App/App.entitlements --generate-entitlement-der "$APP" || echo "::warning::Ad-hoc podpis ni uspel"
+          codesign -d --entitlements - "$APP" 2>/dev/null | grep -q aps-environment && echo "Pravica za obvestila: da" || echo "::warning::Pravica za obvestila manjka"
+
           # Arhiv je nepodpisan (ekipa nima registriranih naprav za razvojni profil);
           # izvoz ga podpiše za App Store z oblačnim distribucijskim certifikatom.
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Nakupko.xcarchive" \

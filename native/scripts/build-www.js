@@ -5,7 +5,7 @@ const path = require("path");
 
 const root = path.resolve(__dirname, "..", "..");
 const out = path.resolve(__dirname, "..", "www");
-const skip = new Set(["native", "node_modules", "sw.js", "remote.json", "README.md"]);
+const skip = new Set(["native", "node_modules", "sw.js", "remote.json", "README.md", "firebase"]);
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });

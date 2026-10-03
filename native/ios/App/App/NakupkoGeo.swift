@@ -23,6 +23,13 @@ struct GeoStore: Codable {
     var hours: String? = nil
 }
 
+struct Household {
+    let url: String
+    let code: String
+    let member: String
+    let name: String
+}
+
 final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationCenterDelegate {
     static let shared = GeoManager()
 
@@ -58,12 +65,33 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "geo.groups") }
     }
     // Skupen seznam (household.js): ob prihodu v trgovino preberemo najnovejši seznam s strežnika.
-    private var household: (url: String, code: String)? {
+    private var household: Household? {
         get {
             guard let u = defaults.string(forKey: "geo.hh.url"), let c = defaults.string(forKey: "geo.hh.code"), !u.isEmpty, !c.isEmpty else { return nil }
-            return (u, c)
+            return Household(url: u, code: c, member: defaults.string(forKey: "geo.hh.member") ?? "", name: defaults.string(forKey: "geo.hh.name") ?? "")
         }
-        set { defaults.set(newValue?.url, forKey: "geo.hh.url"); defaults.set(newValue?.code, forKey: "geo.hh.code") }
+        set {
+            defaults.set(newValue?.url, forKey: "geo.hh.url"); defaults.set(newValue?.code, forKey: "geo.hh.code")
+            defaults.set(newValue?.member, forKey: "geo.hh.member"); defaults.set(newValue?.name, forKey: "geo.hh.name")
+        }
+    }
+    // Žeton za obvestila (APNs); strežnik ga uporabi, da partnerju sporoči, da si v trgovini.
+    private(set) var pushToken: String? {
+        get { defaults.string(forKey: "geo.pushToken") }
+        set { defaults.set(newValue, forKey: "geo.pushToken") }
+    }
+    private var pushTokenSentFor: String? {
+        get { defaults.string(forKey: "geo.pushTokenSentFor") }
+        set { defaults.set(newValue, forKey: "geo.pushTokenSentFor") }
+    }
+    // Odprti obiski trgovin: storeId -> id obiska na strežniku.
+    private var visits: [String: String] {
+        get { defaults.dictionary(forKey: "geo.visits") as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: "geo.visits") }
+    }
+    private var visitSent: [String: Double] {
+        get { defaults.dictionary(forKey: "geo.visitSent") as? [String: Double] ?? [:] }
+        set { defaults.set(newValue, forKey: "geo.visitSent") }
     }
     private static let categories: [(String, String)] = [
         ("Sadje in zelenjava", "🥦"), ("Kruh in pecivo", "🥖"), ("Mlečni izdelki", "🥛"), ("Meso in ribe", "🥩"),
@@ -130,12 +158,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             self.manager.startUpdatingLocation()
         }
         if enabled { startBackgroundMonitoring() }
+        UIApplication.shared.registerForRemoteNotifications()
     }
 
-    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup], household hh: (url: String, code: String)?) {
+    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup], household hh: Household?) {
         radius = r
         groups = open
         household = hh
+        registerMember()
         if !list.isEmpty {
             stores = list
             if let loc = manager.location { lastFetch = lastFetch ?? loc }
@@ -159,7 +189,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         case .denied, .restricted: auth = "denied"
         default: auth = "notDetermined"
         }
-        return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count]
+        return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count, "push": pushToken != nil]
     }
 
     func requestAlways() {
@@ -275,7 +305,69 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }.resume()
     }
 
+    // ---------- Skupen seznam: kdo je v trgovini ----------
+    func setPushToken(_ token: String) {
+        pushToken = token
+        registerMember()
+    }
+
+    // Strežniku sporoči žeton tega telefona, da lahko dobi obvestilo »partner je v trgovini«.
+    private func registerMember() {
+        guard let hh = household, !hh.member.isEmpty, let token = pushToken else { return }
+        let key = "\(hh.code)/\(hh.member)/\(token)/\(hh.name)"
+        if pushTokenSentFor == key { return }
+        guard let url = URL(string: "\(hh.url)/h/\(hh.code)/members/\(hh.member).json") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["ios": token, "name": hh.name, "platform": "ios"])
+        URLSession.shared.dataTask(with: req) { [weak self] _, resp, _ in
+            if (resp as? HTTPURLResponse)?.statusCode == 200 { DispatchQueue.main.async { self?.pushTokenSentFor = key } }
+        }.resume()
+    }
+
+    // Prihod v trgovino zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
+    private func reportVisit(storeId id: String) {
+        guard let hh = household, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
+        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
+        let now = Date().timeIntervalSince1970
+        var sent = visitSent
+        if let last = sent[id], now - last < renotifyAfter { return }
+        sent = sent.filter { now - $0.value < 24 * 3600 }
+        sent[id] = now
+        visitSent = sent
+        guard let url = URL(string: "\(hh.url)/h/\(hh.code)/visits.json") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "member": hh.member, "name": hh.name, "store": store.name, "storeId": id, "at": [".sv": "timestamp"]
+        ])
+        let app = UIApplication.shared
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let key = obj["name"] as? String {
+                    self?.visits[id] = key
+                }
+                app.endBackgroundTask(task)
+            }
+        }.resume()
+    }
+
+    private func reportLeft(storeId id: String) {
+        guard let hh = household, let key = visits[id], let url = URL(string: "\(hh.url)/h/\(hh.code)/visits/\(key).json") else { return }
+        visits[id] = nil
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["left": true])
+        let app = UIApplication.shared
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+        URLSession.shared.dataTask(with: req) { _, _, _ in DispatchQueue.main.async { app.endBackgroundTask(task) } }.resume()
+    }
+
     private func notifyEntered(regionId: String) {
+        reportVisit(storeId: String(regionId.dropFirst(storePrefix.count)))
         guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups) }
         // Partner je morda kaj dodal, medtem ko je bila aplikacija zaprta: preberemo skupen seznam.
         let app = UIApplication.shared
@@ -413,6 +505,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         if region.identifier.hasPrefix(storePrefix) {
             let id = String(region.identifier.dropFirst(storePrefix.count))
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
+            reportLeft(storeId: id)
             return
         }
         guard region.identifier == homeId else { return }
@@ -476,8 +569,10 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
             return GeoStore(id: id, name: (s["name"] as? String) ?? "Trgovina", lat: lat, lon: lon,
                             chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String)
         }
-        var hh: (url: String, code: String)?
-        if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String { hh = (u, c) }
+        var hh: Household?
+        if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String {
+            hh = Household(url: u, code: c, member: (h["member"] as? String) ?? "", name: (h["name"] as? String) ?? "")
+        }
         DispatchQueue.main.async {
             GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups, household: hh)
             call.resolve()
