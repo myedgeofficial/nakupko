@@ -21,6 +21,20 @@ struct GeoStore: Codable {
     var chain: String? = nil
     var duty: Bool? = nil
     var hours: String? = nil
+    var only: String? = nil   // specializirana trgovina: kateri izdelki so zanjo (regex iz app.js)
+
+    // Ali trgovina prodaja izdelek (enako kot sells() v app.js).
+    func sells(_ text: String) -> Bool {
+        if let o = only, !o.isEmpty { return text.range(of: o, options: [.regularExpression, .caseInsensitive]) != nil }
+        return !text.lowercased().hasPrefix("dom in vrt ")
+    }
+}
+
+struct Household {
+    let url: String
+    let code: String
+    let member: String
+    let name: String
 }
 
 final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationCenterDelegate {
@@ -33,7 +47,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private let maxStoreRegions = 19
     private let homeRadius: CLLocationDistance = 1500
     private let refetchDistance: CLLocationDistance = 2500
-    private let renotifyAfter: TimeInterval = 45 * 60
+    // Isto trgovino znova javimo po 3 minutah (GPS na robu parkirišča niha), partnerja pa po 45.
+    private let renotifyAfter: TimeInterval = 3 * 60
+    private let visitAgainAfter: TimeInterval = 45 * 60
 
     var onPosition: (([String: Any]) -> Void)?
     var onError: (([String: Any]) -> Void)?
@@ -57,19 +73,79 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "geo.groups") }
     }
+    // Odprti izdelki z id-ji (za kljukanje na zaklenjenem zaslonu).
+    private var liveItems: [LiveItem] {
+        get {
+            guard let data = defaults.data(forKey: "geo.items") else { return [] }
+            return (try? JSONDecoder().decode([LiveItem].self, from: data)) ?? []
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "geo.items") }
+    }
+    // Cena seznama po verigah (iz aplikacije): za namig »drugje je ceneje«.
+    private var chainCost: [String: Double] {
+        get { defaults.dictionary(forKey: "geo.chainCost") as? [String: Double] ?? [:] }
+        set { defaults.set(newValue, forKey: "geo.chainCost") }
+    }
+    // Druga stopnja: po obvestilu »blizu si« spremljamo natančno lokacijo, dokler ne obstaneš pri trgovini.
+    private struct Arrival { let store: GeoStore; let open: [ItemGroup]; let items: [LiveItem]; let count: Int; let started: Date; var stillSince: Date? }
+    private var arrival: Arrival?
+    private let arrivalRadius: CLLocationDistance = 60
+    private let arrivalDwell: TimeInterval = 12
+    private let arrivalTimeout: TimeInterval = 8 * 60
+    // Žeton, s katerim strežnik zažene seznam na zaklenjenem zaslonu (iOS 17.2+).
+    private var startToken: String? {
+        get { defaults.string(forKey: "live.startToken") }
+        set { defaults.set(newValue, forKey: "live.startToken") }
+    }
+    private var deviceId: String {
+        if let d = defaults.string(forKey: "live.device"), d.count == 16 { return d }
+        let alpha = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        let d = String((0..<16).map { _ in alpha.randomElement()! })
+        defaults.set(d, forKey: "live.device")
+        return d
+    }
+    // Kratek dnevnik zaznavanja (zadnjih 30 dogodkov), viden v Nastavitvah v razvijalskem načinu.
+    func log(_ text: String) {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm:ss"
+        var l = defaults.stringArray(forKey: "geo.log") ?? []
+        l.append(f.string(from: Date()) + " " + text)
+        defaults.set(Array(l.suffix(30)), forKey: "geo.log")
+    }
     // Skupen seznam (household.js): ob prihodu v trgovino preberemo najnovejši seznam s strežnika.
-    private var household: (url: String, code: String)? {
+    private var household: Household? {
         get {
             guard let u = defaults.string(forKey: "geo.hh.url"), let c = defaults.string(forKey: "geo.hh.code"), !u.isEmpty, !c.isEmpty else { return nil }
-            return (u, c)
+            return Household(url: u, code: c, member: defaults.string(forKey: "geo.hh.member") ?? "", name: defaults.string(forKey: "geo.hh.name") ?? "")
         }
-        set { defaults.set(newValue?.url, forKey: "geo.hh.url"); defaults.set(newValue?.code, forKey: "geo.hh.code") }
+        set {
+            defaults.set(newValue?.url, forKey: "geo.hh.url"); defaults.set(newValue?.code, forKey: "geo.hh.code")
+            defaults.set(newValue?.member, forKey: "geo.hh.member"); defaults.set(newValue?.name, forKey: "geo.hh.name")
+        }
+    }
+    // Žeton za obvestila (APNs); strežnik ga uporabi, da partnerju sporoči, da si v trgovini.
+    private(set) var pushToken: String? {
+        get { defaults.string(forKey: "geo.pushToken") }
+        set { defaults.set(newValue, forKey: "geo.pushToken") }
+    }
+    private var pushTokenSentFor: String? {
+        get { defaults.string(forKey: "geo.pushTokenSentFor") }
+        set { defaults.set(newValue, forKey: "geo.pushTokenSentFor") }
+    }
+    // Odprti obiski trgovin: storeId -> id obiska na strežniku.
+    private var visits: [String: String] {
+        get { defaults.dictionary(forKey: "geo.visits") as? [String: String] ?? [:] }
+        set { defaults.set(newValue, forKey: "geo.visits") }
+    }
+    private var visitSent: [String: Double] {
+        get { defaults.dictionary(forKey: "geo.visitSent") as? [String: Double] ?? [:] }
+        set { defaults.set(newValue, forKey: "geo.visitSent") }
     }
     private static let categories: [(String, String)] = [
         ("Sadje in zelenjava", "🥦"), ("Kruh in pecivo", "🥖"), ("Mlečni izdelki", "🥛"), ("Meso in ribe", "🥩"),
         ("Shramba", "🥫"), ("Brez glutena", "🌾"), ("Prigrizki", "🍫"), ("Pijače", "🥤"), ("Zamrznjeno", "🧊"),
-        ("Otroci", "🍼"), ("Gospodinjstvo", "🧽"), ("Higiena", "🧴"), ("Zdravje", "💊"), ("Tobak", "🚬"),
-        ("Ljubljenčki", "🐾"), ("Drugo", "🛒")
+        ("Otroci", "🍼"), ("Gospodinjstvo", "🧽"), ("Higiena", "🧴"), ("Zdravje", "💊"), ("Športna prehrana", "💪"), ("Tobak", "🚬"),
+        ("Ljubljenčki", "🐾"), ("Dom in vrt", "🔨"), ("Drugo", "🛒")
     ]
     // Enako kot groupsOf() v native.js: odprti izdelki po oddelkih.
     static func groupsOf(items: [[String: Any]]) -> [ItemGroup] {
@@ -88,6 +164,27 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 return (qty > 1 ? "\(qty)× " : "") + ((i["name"] as? String) ?? "") + (brand.isEmpty ? "" : " (\(brand))")
             }
             return ItemGroup(icon: icon, name: cat, items: labels)
+        }
+    }
+
+    // Enako kot liveItemsOf() v native.js: odprti izdelki v vrstnem redu oddelkov.
+    static func liveItemsOf(items: [[String: Any]], known: [LiveItem] = []) -> [LiveItem] {
+        let iconById = Dictionary(known.map { ($0.id, $0.icon) }, uniquingKeysWith: { a, _ in a })
+        let open = items.filter { ($0["done"] as? Bool) != true && !((($0["name"] as? String) ?? "").isEmpty) && $0["id"] is String }
+        func catIndex(_ i: [String: Any]) -> Int {
+            let c = (i["cat"] as? String) ?? "Drugo"
+            return categories.firstIndex(where: { $0.0 == c }) ?? (categories.count - 1)
+        }
+        return open.sorted {
+            let a = catIndex($0), b = catIndex($1)
+            if a != b { return a < b }
+            return (($0["name"] as? String) ?? "").localizedCompare(($1["name"] as? String) ?? "") == .orderedAscending
+        }.map { i in
+            let qty = (i["qty"] as? NSNumber)?.intValue ?? 1
+            let brand = (i["brand"] as? String) ?? ""
+            let label = (qty > 1 ? "\(qty)× " : "") + ((i["name"] as? String) ?? "") + (brand.isEmpty ? "" : " (\(brand))")
+            let id = i["id"] as! String
+            return LiveItem(id: id, label: label, icon: iconById[id] ?? categories[catIndex(i)].1, cat: categories[catIndex(i)].0)
         }
     }
 
@@ -130,12 +227,23 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             self.manager.startUpdatingLocation()
         }
         if enabled { startBackgroundMonitoring() }
+        UIApplication.shared.registerForRemoteNotifications()
+        if #available(iOS 17.2, *) {
+            Task { [weak self] in
+                for await data in Activity<ShoppingAttributes>.pushToStartTokenUpdates {
+                    let hex = data.map { String(format: "%02x", $0) }.joined()
+                    await MainActor.run { self?.startToken = hex }
+                }
+            }
+        }
     }
 
-    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup], household hh: (url: String, code: String)?) {
+    func configure(enabled on: Bool, radius r: Double, stores list: [GeoStore], groups open: [ItemGroup], items: [LiveItem], household hh: Household?) {
         radius = r
         groups = open
+        liveItems = items
         household = hh
+        registerMember()
         if !list.isEmpty {
             stores = list
             if let loc = manager.location { lastFetch = lastFetch ?? loc }
@@ -159,7 +267,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         case .denied, .restricted: auth = "denied"
         default: auth = "notDetermined"
         }
-        return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count]
+        return ["enabled": enabled, "authorization": auth, "regions": manager.monitoredRegions.count, "stores": stores.count, "push": pushToken != nil, "liveToken": startToken != nil, "log": defaults.stringArray(forKey: "geo.log") ?? []]
     }
 
     func requestAlways() {
@@ -208,7 +316,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         guard enabled, CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return }
         // Natančnost območij v iOS je ~100 m, zato manjši polmer ne pomaga.
         // Vsaj 150 m, da iOS zazna tudi mimovožnjo; obvestilo je tiho in izgine, ko greš naprej.
-        let r = min(max(radius, 150), 300)
+        let r = min(max(radius * 3, 250), 400)
         let nearest = stores
             .map { ($0, loc.distance(from: CLLocation(latitude: $0.lat, longitude: $0.lon))) }
             .filter { $0.1 < 8000 }
@@ -275,8 +383,72 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }.resume()
     }
 
+    // ---------- Skupen seznam: kdo je v trgovini ----------
+    func setPushToken(_ token: String) {
+        pushToken = token
+        registerMember()
+    }
+
+    // Strežniku sporoči žeton tega telefona, da lahko dobi obvestilo »partner je v trgovini«.
+    private func registerMember() {
+        guard let hh = household, !hh.member.isEmpty, let token = pushToken else { return }
+        let key = "\(hh.code)/\(hh.member)/\(token)/\(hh.name)"
+        if pushTokenSentFor == key { return }
+        guard let url = URL(string: "\(hh.url)/h/\(hh.code)/members/\(hh.member).json") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["ios": token, "name": hh.name, "platform": "ios"])
+        URLSession.shared.dataTask(with: req) { [weak self] _, resp, _ in
+            if (resp as? HTTPURLResponse)?.statusCode == 200 { DispatchQueue.main.async { self?.pushTokenSentFor = key } }
+        }.resume()
+    }
+
+    // Prihod v trgovino zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
+    private func reportVisit(storeId id: String) {
+        guard let hh = household, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
+        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
+        let now = Date().timeIntervalSince1970
+        var sent = visitSent
+        if let last = sent[id], now - last < visitAgainAfter { return }
+        sent = sent.filter { now - $0.value < 24 * 3600 }
+        sent[id] = now
+        visitSent = sent
+        guard let url = URL(string: "\(hh.url)/h/\(hh.code)/visits.json") else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "member": hh.member, "name": hh.name, "store": store.name, "storeId": id, "at": [".sv": "timestamp"]
+        ])
+        let app = UIApplication.shared
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+        URLSession.shared.dataTask(with: req) { [weak self] data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let key = obj["name"] as? String {
+                    self?.visits[id] = key
+                }
+                app.endBackgroundTask(task)
+            }
+        }.resume()
+    }
+
+    private func reportLeft(storeId id: String) {
+        guard let hh = household, let key = visits[id], let url = URL(string: "\(hh.url)/h/\(hh.code)/visits/\(key).json") else { return }
+        visits[id] = nil
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["left": true])
+        let app = UIApplication.shared
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+        URLSession.shared.dataTask(with: req) { _, _, _ in DispatchQueue.main.async { app.endBackgroundTask(task) } }.resume()
+    }
+
     private func notifyEntered(regionId: String) {
-        guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups) }
+        let sid = String(regionId.dropFirst(storePrefix.count))
+        log("vstop: " + (stores.first(where: { $0.id == sid })?.name ?? sid))
+        reportVisit(storeId: String(regionId.dropFirst(storePrefix.count)))
+        guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups, items: liveItems) }
         // Partner je morda kaj dodal, medtem ko je bila aplikacija zaprta: preberemo skupen seznam.
         let app = UIApplication.shared
         var task: UIBackgroundTaskIdentifier = .invalid
@@ -287,33 +459,163 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 var open = self.groups
+                var live = self.liveItems
                 if let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    open = Self.groupsOf(items: obj.values.compactMap { $0 as? [String: Any] })
+                    let all = obj.values.compactMap { $0 as? [String: Any] }
+                    open = Self.groupsOf(items: all)
+                    live = Self.liveItemsOf(items: all, known: self.liveItems)
                     self.groups = open
+                    self.liveItems = live
                 } else if let data = data, String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
                     open = []
+                    live = []
                 }
-                self.showStoreNotification(regionId: regionId, open: open)
+                self.showStoreNotification(regionId: regionId, open: open, items: live)
                 app.endBackgroundTask(task)
             }
         }.resume()
     }
 
-    private func showStoreNotification(regionId: String, open: [ItemGroup]) {
+    private func showStoreNotification(regionId: String, open: [ItemGroup], items: [LiveItem]) {
         let id = String(regionId.dropFirst(storePrefix.count))
-        guard enabled, let store = stores.first(where: { $0.id == id }) else { return }
+        guard enabled, let store = stores.first(where: { $0.id == id }) else { return log("  preskok: trgovine ni na seznamu") }
+        // Samo izdelki, ki jih ta trgovina prodaja (npr. v Proteini.si samo športna prehrana).
+        let open = open.compactMap { g -> ItemGroup? in
+            let its = g.items.filter { store.sells("\(g.name) \($0)") }
+            return its.isEmpty ? nil : ItemGroup(icon: g.icon, name: g.name, items: its)
+        }
+        let items = items.filter { store.sells("\($0.cat ?? "Drugo") \($0.label)") }
         let count = open.reduce(0) { $0 + $1.items.count }
-        guard count > 0 else { return }
-        if UIApplication.shared.applicationState == .active { return } // odprta aplikacija to pokaže sama
+        guard count > 0 else { return log("  preskok: seznam je prazen") }
+        if UIApplication.shared.applicationState == .active { return log("  preskok: aplikacija je odprta") }
         // Zaprta trgovina (npr. ob 6h pred Sparom, ki odpre ob 7:30): brez obvestila.
-        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
+        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return log("  preskok: trgovina je zaprta (\(store.hours ?? "?"))") }
         let now = Date().timeIntervalSince1970
         var sent = notified
-        if let last = sent[id], now - last < renotifyAfter { return }
+        if let last = sent[id], now - last < renotifyAfter { return log("  preskok: obvestilo pred \(Int(now - last)) s") }
         sent = sent.filter { now - $0.value < 24 * 3600 }
         sent[id] = now
         notified = sent
 
+        // 1. stopnja: »blizu si« (+ namig, če je bližnja trgovina občutno cenejša).
+        postNearNotification(id: id, store: store, count: count)
+        // 2. stopnja: ko obstaneš pri trgovini, se seznam odpre na zaklenjenem zaslonu.
+        startArrivalWatch(Arrival(store: store, open: open, items: items, count: count, started: Date(), stillSince: nil))
+    }
+
+    private func postNearNotification(id: String, store: GeoStore, count: Int) {
+        let here = CLLocation(latitude: store.lat, longitude: store.lon)
+        let dist = manager.location.map { Int(($0.distance(from: here) / 10).rounded() * 10) }
+        let content = UNMutableNotificationContent()
+        content.title = "🛒 \(store.name) je blizu" + (dist.map { " (\($0) m)" } ?? "")
+        var body = "Na seznamu imaš \(count) \(count == 1 ? "izdelek" : count == 2 ? "izdelka" : count < 5 ? "izdelke" : "izdelkov"). Se ustaviš?"
+        if let tip = cheaperNearby(than: store) { body += "\n💡 " + tip }
+        content.body = body
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        content.relevanceScore = 1
+        content.userInfo = ["storeId": id]
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "store-\(id)", content: content, trigger: nil))
+        log("  obvestilo »blizu« poslano")
+    }
+
+    // Bližnja (do 2 km) odprta trgovina druge verige, kjer je seznam občutno cenejši.
+    private func cheaperNearby(than store: GeoStore) -> String? {
+        let costs = chainCost
+        guard let c = store.chain, let mine = costs[c], mine > 0 else { return nil }
+        let here = CLLocation(latitude: store.lat, longitude: store.lon)
+        var best: (GeoStore, Double, CLLocationDistance)?
+        for s in stores {
+            guard let k = s.chain, k != c, (s.only ?? "").isEmpty, let cost = costs[k] else { continue }
+            let d = here.distance(from: CLLocation(latitude: s.lat, longitude: s.lon))
+            guard d <= 2000, StoreRules.isOpen(hours: s.hours, chain: s.chain) != false else { continue }
+            let saving = mine - cost
+            if saving >= max(1.5, mine * 0.05), best == nil || saving > best!.1 { best = (s, saving, d) }
+        }
+        guard let b = best else { return nil }
+        let km = b.2 < 1000 ? "\(Int((b.2 / 10).rounded() * 10)) m" : String(format: "%.1f km", b.2 / 1000).replacingOccurrences(of: ".", with: ",")
+        let eur = String(format: "%.2f", b.1).replacingOccurrences(of: ".", with: ",")
+        return "\(b.0.name) (\(km) od tu) je za tvoj seznam ≈ \(eur) € cenejši."
+    }
+
+    private func startArrivalWatch(_ a: Arrival) {
+        arrival = a
+        manager.allowsBackgroundLocationUpdates = true
+        manager.showsBackgroundLocationIndicator = false
+        manager.startUpdatingLocation()
+        log("  čakam, da obstaneš pri trgovini")
+    }
+
+    private func stopArrivalWatch(_ why: String) {
+        guard arrival != nil else { return }
+        arrival = nil
+        log("  " + why)
+        if !watching {
+            manager.stopUpdatingLocation()
+            manager.allowsBackgroundLocationUpdates = false
+        }
+    }
+
+    // Klic ob vsaki natančni lokaciji: si že nekaj sekund pri vhodu (počasi ali stojiš)?
+    private func checkArrival(_ loc: CLLocation) {
+        guard var a = arrival else { return }
+        if Date().timeIntervalSince(a.started) > arrivalTimeout { return stopArrivalWatch("nisi se ustavil – konec spremljanja") }
+        let d = loc.distance(from: CLLocation(latitude: a.store.lat, longitude: a.store.lon))
+        let near = d <= arrivalRadius + min(max(loc.horizontalAccuracy, 0), 40)
+        let slow = loc.speed < 0 || loc.speed < 2.0
+        if near && slow {
+            if a.stillSince == nil { a.stillSince = Date() }
+            arrival = a
+            if Date().timeIntervalSince(a.stillSince!) >= arrivalDwell {
+                stopArrivalWatch("prišel si v trgovino (\(Int(d)) m)")
+                arrived(a)
+            }
+        } else if a.stillSince != nil {
+            a.stillSince = nil
+            arrival = a
+        }
+    }
+
+    private func arrived(_ a: Arrival) {
+        let id = a.store.id, store = a.store, open = a.open, count = a.count, items = a.items
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
+        // iOS 17.2+: strežnik na zaklenjenem zaslonu odpre seznam, ki ga lahko kljukaš. Sicer navadno obvestilo.
+        if !items.isEmpty, startLive(store: store.name, items: items, completion: { [weak self] ok in
+            guard let self = self else { return }
+            if !ok { self.log("  strežnik ni dosegljiv → obvestilo"); return self.postStoreNotification(id: id, store: store, open: open, count: count) }
+            self.log("  prošnja za seznam poslana")
+            // Če seznam na zaklenjenem zaslonu v 12 s ne pride (push ni uspel), pokažemo navadno obvestilo.
+            let app = UIApplication.shared
+            var task: UIBackgroundTaskIdentifier = .invalid
+            task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
+                if Activity<ShoppingAttributes>.activities.contains(where: { $0.attributes.store == store.name }) {
+                    self.log("  seznam na zaklenjenem zaslonu ✓")
+                } else {
+                    self.log("  seznama ni → obvestilo")
+                    self.postStoreNotification(id: id, store: store, open: open, count: count)
+                }
+                self.fetchLiveResult()
+                app.endBackgroundTask(task)
+            }
+        }) { return }
+        log("  navadno obvestilo" + (startToken == nil ? " (ni žetona za seznam)" : ""))
+        postStoreNotification(id: id, store: store, open: open, count: count)
+    }
+
+    // Odgovor Applovega strežnika za zadnji zagon seznama (zapiše ga funkcija liveStart).
+    private func fetchLiveResult() {
+        guard let base = household?.url ?? defaults.string(forKey: "geo.dbUrl"),
+              let url = URL(string: "\(base)/la/\(deviceId)/result.json") else { return }
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
+            let st = (obj["status"] as? NSNumber)?.intValue ?? 0
+            let why = (obj["data"] as? String) ?? ""
+            DispatchQueue.main.async { self?.log("  Apple: \(st) \(why.prefix(80))") }
+        }.resume()
+    }
+
+    private func postStoreNotification(id: String, store: GeoStore, open: [ItemGroup], count: Int) {
         let content = UNMutableNotificationContent()
         content.title = "🛒 \(store.name) · \(count) \(count == 1 ? "izdelek" : count == 2 ? "izdelka" : count < 5 ? "izdelki" : "izdelkov")"
         // Ena vrstica na oddelek; ves seznam se vidi, ko obvestilo razpreš.
@@ -327,8 +629,41 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         UNUserNotificationCenter.current().add(request)
     }
 
+    // Prošnja strežniku (Firebase funkcija liveStart), da pošlje push, ki zažene Live Activity.
+    // Vrne false, če to na tem iPhonu ni mogoče (takrat pokažemo navadno obvestilo).
+    private func startLive(store: String, items: [LiveItem], completion: @escaping (Bool) -> Void) -> Bool {
+        guard #available(iOS 17.2, *), ActivityAuthorizationInfo().areActivitiesEnabled, let token = startToken,
+              let base = household?.url ?? defaults.string(forKey: "geo.dbUrl"),
+              let url = URL(string: "\(base)/la/\(deviceId)/starts.json") else { return false }
+        if Activity<ShoppingAttributes>.activities.contains(where: { $0.attributes.store == store }) { return true }
+        let list = LiveList.fit(items)
+        let state: [String: Any] = [
+            "items": list.map { ["id": $0.id, "label": $0.label, "icon": $0.icon] },
+            "done": 0, "total": list.count
+        ]
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.timeoutInterval = 6
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["token": token, "store": store, "state": state, "at": [".sv": "timestamp"]])
+        let app = UIApplication.shared
+        var task: UIBackgroundTaskIdentifier = .invalid
+        task = app.beginBackgroundTask { app.endBackgroundTask(task) }
+        URLSession.shared.dataTask(with: req) { _, resp, _ in
+            let ok = (resp as? HTTPURLResponse)?.statusCode == 200
+            DispatchQueue.main.async { completion(ok); app.endBackgroundTask(task) }
+        }.resume()
+        return true
+    }
+
+    // Ko zapustiš trgovino, seznam z zaklenjenega zaslona umaknemo.
+    private func endLive(store: String) {
+        for a in Activity<ShoppingAttributes>.activities where a.attributes.store == store {
+            Task { await a.end(nil, dismissalPolicy: .default) }
+        }
+    }
+
     // ---------- Seznam na zaklenjenem zaslonu (Live Activity) ----------
-    func shopping(active: Bool, store: String, groups list: [ItemGroup], done: Int, total: Int) {
+    func shopping(active: Bool, store: String, items list: [LiveItem], done: Int, total: Int) {
         guard #available(iOS 16.2, *) else { return }
         let current = Activity<ShoppingAttributes>.activities
         guard active else {
@@ -338,14 +673,21 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         if shoppingFrom == nil { shoppingFrom = manager.location }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-        let state = ShoppingAttributes.ContentState(groups: Self.fit(list), done: done, total: total)
+        let fitted = LiveList.fit(list)
+        let keepPage = current.first(where: { $0.attributes.store == store })?.content.state.page
+        let state = ShoppingAttributes.ContentState(items: fitted, done: done, total: total, page: LiveList.clampPage(keepPage, count: fitted.count))
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(4 * 3600))
         if let a = current.first(where: { $0.attributes.store == store }) {
             Task { await a.update(content) }
             for other in current where other.id != a.id { Task { await other.end(nil, dismissalPolicy: .immediate) } }
         } else {
             for a in current { Task { await a.end(nil, dismissalPolicy: .immediate) } }
-            _ = try? Activity.request(attributes: ShoppingAttributes(store: store), content: content, pushType: nil)
+            do {
+                _ = try Activity.request(attributes: ShoppingAttributes(store: store), content: content, pushType: nil)
+            } catch {
+                // Aplikacija je že v ozadju (npr. zaklenil si telefon med odštevanjem): seznam zažene strežnik.
+                _ = startLive(store: store, items: list, completion: { _ in })
+            }
         }
     }
 
@@ -386,8 +728,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 "time": loc.timestamp.timeIntervalSince1970 * 1000
             ])
         }
+        checkArrival(loc)
         // Ko odideš iz trgovine, seznam z zaklenjenega zaslona umaknemo.
-        if let from = shoppingFrom, loc.distance(from: from) > 800 { shopping(active: false, store: "", groups: [], done: 0, total: 0) }
+        if let from = shoppingFrom, loc.distance(from: from) > 800 { shopping(active: false, store: "", items: [], done: 0, total: 0) }
         guard enabled else { return }
         let home = manager.monitoredRegions.first { $0.identifier == homeId } as? CLCircularRegion
         if home == nil || loc.distance(from: CLLocation(latitude: home!.center.latitude, longitude: home!.center.longitude)) > homeRadius * 0.6 {
@@ -413,6 +756,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         if region.identifier.hasPrefix(storePrefix) {
             let id = String(region.identifier.dropFirst(storePrefix.count))
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
+            if let store = stores.first(where: { $0.id == id }) { log("izhod: " + store.name); endLive(store: store.name) }
+            if arrival?.store.id == id { stopArrivalWatch("odpeljal si se mimo") }
+            reportLeft(storeId: id)
             return
         }
         guard region.identifier == homeId else { return }
@@ -446,6 +792,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "shopping", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "takePendingStore", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "takeDone", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise)
@@ -469,17 +816,25 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let on = call.getBool("enabled") ?? false
         let radius = call.getDouble("radius") ?? 75
         let groups = Self.parseGroups(call)
+        let items = Self.parseItems(call)
+        let dbUrl = call.getString("dbUrl")
+        var costs: [String: Double] = [:]
+        if let c = call.getObject("chainCost") { for (k, v) in c { if let n = v as? NSNumber { costs[k] = n.doubleValue } } }
         let stores: [GeoStore] = (call.getArray("stores", JSObject.self) ?? []).compactMap { s in
             guard let id = s["id"] as? String,
                   let lat = (s["lat"] as? NSNumber)?.doubleValue,
                   let lon = (s["lon"] as? NSNumber)?.doubleValue else { return nil }
             return GeoStore(id: id, name: (s["name"] as? String) ?? "Trgovina", lat: lat, lon: lon,
-                            chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String)
+                            chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String, only: s["only"] as? String)
         }
-        var hh: (url: String, code: String)?
-        if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String { hh = (u, c) }
+        var hh: Household?
+        if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String {
+            hh = Household(url: u, code: c, member: (h["member"] as? String) ?? "", name: (h["name"] as? String) ?? "")
+        }
         DispatchQueue.main.async {
-            GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups, household: hh)
+            if let u = dbUrl, !u.isEmpty { UserDefaults.standard.set(u, forKey: "geo.dbUrl") }
+            UserDefaults.standard.set(costs, forKey: "geo.chainCost")
+            GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups, items: items, household: hh)
             call.resolve()
         }
     }
@@ -491,14 +846,30 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    static func parseItems(_ call: CAPPluginCall) -> [LiveItem] {
+        (call.getArray("items", JSObject.self) ?? []).compactMap { i in
+            guard let id = i["id"] as? String, let label = i["label"] as? String else { return nil }
+            return LiveItem(id: id, label: label, icon: (i["icon"] as? String) ?? "🛒", cat: i["cat"] as? String)
+        }
+    }
+
+    // Izdelki, odkljukani na zaklenjenem zaslonu, odkar je bila aplikacija nazadnje odprta.
+    @objc func takeDone(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let d = UserDefaults.standard.dictionary(forKey: "live.done") as? [String: Double] ?? [:]
+            UserDefaults.standard.removeObject(forKey: "live.done")
+            call.resolve(["ids": d])
+        }
+    }
+
     @objc func shopping(_ call: CAPPluginCall) {
         let active = call.getBool("active") ?? false
         let store = call.getString("store") ?? "Nakupovanje"
-        let groups = Self.parseGroups(call)
+        let items = Self.parseItems(call)
         let done = call.getInt("done") ?? 0
         let total = call.getInt("total") ?? 0
         DispatchQueue.main.async {
-            GeoManager.shared.shopping(active: active, store: store, groups: groups, done: done, total: total)
+            GeoManager.shared.shopping(active: active, store: store, items: items, done: done, total: total)
             call.resolve()
         }
     }

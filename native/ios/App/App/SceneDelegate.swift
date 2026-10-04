@@ -11,10 +11,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
 
+        if connectionOptions.urlContexts.contains(where: { $0.url.scheme == "nakupko" }) { GeoManager.shared.pendingStoreId = "live" }
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        // »Odpri seznam« na zaklenjenem zaslonu (nakupko://seznam): native.js odpre nakupovanje.
+        if URLContexts.contains(where: { $0.url.scheme == "nakupko" }) { GeoManager.shared.pendingStoreId = "live" }
         SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)
     }
 

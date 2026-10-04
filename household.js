@@ -3,7 +3,7 @@
 (function () {
   "use strict";
   var DB = window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app";
-  var CODE_KEY = "nakupko-household", DIRTY_KEY = "nakupko-household-dirty";
+  var CODE_KEY = "nakupko-household", DIRTY_KEY = "nakupko-household-dirty", MEMBER_KEY = "nakupko-member", NAME_KEY = "nakupko-name";
   var ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   var api = window.__nakupko;
   if (!api || !api.setItems) return;
@@ -107,12 +107,30 @@
   }
   function disconnect() { if (es) { es.close(); es = null; } shared = null; online = false; }
 
+  // Kdo si: ime vidijo ostali v obvestilu »Teo je v Sparu«.
+  function member() {
+    var m = "";
+    try { m = localStorage.getItem(MEMBER_KEY) || ""; if (!m) { m = newCode(); localStorage.setItem(MEMBER_KEY, m); } } catch (e) { /* nič */ }
+    return m;
+  }
+  function myName() { try { return localStorage.getItem(NAME_KEY) || ""; } catch (e) { return ""; } }
+  function askName() {
+    var n = (prompt("Tvoje ime (vidijo ga ostali v skupnem seznamu):", myName()) || "").trim().slice(0, 30);
+    if (n) { try { localStorage.setItem(NAME_KEY, n); } catch (e) { /* nič */ } }
+    return n;
+  }
+  function announce() {
+    if (!code) return;
+    fetch(DB + "/h/" + code + "/members/" + member() + ".json", { method: "PATCH", body: JSON.stringify({ name: myName() || "Član", at: { ".sv": "timestamp" } }) }).catch(function () {});
+  }
+
   function join(c) {
     c = cleanCode(c);
     if (c.length < 10) { api.toast("Koda ima 10 znakov."); return; }
+    if (!myName()) askName();
     code = c; dirty = {}; saveDirty();
     try { localStorage.setItem(CODE_KEY, code); } catch (e) { /* nič */ }
-    connect(); renderCard();
+    connect(); renderCard(); announce();
     api.toast("Povezano s skupnim seznamom.");
   }
   function leave() {
@@ -144,7 +162,7 @@
       var p = add("p", { class: "hh-code" });
       p.appendChild(document.createTextNode("Koda: "));
       var b = document.createElement("b"); b.textContent = pretty(code); p.appendChild(b);
-      add("p", { class: "muted small" }, online ? "Povezano. Kar doda kdorkoli, vidita oba." : "Ni povezave. Spremembe se pošljejo, ko bo internet.");
+      add("p", { class: "muted small" }, online ? "Povezano kot " + (myName() || "Član") + ". Kar doda kdorkoli, vidijo vsi." : "Ni povezave. Spremembe se pošljejo, ko bo internet.");
       var row = add("div", { class: "row" });
       var s = document.createElement("button"); s.className = "primary"; s.type = "button"; s.textContent = "Pošlji kodo"; s.onclick = share; row.appendChild(s);
       var l = document.createElement("button"); l.className = "link"; l.type = "button"; l.textContent = "Zapusti"; l.onclick = leave; row.appendChild(l);
@@ -162,9 +180,10 @@
   var card = $("hhCard");
   if (card) card.classList.remove("hidden");
   window.__nakupkoAfterSave = afterSave;
-  window.__nakupkoHousehold = function () { return code && DB ? { url: DB, code: code } : null; };
+  window.__nakupkoHousehold = function () { return code && DB ? { url: DB, code: code, member: member(), name: myName() || "Član" } : null; };
   renderCard();
   connect();
+  announce();
   window.addEventListener("online", flush);
 
   // Povezava ?dom=KODA iz sporočila.

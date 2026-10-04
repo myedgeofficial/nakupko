@@ -55,6 +55,21 @@
 	<string>Nakupko uporabi lokacijo, da najde trgovine v bližini in ob prihodu v trgovino odpre nakupovalni seznam.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Z dovoljenjem »Vedno« te Nakupko opomni na nakupovalni seznam, ko prideš v trgovino, tudi kadar je aplikacija zaprta.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>nakupko</string>
+			</array>
+		</dict>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>ITSAppUsesNonExemptEncryption</key>

@@ -21,7 +21,7 @@
     var api = {
       addListener: function (event, cb) { return Cap.addListener("NakupkoGeo", event, cb); }
     };
-    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "setZoom", "openSettings", "requestAlways"].forEach(function (m) {
+    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways"].forEach(function (m) {
       api[m] = function (opts) { return Cap.nativePromise("NakupkoGeo", m, opts || {}); };
     });
     return api;
@@ -73,8 +73,8 @@
   var CATS = [
     ["Sadje in zelenjava", "🥦"], ["Kruh in pecivo", "🥖"], ["Mlečni izdelki", "🥛"], ["Meso in ribe", "🥩"],
     ["Shramba", "🥫"], ["Brez glutena", "🌾"], ["Prigrizki", "🍫"], ["Pijače", "🥤"], ["Zamrznjeno", "🧊"],
-    ["Otroci", "🍼"], ["Gospodinjstvo", "🧽"], ["Higiena", "🧴"], ["Zdravje", "💊"], ["Tobak", "🚬"],
-    ["Ljubljenčki", "🐾"], ["Drugo", "🛒"]
+    ["Otroci", "🍼"], ["Gospodinjstvo", "🧽"], ["Higiena", "🧴"], ["Zdravje", "💊"], ["Športna prehrana", "💪"], ["Tobak", "🚬"],
+    ["Ljubljenčki", "🐾"], ["Dom in vrt", "🔨"], ["Drugo", "🛒"]
   ];
   function itemLabel(i) { return (i.qty > 1 ? i.qty + "× " : "") + i.name + (i.brand ? " (" + i.brand + ")" : ""); }
   function groupsOf(items) {
@@ -92,6 +92,16 @@
     });
   }
 
+  // Izdelki z id-ji za kljukanje na zaklenjenem zaslonu (vrstni red oddelkov, nato abecedno).
+  function liveItemsOf(items) {
+    function ci(i) { var k = -1; CATS.forEach(function (c, n) { if (c[0] === (i.cat || "Drugo")) k = n; }); return k < 0 ? CATS.length - 1 : k; }
+    return items.slice().sort(function (a, b) { return ci(a) - ci(b) || a.name.localeCompare(b.name, "sl"); })
+      .map(function (i) {
+        var api = window.__nakupko, e = api && api.emojiFor ? api.emojiFor(i) : "";
+        return { id: i.id, label: itemLabel(i), icon: e || CATS[ci(i)][1], cat: i.cat || "Drugo" };
+      });
+  }
+
   // ---------- Sinhronizacija z iPhonom (spremljanje trgovin v ozadju) ----------
   var lastSent = "";
   function sync() {
@@ -99,14 +109,28 @@
     if (!api || !api.state) return;
     var s = api.state();
     var on = !!(s.settings && s.settings.locOn);
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
       cfg.stores = list.filter(function (x) { return !/^test\//.test(x.id) && (x.chain || x.duty); }).map(function (x) {
-        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: x.chain || null, duty: !!x.duty, hours: x.hours || "" };
+        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: x.chain || null, duty: !!x.duty, hours: x.hours || "",
+          only: x.chain && api.chainOnly ? api.chainOnly(x.chain) : "" };
       });
       cfg.groups = groupsOf((s.items || []).filter(function (i) { return !i.done; }));
+      cfg.items = liveItemsOf((s.items || []).filter(function (i) { return !i.done; }));
+      // Cena seznama po verigah (za namig »drugje je ceneje« v obvestilu).
+      cfg.chainCost = {};
+      if (api.priceFor) {
+        var openIt = (s.items || []).filter(function (i) { return !i.done && !/^(Dom in vrt|Tobak)$/.test(i.cat || ""); });
+        var keys = {};
+        cfg.stores.forEach(function (x) { if (x.chain && !x.only) keys[x.chain] = 1; });
+        Object.keys(keys).forEach(function (k) {
+          var sum = 0, miss = 0;
+          openIt.forEach(function (i) { var p = api.priceFor(i.name, k); if (p && p.price != null) sum += p.price * (i.qty || 1); else miss++; });
+          if (openIt.length && !miss) cfg.chainCost[k] = Math.round(sum * 100) / 100;
+        });
+      }
     }
     var key = JSON.stringify(cfg);
     if (key === lastSent) return;
@@ -116,7 +140,7 @@
 
   // ---------- Seznam na zaklenjenem zaslonu med nakupovanjem ----------
   // Ko je odprt način »V trgovini«, iPhone pokaže preostale izdelke na zaklenjenem zaslonu.
-  var lastShop = "", shopStartedAt = 0;
+  var lastShop = "", shopStartedAt = 0, shopWasActive = false;
   function syncShopping() {
     var api = window.__nakupko, sm = document.getElementById("storeMode");
     if (!api || !api.state || !sm) return;
@@ -129,11 +153,15 @@
       var done = items.filter(function (i) { return i.done && i.doneAt && i.doneAt >= shopStartedAt; }).length;
       var title = (document.getElementById("smTitle") || {}).textContent || "Nakupovanje";
       msg.store = title.split(",")[0];
-      msg.groups = groupsOf(open);
+      msg.items = liveItemsOf(open);
       msg.done = done;
       msg.total = open.length + done;
+      shopWasActive = true;
     } else {
       shopStartedAt = 0;
+      // Seznam, ki ga je ob prihodu odprl iPhone sam, pustimo pri miru, dokler ne zapustiš trgovine.
+      if (!shopWasActive) return;
+      shopWasActive = false;
     }
     var key = JSON.stringify(msg);
     if (key === lastShop) return;
@@ -146,6 +174,9 @@
   function openFromNotification() {
     Geo.takePendingStore().then(function (r) {
       if (!r || !r.storeId) return;
+      var api = window.__nakupko, sm0 = document.getElementById("storeMode");
+      // Iz seznama na zaklenjenem zaslonu: nakupovanje odpremo takoj.
+      if (r.storeId === "live" && api && api.openStore) { if (sm0 && sm0.classList.contains("hidden")) api.openStore(); return; }
       var tries = 0;
       var t = setInterval(function () {
         var sm = document.getElementById("storeMode");
@@ -156,6 +187,19 @@
     }).catch(function () {});
   }
   setInterval(sync, 4000);
+
+  // Izdelki, odkljukani na zaklenjenem zaslonu, se odkljukajo tudi v aplikaciji.
+  function applyLiveDone() {
+    var api = window.__nakupko;
+    if (!api || !api.state || !api.toggle) return;
+    Geo.takeDone().then(function (r) {
+      var ids = (r && r.ids) || {};
+      Object.keys(ids).forEach(function (id) {
+        var it = (api.state().items || []).find(function (i) { return i.id === id; });
+        if (it && !it.done) api.toggle(id);
+      });
+    }).catch(function () {});
+  }
 
   // Velikost prikaza (Mlajši / Srednja leta / Starejši): povečamo celo stran prek iPhona.
   var lastZoom = 0;
@@ -213,7 +257,22 @@
     document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
   }
+  // Gumb Akcija (iPhone 15 Pro in novejši): Apple ga ne pusti nastaviti iz aplikacije, zato pokažemo pot.
+  function actionButtonHint() {
+    var st = document.getElementById("locStatus");
+    if (!st || document.getElementById("actionHint")) return;
+    var b = document.createElement("button");
+    b.id = "actionHint"; b.type = "button"; b.className = "link small";
+    b.style.display = "block"; b.style.marginTop = "10px";
+    b.textContent = "Nakupko na gumb Akcija";
+    b.onclick = function () {
+      alert("Nastavitve iPhona → Gumb Akcija → podrsaj do »Bližnjica« → Izberi bližnjico → Nakupko → Odpri Nakupko.\n\nPotem Nakupko odpreš tako, da držiš gumb Akcija.");
+    };
+    st.parentNode.appendChild(b);
+  }
+
   function showBackgroundStatus() {
+    if (isIOS) actionButtonHint();
     var st = document.getElementById("locStatus");
     var api = window.__nakupko;
     var on = api && api.state && (api.state().settings || {}).locOn;
@@ -222,6 +281,7 @@
     Geo.getStatus().then(function (s) {
       clearTimeout(timer);
       diag(diagText(s));
+      showLog(s);
       if (s.authorization === "notDetermined") return; // iOS še sprašuje
       var missing = missingOf(s);
       showGate(s, missing);
@@ -265,6 +325,16 @@
     } else parts.push("trgovin " + list.length);
     return (isIOS ? "iPhone: " : "Telefon: ") + parts.join(" · ");
   }
+  // Dnevnik zaznavanja trgovin: samo v razvijalskem načinu (7 tapov na »Cene«).
+  function showLog(s) {
+    var st = document.getElementById("locStatus"), api = window.__nakupko;
+    var box = document.getElementById("geoLog");
+    var dev = api && api.state && (api.state().settings || {}).dev;
+    if (!st || !dev) { if (box) box.remove(); return; }
+    if (!box) { box = document.createElement("pre"); box.id = "geoLog"; box.className = "small muted"; box.style.cssText = "white-space:pre-wrap;margin:6px 0 0;font-size:12px;line-height:1.4"; st.parentNode.appendChild(box); }
+    var lines = (s.log || []).slice(-12).reverse();
+    box.textContent = "Seznam na zaklenjenem zaslonu: " + (s.liveToken ? "pripravljen" : "ni žetona (odpri aplikacijo)") + "\n" + (lines.length ? lines.join("\n") : "Še ni zaznanih trgovin.");
+  }
   function diag(text) {
     var st = document.getElementById("locStatus");
     if (!st) return;
@@ -287,8 +357,13 @@
     }).observe(st, { childList: true, characterData: true, subtree: true });
   });
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "hidden") { sync(); syncShopping(); }
-    else { setTimeout(openFromNotification, 300); setTimeout(showBackgroundStatus, 500); }
+    if (document.visibilityState === "hidden") {
+      // Zaklepanje med odštevanjem »odpiram čez …«: nakupovanje odpremo takoj, da je seznam na zaklenjenem zaslonu.
+      var sm = document.getElementById("storeMode"), btn = document.querySelector("#detectBar:not(.hidden) button");
+      if (btn && sm && sm.classList.contains("hidden") && /odpiram/.test((document.getElementById("detectBar") || {}).textContent || "")) btn.click();
+      sync(); syncShopping();
+    }
+    else { setTimeout(applyLiveDone, 200); setTimeout(openFromNotification, 300); setTimeout(showBackgroundStatus, 500); }
   });
-  window.addEventListener("load", function () { setTimeout(sync, 500); setTimeout(openFromNotification, 800); });
+  window.addEventListener("load", function () { setTimeout(applyLiveDone, 300); setTimeout(sync, 500); setTimeout(openFromNotification, 800); });
 })();

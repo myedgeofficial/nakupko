@@ -15,7 +15,7 @@ concurrency:
 jobs:
   ios:
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 100
     defaults:
       run:
         shell: bash
@@ -52,7 +52,21 @@ jobs:
         run: |
           xcodebuild -project App.xcodeproj -scheme App -configuration Release \
             -destination 'generic/platform=iOS Simulator' \
-            NAKUPKO_BUNDLE_ID="$BUNDLE_ID" CODE_SIGNING_ALLOWED=NO build | tail -n 80
+            NAKUPKO_BUNDLE_ID="$BUNDLE_ID" CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/build.log" 2>&1 \
+            || { grep -E "error:" "$RUNNER_TEMP/build.log" | sort -u | head -n 15 | sed 's/^/::error::/'; tail -n 80 "$RUNNER_TEMP/build.log"; exit 65; }
+          tail -n 20 "$RUNNER_TEMP/build.log"
+          # Diagnostika: ali iOS ve za gumbe na zaklenjenem zaslonu (App Intents metadata v aplikaciji in razširitvi).
+          grep -ciE "ExtractAppIntentsMetadata|appintentsmetadataprocessor" "$RUNNER_TEMP/build.log" | sed 's/^/::notice::Korakov ExtractAppIntentsMetadata: /'
+          grep -E "appintentsmetadataprocessor.*(warning|error)|Metadata.appintents" "$RUNNER_TEMP/build.log" | sort -u | head -n 5 | sed 's/^/::notice::/'
+          APPDIR=$(find ~/Library/Developer/Xcode/DerivedData -path "*Release-iphonesimulator/App.app" -maxdepth 6 -type d | head -n 1)
+          for b in "$APPDIR" "$APPDIR"/PlugIns/*.appex; do
+            m="$b/Metadata.appintents/extract.actionsdata"
+            if [ -f "$m" ]; then
+              echo "::notice::$(basename "$b"): $(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));a=d.get('actions',{});v=dict(a.get('CheckItemIntent',{}));v.pop('parameters',None);print(json.dumps(v,separators=(',',':')).replace(':',';')[:1500])" "$m")"
+            else
+              echo "::notice::$(basename "$b"): ni Metadata.appintents ($(ls "$b" | tr '\n' ' ' | cut -c1-200))"
+            fi
+          done
           if [ "$HAS_SECRETS" != "true" ]; then
             echo "::notice::Za TestFlight dodaj skrivnosti APPSTORE_KEY_ID, APPSTORE_ISSUER_ID, APPSTORE_KEY_P8 in APPLE_TEAM_ID (glej native/README.md)."
           fi
@@ -82,6 +96,7 @@ jobs:
           PY
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY_PATH" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
           BUILD_NUMBER="$(date -u +%Y%m%d%H%M)"
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
           sed "s/TEAM_ID/$TEAM_ID/" ../../ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
 
           xcodebuild -project App.xcodeproj -scheme App -configuration Release \
@@ -89,6 +104,15 @@ jobs:
             DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic CODE_SIGNING_ALLOWED=NO \
             NAKUPKO_BUNDLE_ID="$BUNDLE_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
             archive | tail -n 80
+
+          # Obvestila (aps-environment): nepodpisan arhiv nima pravic, zato aplikacijo podpišemo
+          # lokalno (ad-hoc) s pravicami; izvoz jih prenese v pravi podpis za App Store.
+          APP="$RUNNER_TEMP/Nakupko.xcarchive/Products/Applications/App.app"
+          for n in "$APP"/Frameworks/*.framework "$APP"/Frameworks/*.dylib "$APP"/PlugIns/*.appex; do
+            [ -e "$n" ] && codesign --force --sign - "$n" || true
+          done
+          codesign --force --sign - --entitlements App/App.entitlements --generate-entitlement-der "$APP" || echo "::warning::Ad-hoc podpis ni uspel"
+          codesign -d --entitlements - "$APP" 2>/dev/null | grep -q aps-environment && echo "Pravica za obvestila: da" || echo "::warning::Pravica za obvestila manjka"
 
           # Arhiv je nepodpisan (ekipa nima registriranih naprav za razvojni profil);
           # izvoz ga podpiše za App Store z oblačnim distribucijskim certifikatom.
@@ -98,3 +122,15 @@ jobs:
 
           rm -f "$KEY_PATH"
           echo "::notice::Gradnja $BUILD_NUMBER je naložena. Na TestFlightu bo vidna, ko jo Apple obdela (običajno 5–15 minut)."
+
+      - name: Pošlji zunanjim testerjem
+        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true'
+        continue-on-error: true
+        timeout-minutes: 50
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography || python3 -m pip install --quiet pyjwt cryptography
+          python3 scripts/testflight-external.py
