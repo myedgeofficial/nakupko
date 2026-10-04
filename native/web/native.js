@@ -104,7 +104,8 @@
     var api = window.__nakupko;
     if (!api || !api.state) return;
     var s = api.state();
-    var on = !!(s.settings && s.settings.locOn);
+    // Brez naročnine Nakupko Plus (če jo ta način zahteva) iPhone trgovin v ozadju ne spremlja.
+    var on = !!(s.settings && s.settings.locOn) && !(window.__nakupkoPlus && window.__nakupkoPlus.locked("background"));
     var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];

@@ -40,3 +40,12 @@ npm ci
 npm run sync
 open ios/App/App.xcodeproj
 ```
+
+## Naročnina Nakupko Plus (1 €/mesec)
+
+- iPhone: `ios/App/App/NakupkoPay.swift` (StoreKit 2, brez strežnika), okno in vrstica v Nastavitvah: `web/pay.js`.
+- ID naročnine: `si.nakupko.app.plus.mesecno` (drug ID: ključ `NakupkoPlusProductId` v Info.plist).
+- Način v `web/pay.js` (`NAKUPKO_PLUS_MODE`): `full` (privzeto, brez naročnine se pokaže le okno), `background` (plačljivo le zaznavanje trgovine v ozadju), `support` (vse zastonj).
+- Dokler naročnine v App Store Connect ni, aplikacija nikogar ne zaklene.
+- App Store Connect: Pogodbe → Paid Apps (podpiše lastnik računa) → Aplikacija → Naročnine → skupina »Nakupko Plus« → naročnina z zgornjim ID-jem, 1 mesec, 0,99 €/1 € → Uvodna ponudba: 1 mesec brezplačno.
+- Android: Google Play Billing, ko bo aplikacija na Google Play (APK s povezave plačil ne podpira).

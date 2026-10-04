@@ -806,5 +806,6 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
 class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(NakupkoGeoPlugin())
+        bridge?.registerPluginInstance(NakupkoPayPlugin())
     }
 }
