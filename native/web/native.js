@@ -285,6 +285,9 @@
       diag(diagText(s));
       showLog(s);
       if (s.authorization === "notDetermined") return; // iOS še sprašuje
+      // Zaznava je vklopljena, dovoljenje je, a stikalo je ostalo izklopljeno (npr. med prvim vprašanjem): spet vklopi.
+      var sw = document.getElementById("btnLoc");
+      if (s.authorization !== "denied" && sw && sw.getAttribute("aria-checked") !== "true") sw.click();
       var missing = missingOf(s);
       showGate(s, missing);
       if (!st) return;

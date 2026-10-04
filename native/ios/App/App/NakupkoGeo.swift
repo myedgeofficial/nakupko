@@ -289,7 +289,10 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     func startWatch() {
         watching = true
         if manager.authorizationStatus == .notDetermined {
+            // Ob prvem zagonu: najprej vprašamo, sledenje začne locationManagerDidChangeAuthorization.
+            // Sicer iOS med vprašanjem javi »zavrnjeno« in stikalo v aplikaciji se izklopi.
             manager.requestWhenInUseAuthorization()
+            return
         } else if manager.authorizationStatus == .denied || manager.authorizationStatus == .restricted {
             onError?(["code": 1, "message": "Dostop do lokacije je zavrnjen."])
         }
@@ -739,7 +742,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        guard watching else { return }
+        guard watching, manager.authorizationStatus != .notDetermined else { return }
         let denied = (error as? CLError)?.code == .denied
         onError?(["code": denied ? 1 : 2, "message": error.localizedDescription])
     }
