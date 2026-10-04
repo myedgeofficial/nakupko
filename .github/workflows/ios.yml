@@ -62,7 +62,7 @@ jobs:
           for b in "$APPDIR" "$APPDIR"/PlugIns/*.appex; do
             m="$b/Metadata.appintents/extract.actionsdata"
             if [ -f "$m" ]; then
-              echo "::notice::$(basename "$b"): $(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));a=d.get('actions',{});print(', '.join(k+' auth='+str(v.get('authenticationPolicy'))+' live='+str('LiveActivityIntent' in json.dumps(v)) for k,v in a.items()) or 'brez akcij')" "$m")"
+              echo "::notice::$(basename "$b"): $(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));a=d.get('actions',{});v=a.get('CheckItemIntent',{});print({k:(x if not isinstance(x,(dict,list)) else str(x)[:120]) for k,x in v.items() if k not in ('parameters','descriptionMetadata')})" "$m")"
             else
               echo "::notice::$(basename "$b"): ni Metadata.appintents ($(ls "$b" | tr '\n' ' ' | cut -c1-200))"
             fi
