@@ -205,7 +205,8 @@
   var lastZoom = 0;
   function syncZoom() {
     var c = document.documentElement.classList;
-    var z = c.contains("size-senior") ? 1.25 : c.contains("size-mid") ? 1.1 : 1;
+    // Večji prikaz že naredi CSS (zoom na body); povečava cele strani bi jo podvojila.
+    var z = 1;
     if (z === lastZoom) return;
     lastZoom = z;
     Geo.setZoom({ zoom: z }).catch(function () { lastZoom = 0; });
