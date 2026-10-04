@@ -118,6 +118,18 @@
       });
       cfg.groups = groupsOf((s.items || []).filter(function (i) { return !i.done; }));
       cfg.items = liveItemsOf((s.items || []).filter(function (i) { return !i.done; }));
+      // Cena seznama po verigah (za namig »drugje je ceneje« v obvestilu).
+      cfg.chainCost = {};
+      if (api.priceFor) {
+        var openIt = (s.items || []).filter(function (i) { return !i.done && !/^(Dom in vrt|Tobak)$/.test(i.cat || ""); });
+        var keys = {};
+        cfg.stores.forEach(function (x) { if (x.chain && !x.only) keys[x.chain] = 1; });
+        Object.keys(keys).forEach(function (k) {
+          var sum = 0, miss = 0;
+          openIt.forEach(function (i) { var p = api.priceFor(i.name, k); if (p && p.price != null) sum += p.price * (i.qty || 1); else miss++; });
+          if (openIt.length && !miss) cfg.chainCost[k] = Math.round(sum * 100) / 100;
+        });
+      }
     }
     var key = JSON.stringify(cfg);
     if (key === lastSent) return;
