@@ -17,7 +17,12 @@
     { key: "obi", name: "OBI", factor: 1.0, color: "#F18E00", match: /\bobi\b/i, only: /^dom in vrt /i },
     { key: "bauhaus", name: "Bauhaus", factor: 0.98, color: "#C8102E", match: /bauhaus/i, only: /^dom in vrt /i },
     { key: "merkur", name: "Merkur", factor: 1.02, color: "#0B4EA2", match: /merkur/i, only: /^dom in vrt /i },
-    { key: "kalcer", name: "Kalcer", factor: 1.0, color: "#5B7F2B", match: /kalcer/i, only: /^dom in vrt /i }
+    { key: "kalcer", name: "Kalcer", factor: 1.0, color: "#5B7F2B", match: /kalcer/i, only: /^dom in vrt /i },
+    { key: "proteini", name: "Proteini.si", factor: 1.0, color: "#E30613", match: /proteini\.?si/i, only: /^športna prehrana |protein|elektrolit|izotoni/i },
+    { key: "thenutrition", name: "THE Nutrition", factor: 1.0, color: "#111111", match: /the ?nutrition/i, only: /^športna prehrana |protein|elektrolit|izotoni/i },
+    { key: "maxximum", name: "Maxximum", factor: 1.0, color: "#F2A900", match: /maxximum/i, only: /^športna prehrana |protein|elektrolit|izotoni/i },
+    { key: "dm", name: "dm", factor: 1.0, color: "#2A4B9B", match: /^dm\b|dm[ -]drogerie|dm drogerija/i, only: /^(higiena|gospodinjstvo|otroci|zdravje|brez glutena|ljubljenčki) |protein|pralni|detergent|mehčal/i },
+    { key: "muller", name: "Müller", factor: 1.02, color: "#F39200", match: /m[uü]ller/i, only: /^(higiena|gospodinjstvo|otroci|zdravje) |pralni|detergent|mehčal/i }
   ];
   // Ali trgovina prodaja izdelek: specializirane samo svoje, običajne vse razen orodja in vrta.
   function sells(s, it) {
@@ -37,7 +42,7 @@
     "Sadje in zelenjava": ["🥦", "#E3F3DF"], "Kruh in pecivo": ["🥖", "#F7EBDA"], "Mlečni izdelki": ["🥛", "#E4EEF8"],
     "Meso in ribe": ["🥩", "#F8E3E1"], "Shramba": ["🥫", "#F4E9DC"], "Prigrizki": ["🍫", "#F1E6F4"], "Pijače": ["🥤", "#DFF1F3"],
     "Zamrznjeno": ["🧊", "#E3ECF8"], "Gospodinjstvo": ["🧽", "#EEF0D9"], "Higiena": ["🧴", "#E9E6F6"], "Tobak": ["🚬", "#ECE7E2"], "Brez glutena": ["🌾", "#FBEFD9"], "Otroci": ["🍼", "#FDE8EF"], "Zdravje": ["💊", "#E6F4EE"],
-    "Ljubljenčki": ["🐾", "#F6ECDD"], "Dom in vrt": ["🔨", "#E8EDE2"], "Drugo": ["🛒", "#E9EEEA"]
+    "Ljubljenčki": ["🐾", "#F6ECDD"], "Športna prehrana": ["💪", "#FCE8E6"], "Dom in vrt": ["🔨", "#E8EDE2"], "Drugo": ["🛒", "#E9EEEA"]
   };
   function chainDot(c) { return el("i", { class: "dot", style: "background:" + ((CHAIN_BY_KEY[c] || {}).color || "#999") }); }
 
@@ -297,6 +302,7 @@
   // ---------- Seznam ----------
   var filter = "all";
   var pendingProduct = null; // izbran izdelek iz kataloga, čaka na znamko
+  var pendingGroup = null;   // izbrana znamka, čaka na okus/vrsto
 
   function addItem(name, brand, qty, opts) {
     name = capital(name || "");
@@ -483,7 +489,7 @@
       return true;
     });
     // razvrsti po kategoriji (kot pot po trgovini)
-    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Tobak", "Brez glutena", "Otroci", "Zdravje", "Ljubljenčki", "Dom in vrt", "Drugo"];
+    var order = ["Sadje in zelenjava", "Kruh in pecivo", "Mlečni izdelki", "Meso in ribe", "Shramba", "Prigrizki", "Pijače", "Zamrznjeno", "Gospodinjstvo", "Higiena", "Tobak", "Brez glutena", "Otroci", "Zdravje", "Športna prehrana", "Ljubljenčki", "Dom in vrt", "Drugo"];
     items.sort(function (a, b) { return order.indexOf(a.cat || "Drugo") - order.indexOf(b.cat || "Drugo"); });
     var lastCat = null;
     items.forEach(function (it) {
@@ -512,7 +518,13 @@
     var open = state.items.filter(function (i) { return !i.done; }).map(function (i) { return norm(i.name); });
     names.slice(0, 14).forEach(function (n) {
       var on = open.indexOf(norm(n)) >= 0;
-      box.appendChild(el("button", { class: "chip" + (on ? " on" : ""), type: "button", onclick: function () { addItem(n, lastBrandFor(n) || "", 1); } }, [n]));
+      box.appendChild(el("button", { class: "chip" + (on ? " on" : ""), type: "button", onclick: function () {
+        var p = CATALOG_BY_KEY[norm(n)], lb = lastBrandFor(n) || "";
+        var known = !p || !lb || p.brands.some(function (b) { return brandLabel(b) === lb; }) || brandGroups(p).some(function (g) { return g.name === lb && !g.variants.length; });
+        // Znamka iz starejše verzije kataloga (npr. samo »Terea«): vprašamo za okus.
+        if (!known) { $("addInput").value = n; pickProduct(n, (brandGroups(p).filter(function (g) { return g.name === lb; })[0] || {}).name); window.scrollTo(0, 0); return; }
+        addItem(n, lb, 1);
+      } }, [n]));
     });
   }
 
@@ -532,30 +544,87 @@
     var byUse = function (a, b) { return (state.usage[norm(b.name)] || 0) - (state.usage[norm(a.name)] || 0); };
     return starts.sort(byUse).concat(contains.sort(byUse)).slice(0, 10);
   }
+  // Znamke imajo lahko različice: "Terea › Amber" (znamka › okus/vrsta). Shranimo "Terea Amber".
+  function brandLabel(b) { return String(b || "").replace(/\s*›\s*/, " "); }
+  function brandGroups(p) {
+    var out = [], by = {};
+    p.brands.forEach(function (b) {
+      var parts = String(b).split(/\s*›\s*/), g = parts[0];
+      if (!by[g]) { by[g] = { name: g, variants: [] }; out.push(by[g]); }
+      if (parts[1]) by[g].variants.push(parts[1]);
+    });
+    return out;
+  }
+  function squash(s) { return norm(s).replace(/[^a-z0-9]/g, ""); }
+  // Zadetki po znamki ali različici: »redbull« → Energijska pijača (Red Bull), »bronze« → Terea Bronze ...
+  function searchBrands(q) {
+    var sq = squash(q), nq = norm(q), out = [];
+    if (sq.length < 2) return out;
+    CATALOG.forEach(function (p) {
+      brandGroups(p).forEach(function (g) {
+        var gs = squash(g.name);
+        var gHit = gs.indexOf(sq) === 0 || (sq.length >= 3 && norm(g.name).split(" ").some(function (w) { return squash(w).indexOf(sq) === 0; }));
+        var vHits = g.variants.filter(function (v) {
+          var full = squash(g.name + " " + v);
+          return (full.indexOf(sq) === 0 && sq.length > gs.length) || (nq.length >= 3 && squash(v).indexOf(sq) === 0);
+        });
+        if (vHits.length) vHits.forEach(function (v) { out.push({ p: p, group: g, brand: g.name + " " + v }); });
+        else if (gHit) {
+          out.push({ p: p, group: g, brand: g.variants.length ? null : g.name });
+          // Celo ime znamke (»redbull«): takoj ponudimo tudi vse okuse/vrste.
+          if (sq.length >= gs.length) g.variants.forEach(function (v) { out.push({ p: p, group: g, brand: g.name + " " + v }); });
+        }
+      });
+    });
+    var byUse = function (a, b) { return (state.usage[norm(b.p.name)] || 0) - (state.usage[norm(a.p.name)] || 0); };
+    return out.sort(byUse);
+  }
+  // Predlogi: izdelki po imenu, nato znamke, nato ostali zadetki.
+  function searchAll(q) {
+    var nq = norm(q);
+    if (!nq) return [];
+    var prods = searchCatalog(q);
+    var starts = prods.filter(function (p) { var n = norm(p.name); return n.indexOf(nq) === 0 || n.split(" ").some(function (w) { return w.indexOf(nq) === 0; }); });
+    var rest = prods.filter(function (p) { return starts.indexOf(p) < 0; });
+    var brands = searchBrands(q).slice(0, 8);
+    var brandProducts = brands.map(function (b) { return b.p; });
+    rest = rest.filter(function (p) { return brandProducts.indexOf(p) < 0; });
+    return starts.map(function (p) { return { p: p }; }).concat(brands, rest.map(function (p) { return { p: p }; })).slice(0, 12);
+  }
+  var lastResults = [];
   function renderSuggest() {
     var q = $("addInput").value;
-    var res = searchCatalog(q);
+    var res = lastResults = searchAll(q);
     var ul = $("suggest");
     ul.innerHTML = "";
     if (!q.trim() || !res.length) { ul.classList.add("hidden"); return; }
-    res.forEach(function (p, i) {
+    res.forEach(function (r, i) {
+      var title = r.group ? (r.brand || r.group.name) : r.p.name;
+      var sub = r.group ? r.p.name + (r.brand ? "" : " · izberi vrsto") : r.p.cat;
       ul.appendChild(el("li", { class: i === selIdx ? "sel" : "", role: "option",
-        onmousedown: function (e) { e.preventDefault(); pickProduct(p.name); } }, [
-        el("span", { text: p.name }), el("span", { class: "muted small", text: p.cat })
+        onmousedown: function (e) { e.preventDefault(); chooseResult(r); } }, [
+        el("span", { text: title }), el("span", { class: "muted small", text: sub })
       ]));
     });
     ul.classList.remove("hidden");
   }
-  function pickProduct(name) {
+  function chooseResult(r) {
+    if (!r.group) return pickProduct(r.p.name);
+    if (r.brand) { addItem(r.p.name, r.brand, parseQty($("addQty").value)); resetAdd(); return; }
+    pickProduct(r.p.name, r.group.name);
+  }
+  function pickProduct(name, group) {
     var p = CATALOG_BY_KEY[norm(name)];
     $("suggest").classList.add("hidden");
     selIdx = -1;
-    if (p && p.brands.length > 1) {
+    var groups = p ? brandGroups(p) : [];
+    if (p && (groups.length > 1 || (groups[0] && groups[0].variants.length))) {
       pendingProduct = p;
+      pendingGroup = group || (groups.length === 1 ? groups[0].name : null);
       $("addInput").value = p.name;
       renderBrandPick();
     } else {
-      addItem(p ? p.name : name, p && p.brands.length === 1 ? p.brands[0] : "", parseQty($("addQty").value));
+      addItem(p ? p.name : name, groups.length === 1 ? groups[0].name : "", parseQty($("addQty").value));
       resetAdd();
     }
   }
@@ -563,19 +632,38 @@
     var box = $("brandPick");
     box.innerHTML = "";
     if (!pendingProduct) { box.classList.add("hidden"); return; }
-    var p = pendingProduct;
-    box.appendChild(el("span", { class: "muted small", text: "Znamka za " + p.name + ":" }));
-    var lastBrand = lastBrandFor(p.name);
-    var brands = p.brands.slice();
-    if (lastBrand && brands.indexOf(lastBrand) > 0) { brands.splice(brands.indexOf(lastBrand), 1); brands.unshift(lastBrand); }
-    box.appendChild(el("button", { class: "chip", type: "button", onclick: function () { addItem(p.name, "", parseQty($("addQty").value)); resetAdd(); } }, ["Katerakoli"]));
-    brands.forEach(function (b) {
-      box.appendChild(el("button", { class: "chip" + (b === lastBrand ? " on" : ""), type: "button",
-        onclick: function () { addItem(p.name, b, parseQty($("addQty").value)); resetAdd(); } }, [b]));
-    });
+    var p = pendingProduct, qty = function () { return parseQty($("addQty").value); };
+    var lastBrand = lastBrandFor(p.name) || "";
+    var groups = brandGroups(p);
+    var g = pendingGroup && groups.filter(function (x) { return x.name === pendingGroup; })[0];
+    if (g && g.variants.length) {
+      // Druga raven: okus / vrsta znotraj znamke.
+      box.appendChild(el("span", { class: "muted small", text: g.name + " – katera?" }));
+      if (groups.length > 1) box.appendChild(el("button", { class: "chip ghosty", type: "button", onclick: function () { pendingGroup = null; renderBrandPick(); } }, ["‹ Znamke"]));
+      var vs = g.variants.slice(), lastV = lastBrand.indexOf(g.name + " ") === 0 ? lastBrand.slice(g.name.length + 1) : "";
+      if (lastV && vs.indexOf(lastV) > 0) { vs.splice(vs.indexOf(lastV), 1); vs.unshift(lastV); }
+      vs.forEach(function (v) {
+        box.appendChild(el("button", { class: "chip" + (v === lastV ? " on" : ""), type: "button",
+          onclick: function () { addItem(p.name, g.name + " " + v, qty()); resetAdd(); } }, [v]));
+      });
+      box.appendChild(el("button", { class: "chip", type: "button", onclick: function () { addItem(p.name, g.name, qty()); resetAdd(); } }, ["Katerakoli " + g.name]));
+    } else {
+      box.appendChild(el("span", { class: "muted small", text: "Znamka za " + p.name + ":" }));
+      var lastG = groups.filter(function (x) { return lastBrand === x.name || lastBrand.indexOf(x.name + " ") === 0; })[0];
+      if (lastG && groups.indexOf(lastG) > 0) { groups.splice(groups.indexOf(lastG), 1); groups.unshift(lastG); }
+      box.appendChild(el("button", { class: "chip", type: "button", onclick: function () { addItem(p.name, "", qty()); resetAdd(); } }, ["Katerakoli"]));
+      groups.forEach(function (x) {
+        box.appendChild(el("button", { class: "chip" + (x === lastG ? " on" : ""), type: "button",
+          onclick: function () {
+            if (x.variants.length) { pendingGroup = x.name; renderBrandPick(); }
+            else { addItem(p.name, x.name, qty()); resetAdd(); }
+          } }, [x.name + (x.variants.length ? " ›" : "")]));
+      });
+    }
     box.classList.remove("hidden");
   }
   function resetAdd() {
+    pendingGroup = null;
     pendingProduct = null;
     $("addInput").value = "";
     $("addQty").value = "1";
@@ -764,7 +852,7 @@
     if (fetching && !force) return;
     fetching = true;
     var q = "[out:json][timeout:20];(" +
-      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre)$\"](around:3000," + p.lat + "," + p.lon + ");" +
+      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist)$\"](around:3000," + p.lat + "," + p.lon + ");" +
       ");out center tags 120;";
     var tryAt = function (i) {
       if (i >= OVERPASS.length) {
@@ -1372,10 +1460,14 @@
     var v = $("addInput").value.trim();
     if (pendingProduct) { addItem(pendingProduct.name, "", parseQty($("addQty").value)); resetAdd(); return; }
     if (!v) return;
-    var res = searchCatalog(v);
-    if (selIdx >= 0 && res[selIdx]) { pickProduct(res[selIdx].name); return; }
+    var res = searchAll(v);
+    if (selIdx >= 0 && res[selIdx]) { chooseResult(res[selIdx]); return; }
     var exact = CATALOG_BY_KEY[norm(v)];
-    pickProduct(exact ? exact.name : v);
+    if (exact) return pickProduct(exact.name);
+    // »redbull« → Energijska pijača (Red Bull), če se ime izdelka ne ujema.
+    var b = res.filter(function (r) { return r.group; })[0];
+    if (b && !res.some(function (r) { return !r.group && norm(r.p.name).indexOf(norm(v)) === 0; })) return chooseResult(b);
+    pickProduct(v);
   });
   $("clearDone").addEventListener("click", function () {
     state.items = state.items.filter(function (i) { return !i.done; });
@@ -1389,7 +1481,9 @@
     var v = $("smInput").value.trim();
     if (!v) return;
     var exact = CATALOG_BY_KEY[norm(v)] || searchCatalog(v)[0];
-    addItem(exact && norm(exact.name).indexOf(norm(v)) === 0 ? exact.name : v, "", 1);
+    var bm = !(exact && norm(exact.name).indexOf(norm(v)) === 0) && searchBrands(v)[0];
+    if (bm) addItem(bm.p.name, bm.brand || bm.group.name, 1);
+    else addItem(exact && norm(exact.name).indexOf(norm(v)) === 0 ? exact.name : v, "", 1);
     $("smInput").value = "";
   });
 
@@ -1523,5 +1617,5 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, toggle: function (id) { toggleItem(id); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, setItems: function (l) { state.items = l; save(); renderAll(); }, toast: toast, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
+  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k]; return c && c.only ? c.only.source : ""; }, toggle: function (id) { toggleItem(id); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, setItems: function (l) { state.items = l; save(); renderAll(); }, toast: toast, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
 })();

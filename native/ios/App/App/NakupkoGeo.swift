@@ -21,6 +21,13 @@ struct GeoStore: Codable {
     var chain: String? = nil
     var duty: Bool? = nil
     var hours: String? = nil
+    var only: String? = nil   // specializirana trgovina: kateri izdelki so zanjo (regex iz app.js)
+
+    // Ali trgovina prodaja izdelek (enako kot sells() v app.js).
+    func sells(_ text: String) -> Bool {
+        if let o = only, !o.isEmpty { return text.range(of: o, options: [.regularExpression, .caseInsensitive]) != nil }
+        return !text.lowercased().hasPrefix("dom in vrt ")
+    }
 }
 
 struct Household {
@@ -126,8 +133,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private static let categories: [(String, String)] = [
         ("Sadje in zelenjava", "🥦"), ("Kruh in pecivo", "🥖"), ("Mlečni izdelki", "🥛"), ("Meso in ribe", "🥩"),
         ("Shramba", "🥫"), ("Brez glutena", "🌾"), ("Prigrizki", "🍫"), ("Pijače", "🥤"), ("Zamrznjeno", "🧊"),
-        ("Otroci", "🍼"), ("Gospodinjstvo", "🧽"), ("Higiena", "🧴"), ("Zdravje", "💊"), ("Tobak", "🚬"),
-        ("Ljubljenčki", "🐾"), ("Drugo", "🛒")
+        ("Otroci", "🍼"), ("Gospodinjstvo", "🧽"), ("Higiena", "🧴"), ("Zdravje", "💊"), ("Športna prehrana", "💪"), ("Tobak", "🚬"),
+        ("Ljubljenčki", "🐾"), ("Dom in vrt", "🔨"), ("Drugo", "🛒")
     ]
     // Enako kot groupsOf() v native.js: odprti izdelki po oddelkih.
     static func groupsOf(items: [[String: Any]]) -> [ItemGroup] {
@@ -150,7 +157,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     // Enako kot liveItemsOf() v native.js: odprti izdelki v vrstnem redu oddelkov.
-    static func liveItemsOf(items: [[String: Any]]) -> [LiveItem] {
+    static func liveItemsOf(items: [[String: Any]], known: [LiveItem] = []) -> [LiveItem] {
+        let iconById = Dictionary(known.map { ($0.id, $0.icon) }, uniquingKeysWith: { a, _ in a })
         let open = items.filter { ($0["done"] as? Bool) != true && !((($0["name"] as? String) ?? "").isEmpty) && $0["id"] is String }
         func catIndex(_ i: [String: Any]) -> Int {
             let c = (i["cat"] as? String) ?? "Drugo"
@@ -164,7 +172,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             let qty = (i["qty"] as? NSNumber)?.intValue ?? 1
             let brand = (i["brand"] as? String) ?? ""
             let label = (qty > 1 ? "\(qty)× " : "") + ((i["name"] as? String) ?? "") + (brand.isEmpty ? "" : " (\(brand))")
-            return LiveItem(id: i["id"] as! String, label: label, icon: categories[catIndex(i)].1)
+            let id = i["id"] as! String
+            return LiveItem(id: id, label: label, icon: iconById[id] ?? categories[catIndex(i)].1, cat: categories[catIndex(i)].0)
         }
     }
 
@@ -443,7 +452,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 if let data = data, let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let all = obj.values.compactMap { $0 as? [String: Any] }
                     open = Self.groupsOf(items: all)
-                    live = Self.liveItemsOf(items: all)
+                    live = Self.liveItemsOf(items: all, known: self.liveItems)
                     self.groups = open
                     self.liveItems = live
                 } else if let data = data, String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
@@ -459,6 +468,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private func showStoreNotification(regionId: String, open: [ItemGroup], items: [LiveItem]) {
         let id = String(regionId.dropFirst(storePrefix.count))
         guard enabled, let store = stores.first(where: { $0.id == id }) else { return log("  preskok: trgovine ni na seznamu") }
+        // Samo izdelki, ki jih ta trgovina prodaja (npr. v Proteini.si samo športna prehrana).
+        let open = open.compactMap { g -> ItemGroup? in
+            let its = g.items.filter { store.sells("\(g.name) \($0)") }
+            return its.isEmpty ? nil : ItemGroup(icon: g.icon, name: g.name, items: its)
+        }
+        let items = items.filter { store.sells("\($0.cat ?? "Drugo") \($0.label)") }
         let count = open.reduce(0) { $0 + $1.items.count }
         guard count > 0 else { return log("  preskok: seznam je prazen") }
         if UIApplication.shared.applicationState == .active { return log("  preskok: aplikacija je odprta") }
@@ -713,7 +728,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
                   let lat = (s["lat"] as? NSNumber)?.doubleValue,
                   let lon = (s["lon"] as? NSNumber)?.doubleValue else { return nil }
             return GeoStore(id: id, name: (s["name"] as? String) ?? "Trgovina", lat: lat, lon: lon,
-                            chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String)
+                            chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String, only: s["only"] as? String)
         }
         var hh: Household?
         if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String {
@@ -736,7 +751,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
     static func parseItems(_ call: CAPPluginCall) -> [LiveItem] {
         (call.getArray("items", JSObject.self) ?? []).compactMap { i in
             guard let id = i["id"] as? String, let label = i["label"] as? String else { return nil }
-            return LiveItem(id: id, label: label, icon: (i["icon"] as? String) ?? "🛒")
+            return LiveItem(id: id, label: label, icon: (i["icon"] as? String) ?? "🛒", cat: i["cat"] as? String)
         }
     }
 
