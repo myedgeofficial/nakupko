@@ -1527,6 +1527,13 @@
   });
 
   $("btnLoc").addEventListener("click", function () { if (watchId === null) startLocation(); else stopLocation(); });
+  // Namig o cenejši trgovini v obvestilu (privzeto vklopljen).
+  function renderTipSwitch() { $("btnTip").setAttribute("aria-checked", state.settings.cheaperTip === false ? "false" : "true"); }
+  renderTipSwitch();
+  $("btnTip").addEventListener("click", function () {
+    state.settings.cheaperTip = state.settings.cheaperTip === false; save(); renderTipSwitch();
+    toast(state.settings.cheaperTip ? "Namig o cenejši trgovini je vklopljen." : "Namig o cenejši trgovini je izklopljen.");
+  });
   // Ročni uvoz cen je samo za razvijalca: 7 hitrih tapov na naslov »Cene« ga pokaže ali skrije (velja za ta telefon).
   function applyDevMode() { $("manualImport").classList.toggle("hidden", !state.settings.dev); }
   applyDevMode();
