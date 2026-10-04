@@ -201,13 +201,11 @@ const fresh = new Set(results.map((r) => norm(r.ime)));
 for (const [k, e] of map) if (!fresh.has(k)) delete e.akcija;
 
 const izdelki = [...map.values()].sort((a, b) => a.ime.localeCompare(b.ime, "sl"));
-const oldCore = JSON.stringify((old.izdelki || []).slice().sort((a, b) => a.ime.localeCompare(b.ime, "sl")));
-if (JSON.stringify(izdelki) === oldCore) {
-  console.log("Ni sprememb.");
-  process.exit(0);
-}
 const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Ljubljana" });
-const out = { datum: today, vir: "polnakosarica.si", izdelki };
+const same = JSON.stringify(izdelki) === JSON.stringify((old.izdelki || []).slice().sort((a, b) => a.ime.localeCompare(b.ime, "sl")));
+if (same) console.log("Cene so enake kot včeraj.");
+// datum = zadnja sprememba cen (po njem aplikacija ve, da so novejše), preverjeno = zadnji uspešen pregled
+const out = { datum: same && old.datum ? old.datum : today, preverjeno: today, vir: "polnakosarica.si", izdelki };
 fs.writeFileSync(ROOT + "prices.json", JSON.stringify(out));
 fs.writeFileSync(ROOT + "prices.js",
   `// Cene se osvežijo vsako noč ob ~3h (scripts/update-prices.mjs). Vir: polnakosarica.si (Spar, Mercator, Lidl, Hofer, Eurospin, Tuš).\nwindow.NAKUPKO_PRICES = ${JSON.stringify(out)};\n`);

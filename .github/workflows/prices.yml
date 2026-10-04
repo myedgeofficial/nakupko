@@ -5,8 +5,13 @@ name: Nočna osvežitev cen
 # aplikacija si nove cene prenese sama.
 on:
   schedule:
-    - cron: "5 1 * * *"   # 03:05 poleti (CEST)
-    - cron: "5 2 * * *"   # 03:05 pozimi (CET)
+    # GitHub urnike včasih izpusti, zato več poskusov; zažene se le prvi, ki pade v 3h–5h po slovenskem času
+    - cron: "7 1 * * *"
+    - cron: "37 1 * * *"
+    - cron: "7 2 * * *"
+    - cron: "37 2 * * *"
+    - cron: "7 3 * * *"
+    - cron: "37 3 * * *"
   workflow_dispatch:
     inputs:
       preizkus_alarma:
@@ -28,15 +33,16 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-      - name: Samo enkrat na dan, ob 3h po slovenskem času
+      - name: Samo enkrat na dan, med 3h in 6h po slovenskem času
         id: when
         run: |
           H=$(TZ=Europe/Ljubljana date +%H)
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$H" != "03" ] && [ "$H" != "04" ]; then
-            echo "run=no" >> "$GITHUB_OUTPUT"; echo "Ura v Sloveniji je $H, preskočim."
-          else
-            echo "run=yes" >> "$GITHUB_OUTPUT"
-          fi
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=yes" >> "$GITHUB_OUTPUT"; exit 0; fi
+          if [ "$H" -lt 3 ] || [ "$H" -gt 5 ]; then echo "run=no" >> "$GITHUB_OUTPUT"; echo "Ura v Sloveniji je $H, preskočim."; exit 0; fi
+          TODAY=$(TZ=Europe/Ljubljana date +%Y-%m-%d)
+          git fetch -q origin main
+          DONE=$(git show origin/main:prices.json | python3 -c "import json,sys;print(json.load(sys.stdin).get('preverjeno',''))")
+          if [ "$DONE" = "$TODAY" ]; then echo "run=no" >> "$GITHUB_OUTPUT"; echo "Danes je že bilo osveženo."; else echo "run=yes" >> "$GITHUB_OUTPUT"; fi
       - uses: actions/setup-node@v4
         if: steps.when.outputs.run == 'yes'
         with:
