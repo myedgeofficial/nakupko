@@ -29,9 +29,13 @@
   ];
   // Ali trgovina prodaja izdelek: specializirane samo svoje, običajne vse razen orodja in vrta.
   function sells(s, it) {
-    var c = CHAIN_BY_KEY[s && s.chain], t = (it.cat || "") + " " + it.name;
-    return c && c.only ? c.only.test(t) : !/^dom in vrt /i.test(t);
+    var c = CHAIN_BY_KEY[s && s.chain], t = (it.cat || "") + " " + it.name, o = c && onlyOf(c);
+    return o ? o.test(t) : !/^dom in vrt /i.test(t);
   }
+  // Ob nedeljah in praznikih so trgovine zaprte: bencinski servis takrat šteje tudi za pijačo in prigrizke.
+  var FUEL_DAY_ONLY = /^(tobak|pijače|prigrizki) /i;
+  function fuelDay(dt) { dt = dt || new Date(); return dt.getDay() === 0 || isHoliday(dt); }
+  function onlyOf(c) { return c.key === "bencinska" && fuelDay() ? FUEL_DAY_ONLY : c.only; }
   // Izdelki za drugo trgovino: zloženi na dnu seznama.
   function otherSection(items, big, storeCtx) {
     var sub = el("ul", { class: "list" + (big ? " big" : "") });
@@ -1384,29 +1388,34 @@
   // Samo tobak na seznamu: najbližja trafika in bencinski servis namesto supermarketa.
   function tobaccoPlan() {
     var open = state.items.filter(function (i) { return !i.done; });
-    if (!open.length || !open.every(function (i) { var p = CATALOG_BY_KEY[norm(i.name)]; return ((p && p.cat) || i.cat) === "Tobak"; })) return null;
+    var catOf = function (i) { var p = CATALOG_BY_KEY[norm(i.name)]; return (p && p.cat) || i.cat || "Drugo"; };
+    if (!open.length) return null;
+    var onlyTobacco = open.every(function (i) { return catOf(i) === "Tobak"; });
+    // Nedelja/praznik: tobak, pijača in prigrizki → bencinski servis (trgovine so zaprte).
+    var sunday = !onlyTobacco && fuelDay() && open.every(function (i) { return /^(Tobak|Pijače|Prigrizki)$/.test(catOf(i)); });
+    if (!onlyTobacco && !sunday) return null;
     var ref = lastPos || lastFetchPos;
     if (!ref) return null;
     var best = {};
     stores.forEach(function (s) {
-      if (s.chain !== "trafika" && s.chain !== "bencinska") return;
+      if (s.chain !== "bencinska" && (sunday || s.chain !== "trafika")) return;
       if (openState(s).open === false) return;
       var d = distM(ref, s);
       if (d > TRIP_MAX * 2) return;
       if (!best[s.chain] || d < best[s.chain].d) best[s.chain] = { s: s, d: d };
     });
-    return { list: [best.trafika, best.bencinska].filter(Boolean).sort(function (a, b) { return a.d - b.d; }) };
+    return { sunday: sunday, list: [best.trafika, best.bencinska].filter(Boolean).sort(function (a, b) { return a.d - b.d; }) };
   }
   function renderTobaccoInto(box, tp) {
     box.innerHTML = "";
     box.classList.remove("hidden");
-    box.appendChild(el("div", { class: "card-head" }, [el("h2", { text: "Kam po nakup?" }), el("span", { class: "tag", text: "samo tobak" })]));
-    if (!tp.list.length) { box.appendChild(el("p", { class: "muted small", text: "V bližini ni odprte trafike ali bencinskega servisa. Tobak imajo tudi trgovine." })); return; }
+    box.appendChild(el("div", { class: "card-head" }, [el("h2", { text: "Kam po nakup?" }), el("span", { class: "tag", text: tp.sunday ? "trgovine so zaprte" : "samo tobak" })]));
+    if (!tp.list.length) { box.appendChild(el("p", { class: "muted small", text: tp.sunday ? "V bližini ni odprtega bencinskega servisa." : "V bližini ni odprte trafike ali bencinskega servisa. Tobak imajo tudi trgovine." })); return; }
     var x = tp.list[0];
     box.appendChild(el("div", { class: "trip-main" }, [
-      el("div", { class: "trip-title", text: "Na seznamu imaš samo tobak" }),
+      el("div", { class: "trip-title", text: tp.sunday ? "Bencinski servis ima vse s tvojega seznama" : "Na seznamu imaš samo tobak" }),
       el("div", { class: "trip-stores" }, tp.list.map(function (y) { return el("span", { class: "trip-store" }, [chainDot(y.s.chain), y.s.short || CHAIN_BY_KEY[y.s.chain].name, el("small", { text: " " + fmtDist(y.d) })]); })),
-      el("div", { class: "trip-sub", text: "Hitreje kot v supermarketu: " + (x.s.short || CHAIN_BY_KEY[x.s.chain].name) + " je " + fmtDist(x.d) + " stran. " + openState(x.s).text + "." })
+      el("div", { class: "trip-sub", text: (tp.sunday ? "Danes so trgovine zaprte. " : "Hitreje kot v supermarketu: ") + (x.s.short || CHAIN_BY_KEY[x.s.chain].name) + " je " + fmtDist(x.d) + " stran. " + openState(x.s).text + "." })
     ]));
     box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(x.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
   }
@@ -1527,6 +1536,13 @@
   });
 
   $("btnLoc").addEventListener("click", function () { if (watchId === null) startLocation(); else stopLocation(); });
+  // Namig o cenejši trgovini v obvestilu (privzeto vklopljen).
+  function renderTipSwitch() { $("btnTip").setAttribute("aria-checked", state.settings.cheaperTip === false ? "false" : "true"); }
+  renderTipSwitch();
+  $("btnTip").addEventListener("click", function () {
+    state.settings.cheaperTip = state.settings.cheaperTip === false; save(); renderTipSwitch();
+    toast(state.settings.cheaperTip ? "Namig o cenejši trgovini je vklopljen." : "Namig o cenejši trgovini je izklopljen.");
+  });
   // Ročni uvoz cen je samo za razvijalca: 7 hitrih tapov na naslov »Cene« ga pokaže ali skrije (velja za ta telefon).
   function applyDevMode() { $("manualImport").classList.toggle("hidden", !state.settings.dev); }
   applyDevMode();
@@ -1656,5 +1672,5 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k]; return c && c.only ? c.only.source : ""; }, toggle: function (id) { toggleItem(id); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, setItems: function (l) { state.items = l; save(); renderAll(); }, toast: toast, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
+  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, setItems: function (l) { state.items = l; save(); renderAll(); }, toast: toast, priceFor: priceFor, recommendations: recommendations, habits: habits, inRange: inRange, tripPlan: tripPlan, setStores: function (l, p) { stores = l; lastPos = p; renderAll(); } };
 })();
