@@ -120,7 +120,7 @@
       cfg.items = liveItemsOf((s.items || []).filter(function (i) { return !i.done; }));
       // Cena seznama po verigah (za namig »drugje je ceneje« v obvestilu).
       cfg.chainCost = {};
-      if (api.priceFor) {
+      if (api.priceFor && (s.settings || {}).cheaperTip !== false) {
         var openIt = (s.items || []).filter(function (i) { return !i.done && !/^(Dom in vrt|Tobak)$/.test(i.cat || ""); });
         var keys = {};
         cfg.stores.forEach(function (x) { if (x.chain && !x.only) keys[x.chain] = 1; });
