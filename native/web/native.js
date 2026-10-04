@@ -72,8 +72,8 @@
   var CATS = [
     ["Sadje in zelenjava", "🥦"], ["Kruh in pecivo", "🥖"], ["Mlečni izdelki", "🥛"], ["Meso in ribe", "🥩"],
     ["Shramba", "🥫"], ["Brez glutena", "🌾"], ["Prigrizki", "🍫"], ["Pijače", "🥤"], ["Zamrznjeno", "🧊"],
-    ["Otroci", "🍼"], ["Gospodinjstvo", "🧽"], ["Higiena", "🧴"], ["Zdravje", "💊"], ["Tobak", "🚬"],
-    ["Ljubljenčki", "🐾"], ["Drugo", "🛒"]
+    ["Otroci", "🍼"], ["Gospodinjstvo", "🧽"], ["Higiena", "🧴"], ["Zdravje", "💊"], ["Športna prehrana", "💪"], ["Tobak", "🚬"],
+    ["Ljubljenčki", "🐾"], ["Dom in vrt", "🔨"], ["Drugo", "🛒"]
   ];
   function itemLabel(i) { return (i.qty > 1 ? i.qty + "× " : "") + i.name + (i.brand ? " (" + i.brand + ")" : ""); }
   function groupsOf(items) {
@@ -95,7 +95,10 @@
   function liveItemsOf(items) {
     function ci(i) { var k = -1; CATS.forEach(function (c, n) { if (c[0] === (i.cat || "Drugo")) k = n; }); return k < 0 ? CATS.length - 1 : k; }
     return items.slice().sort(function (a, b) { return ci(a) - ci(b) || a.name.localeCompare(b.name, "sl"); })
-      .map(function (i) { return { id: i.id, label: itemLabel(i), icon: CATS[ci(i)][1] }; });
+      .map(function (i) {
+        var api = window.__nakupko, e = api && api.emojiFor ? api.emojiFor(i) : "";
+        return { id: i.id, label: itemLabel(i), icon: e || CATS[ci(i)][1], cat: i.cat || "Drugo" };
+      });
   }
 
   // ---------- Sinhronizacija z iPhonom (spremljanje trgovin v ozadju) ----------
@@ -111,10 +114,23 @@
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
       cfg.stores = list.filter(function (x) { return !/^test\//.test(x.id) && (x.chain || x.duty); }).map(function (x) {
-        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: x.chain || null, duty: !!x.duty, hours: x.hours || "" };
+        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: x.chain || null, duty: !!x.duty, hours: x.hours || "",
+          only: x.chain && api.chainOnly ? api.chainOnly(x.chain) : "" };
       });
       cfg.groups = groupsOf((s.items || []).filter(function (i) { return !i.done; }));
       cfg.items = liveItemsOf((s.items || []).filter(function (i) { return !i.done; }));
+      // Cena seznama po verigah (za namig »drugje je ceneje« v obvestilu).
+      cfg.chainCost = {};
+      if (api.priceFor && (s.settings || {}).cheaperTip !== false) {
+        var openIt = (s.items || []).filter(function (i) { return !i.done && !/^(Dom in vrt|Tobak)$/.test(i.cat || ""); });
+        var keys = {};
+        cfg.stores.forEach(function (x) { if (x.chain && !x.only) keys[x.chain] = 1; });
+        Object.keys(keys).forEach(function (k) {
+          var sum = 0, miss = 0;
+          openIt.forEach(function (i) { var p = api.priceFor(i.name, k); if (p && p.price != null) sum += p.price * (i.qty || 1); else miss++; });
+          if (openIt.length && !miss) cfg.chainCost[k] = Math.round(sum * 100) / 100;
+        });
+      }
     }
     var key = JSON.stringify(cfg);
     if (key === lastSent) return;
@@ -189,7 +205,9 @@
   var lastZoom = 0;
   function syncZoom() {
     var c = document.documentElement.classList;
-    var z = c.contains("size-senior") ? 1.25 : c.contains("size-mid") ? 1.1 : 1;
+    // Večji prikaz že naredi CSS (zoom na body, s prelomom vrstic). Povečava cele strani
+    // prek iPhona bi jo podvojila in stran bi se dalo premikati levo-desno, zato ostane 1.
+    var z = 1;
     if (z === lastZoom) return;
     lastZoom = z;
     Geo.setZoom({ zoom: z }).catch(function () { lastZoom = 0; });

@@ -14,6 +14,7 @@ struct LiveItem: Codable, Hashable {
     var id: String
     var label: String
     var icon: String
+    var cat: String? = nil   // samo za izbiro izdelkov po trgovini; na zaklenjeni zaslon ne gre
 }
 
 struct ShoppingAttributes: ActivityAttributes {
@@ -50,7 +51,7 @@ enum LiveList {
     // Live Activity sprejme največ 4 KB: omejimo število in dolžino imen.
     static func fit(_ list: [LiveItem]) -> [LiveItem] {
         list.prefix(maxItems).map { i in
-            LiveItem(id: i.id, label: i.label.count > 34 ? String(i.label.prefix(33)) + "…" : i.label, icon: i.icon)
+            LiveItem(id: i.id, label: i.label.count > 34 ? String(i.label.prefix(33)) + "…" : i.label, icon: i.icon, cat: nil)
         }
     }
 

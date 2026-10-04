@@ -354,7 +354,7 @@ window.NAKUPKO_PRODUCTS = (window.NAKUPKO_PRODUCTS || []).concat([
   ["Led v kockah", "Zamrznjeno", [], 1.49, "2 kg"],
 
   // Gospodinjstvo
-  ["Gel kapsule za pranje", "Gospodinjstvo", ["Ariel", "Persil"], 13.99, "kos"],
+  ["Gel kapsule za pranje", "Gospodinjstvo", ["Ariel › Color", "Ariel › Universal", "Ariel › Sensitive", "Persil › Color", "Persil › Universal", "Persil › Sensitive", "Formil (Lidl)"], 13.99, "kos"],
   ["Detergent za občutljivo perilo", "Gospodinjstvo", ["Perwoll", "Bio Plus"], 6.99, "kos"],
   ["Odstranjevalec madežev", "Gospodinjstvo", ["Vanish"], 6.49, "kos"],
   ["Lovilci barv", "Gospodinjstvo", ["Color Catcher", "Lidl"], 3.49, "kos"],
@@ -526,7 +526,7 @@ window.NAKUPKO_PRODUCTS = (window.NAKUPKO_PRODUCTS || []).concat([
   ["Termometer", "Zdravje", ["Microlife"], 7.99, "kos"],
   ["Zaščitne maske", "Zdravje", [], 3.99, "kos"],
   ["Probiotik", "Zdravje", ["Linex", "Bio-Gaia"], 9.99, "kos"],
-  ["Elektroliti", "Zdravje", ["Isostar", "Krka"], 3.99, "kos"],
+  ["Elektroliti", "Zdravje", ["Isostar", "Krka", "Proteini.si", "THE Nutrition"], 3.99, "kos"],
 
   // Ljubljenčki
   ["Briketi za mačke", "Ljubljenčki", ["Whiskas", "Purina Cat Chow", "Coshida"], 4.99, "1,5 kg"],
@@ -581,6 +581,26 @@ window.NAKUPKO_PRODUCTS = (window.NAKUPKO_PRODUCTS || []).concat([
   ["Riževi rezanci", "Brez glutena", ["Blue Dragon"], 2.49, "250 g"],
   ["Musli brez glutena", "Brez glutena", ["Schär", "Lidl"], 3.99, "375 g"],
   ["Pecivo brez glutena", "Brez glutena", ["Schär"], 3.49, "kos"],
+  // Športna prehrana (Proteini.si, THE Nutrition, Maxximum; deloma tudi v trgovinah)
+  ["Whey protein", "Športna prehrana", ["Proteini.si › Čokolada", "Proteini.si › Vanilija", "Proteini.si › Jagoda", "Proteini.si › Piškoti s kremo", "Proteini.si › Banana", "Proteini.si › Brez okusa", "THE Nutrition › Čokolada", "THE Nutrition › Vanilija", "THE Nutrition › Jagoda", "THE Nutrition › Piškoti s kremo", "THE Nutrition › Banana", "THE Nutrition › Brez okusa", "Optimum Nutrition › Čokolada", "Optimum Nutrition › Vanilija", "Optimum Nutrition › Jagoda", "Optimum Nutrition › Piškoti s kremo", "Optimum Nutrition › Banana", "Optimum Nutrition › Brez okusa", "Myprotein › Čokolada", "Myprotein › Vanilija", "Myprotein › Jagoda", "Myprotein › Piškoti s kremo", "Myprotein › Banana", "Myprotein › Brez okusa", "Scitec › Čokolada", "Scitec › Vanilija", "Scitec › Jagoda", "Scitec › Piškoti s kremo", "Scitec › Banana", "Scitec › Brez okusa"], 32.99, "1 kg"],
+  ["Whey izolat", "Športna prehrana", ["Proteini.si › Čokolada", "Proteini.si › Vanilija", "Proteini.si › Jagoda", "Proteini.si › Piškoti s kremo", "Proteini.si › Banana", "Proteini.si › Brez okusa", "THE Nutrition › Čokolada", "THE Nutrition › Vanilija", "THE Nutrition › Jagoda", "THE Nutrition › Piškoti s kremo", "THE Nutrition › Banana", "THE Nutrition › Brez okusa", "Optimum Nutrition › Čokolada", "Optimum Nutrition › Vanilija", "Optimum Nutrition › Jagoda", "Optimum Nutrition › Piškoti s kremo", "Optimum Nutrition › Banana", "Optimum Nutrition › Brez okusa", "Myprotein › Čokolada", "Myprotein › Vanilija", "Myprotein › Jagoda", "Myprotein › Piškoti s kremo", "Myprotein › Banana", "Myprotein › Brez okusa", "Scitec › Čokolada", "Scitec › Vanilija", "Scitec › Jagoda", "Scitec › Piškoti s kremo", "Scitec › Banana", "Scitec › Brez okusa"], 42.99, "1 kg"],
+  ["Veganski protein", "Športna prehrana", ["Proteini.si › Čokolada", "Proteini.si › Vanilija", "Proteini.si › Brez okusa", "THE Nutrition › Čokolada", "THE Nutrition › Vanilija", "Myprotein › Čokolada", "Myprotein › Brez okusa"], 29.99, "1 kg"],
+  ["Gainer", "Športna prehrana", ["Proteini.si › Čokolada", "Proteini.si › Vanilija", "Optimum Nutrition › Čokolada", "Optimum Nutrition › Vanilija", "Scitec"], 39.99, "3 kg"],
+  ["Kreatin monohidrat", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Optimum Nutrition", "Myprotein", "Scitec"], 17.99, "300 g"],
+  ["BCAA", "Športna prehrana", ["Proteini.si › Limona", "Proteini.si › Lubenica", "Proteini.si › Brez okusa", "Scitec › Limona", "Scitec › Lubenica", "THE Nutrition", "Myprotein"], 22.99, "kos"],
+  ["EAA aminokisline", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Myprotein"], 27.99, "kos"],
+  ["Pre-workout", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Scitec", "Myprotein"], 27.99, "kos"],
+  ["Glutamin", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Myprotein"], 19.99, "kos"],
+  ["L-karnitin", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Scitec"], 19.99, "kos"],
+  ["Kolagen", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Myprotein"], 24.99, "kos"],
+  ["Omega 3 kapsule", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Myprotein"], 14.99, "kos"],
+  ["Multivitamin (šport)", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Optimum Nutrition"], 16.99, "kos"],
+  ["Kofeinske tablete", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Myprotein"], 9.99, "kos"],
+  ["Proteinske palačinke (mešanica)", "Športna prehrana", ["Proteini.si", "THE Nutrition", "Myprotein"], 12.99, "kos"],
+  ["Proteinski napitek", "Športna prehrana", ["Ehrmann High Protein › Čokolada", "Ehrmann High Protein › Vanilija", "Proteini.si", "Optimum Nutrition"], 2.49, "kos"],
+  ["Proteinski puding", "Športna prehrana", ["Ehrmann High Protein › Čokolada", "Ehrmann High Protein › Vanilija", "Ehrmann High Protein › Karamela", "Proteini.si"], 1.69, "200 g"],
+  ["Proteinski jogurt", "Športna prehrana", ["Ehrmann High Protein", "Ljubljanske mlekarne"], 1.49, "kos"],
+  ["Šejker", "Športna prehrana", ["Proteini.si", "THE Nutrition", "SmartShake"], 6.99, "kos"],
   // Dom in vrt (OBI, Bauhaus, Merkur, Kalcer)
   ["Lopata", "Dom in vrt", ["Fiskars", "Gardena"], 19.99, "kos"],
   ["Kramp", "Dom in vrt", ["Fiskars"], 24.99, "kos"],
