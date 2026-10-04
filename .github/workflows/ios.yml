@@ -7,6 +7,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      app_store:
+        description: "Gradnja za App Store (z reklamami in naročnino Nakupko Plus)"
+        type: boolean
+        default: false
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -42,6 +47,8 @@ jobs:
           "$RUNNER_TEMP/storerules"
 
       - name: Pripravi spletni del in Capacitor
+        env:
+          NAKUPKO_RELEASE: ${{ inputs.app_store && '1' || '' }}
         run: |
           npm ci
           npm run sync

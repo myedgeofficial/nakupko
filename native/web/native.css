@@ -4,3 +4,8 @@
 /* Velikost prikaza v iOS aplikaciji poveča iPhone sam (pageZoom), ne CSS zoom,
    ki v WKWebView pokvari postavitev (ozki stolpci, črke ena pod drugo). */
 html.size-mid body, html.size-senior body { zoom: 1 !important; }
+
+/* Reklama spodaj (samo gradnja za App Store brez naročnine Nakupko Plus); --ad-h nastavi pay.js. */
+.tabs { bottom: calc(10px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
+body { padding-bottom: calc(96px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
+.overlay { padding-bottom: calc(24px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
