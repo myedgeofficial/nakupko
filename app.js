@@ -18,6 +18,9 @@
     { key: "bauhaus", name: "Bauhaus", factor: 0.98, color: "#C8102E", match: /bauhaus/i, only: /^dom in vrt /i },
     { key: "merkur", name: "Merkur", factor: 1.02, color: "#0B4EA2", match: /merkur/i, only: /^dom in vrt /i },
     { key: "kalcer", name: "Kalcer", factor: 1.0, color: "#5B7F2B", match: /kalcer/i, only: /^dom in vrt /i },
+    // Tobak: trafike in bencinske servise predlagamo, ko imaš na seznamu samo tobak.
+    { key: "trafika", name: "Trafika", factor: 1.0, color: "#6D4C41", match: /trafik|3dva|tobačn|tobacn/i, only: /^tobak /i, hours: "Mo-Fr 07:00-19:00; Sa 07:00-13:00; Su off; PH off" },
+    { key: "bencinska", name: "Bencinski servis", factor: 1.0, color: "#00A651", match: /\bpetrol\b|\bomv\b|\bmol\b|shell|lukoil|\bagip\b|\beni\b|bencinsk/i, only: /^tobak /i, hours: "Mo-Su 06:00-22:00; PH 06:00-22:00" },
     { key: "proteini", name: "Proteini.si", factor: 1.0, color: "#E30613", match: /proteini\.?si/i, only: /^športna prehrana |protein|elektrolit|izotoni/i },
     { key: "thenutrition", name: "THE Nutrition", factor: 1.0, color: "#111111", match: /the ?nutrition/i, only: /^športna prehrana |protein|elektrolit|izotoni/i },
     { key: "maxximum", name: "Maxximum", factor: 1.0, color: "#F2A900", match: /maxximum/i, only: /^športna prehrana |protein|elektrolit|izotoni/i },
@@ -852,7 +855,8 @@
     if (fetching && !force) return;
     fetching = true;
     var q = "[out:json][timeout:20];(" +
-      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist)$\"](around:3000," + p.lat + "," + p.lon + ");" +
+      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist|tobacco|kiosk|newsagent)$\"](around:3000," + p.lat + "," + p.lon + ");" +
+      "nwr[\"amenity\"=\"fuel\"](around:3000," + p.lat + "," + p.lon + ");" +
       ");out center tags 120;";
     var tryAt = function (i) {
       if (i >= OVERPASS.length) {
@@ -871,10 +875,14 @@
             if (lat == null || lon == null) return null;
             var nm = t.name || t.brand || t.operator || "Trgovina";
             var kind = storeKind([t.brand, t.name, t.operator].join(" "), t.opening_hours);
+            if (!kind && t.amenity === "fuel") kind = "bencinska";
             if (!kind) return null;
             var chain = kind === "duty" ? null : kind;
+            // Bencinski servis brez imena verige: vseeno ga upoštevamo za tobak.
+            if (!chain && t.amenity === "fuel") chain = "bencinska";
+            var defHours = chain && CHAIN_BY_KEY[chain] && CHAIN_BY_KEY[chain].hours;
             var addr = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
-            return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || "" };
+            return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || defHours || "" };
           }).filter(Boolean);
           lastFetchPos = { lat: p.lat, lon: p.lon };
           state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now() };
@@ -1373,7 +1381,38 @@
   }
   function mapsLink(s) { return "https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lon; }
   function storeLabel(x) { return el("span", { class: "trip-store" }, [chainDot(x.s.chain), CHAIN_BY_KEY[x.s.chain].name, el("small", { text: " " + fmtDist(x.d) })]); }
+  // Samo tobak na seznamu: najbližja trafika in bencinski servis namesto supermarketa.
+  function tobaccoPlan() {
+    var open = state.items.filter(function (i) { return !i.done; });
+    if (!open.length || !open.every(function (i) { var p = CATALOG_BY_KEY[norm(i.name)]; return ((p && p.cat) || i.cat) === "Tobak"; })) return null;
+    var ref = lastPos || lastFetchPos;
+    if (!ref) return null;
+    var best = {};
+    stores.forEach(function (s) {
+      if (s.chain !== "trafika" && s.chain !== "bencinska") return;
+      if (openState(s).open === false) return;
+      var d = distM(ref, s);
+      if (d > TRIP_MAX * 2) return;
+      if (!best[s.chain] || d < best[s.chain].d) best[s.chain] = { s: s, d: d };
+    });
+    return { list: [best.trafika, best.bencinska].filter(Boolean).sort(function (a, b) { return a.d - b.d; }) };
+  }
+  function renderTobaccoInto(box, tp) {
+    box.innerHTML = "";
+    box.classList.remove("hidden");
+    box.appendChild(el("div", { class: "card-head" }, [el("h2", { text: "Kam po nakup?" }), el("span", { class: "tag", text: "samo tobak" })]));
+    if (!tp.list.length) { box.appendChild(el("p", { class: "muted small", text: "V bližini ni odprte trafike ali bencinskega servisa. Tobak imajo tudi trgovine." })); return; }
+    var x = tp.list[0];
+    box.appendChild(el("div", { class: "trip-main" }, [
+      el("div", { class: "trip-title", text: "Na seznamu imaš samo tobak" }),
+      el("div", { class: "trip-stores" }, tp.list.map(function (y) { return el("span", { class: "trip-store" }, [chainDot(y.s.chain), y.s.short || CHAIN_BY_KEY[y.s.chain].name, el("small", { text: " " + fmtDist(y.d) })]); })),
+      el("div", { class: "trip-sub", text: "Hitreje kot v supermarketu: " + (x.s.short || CHAIN_BY_KEY[x.s.chain].name) + " je " + fmtDist(x.d) + " stran. " + openState(x.s).text + "." })
+    ]));
+    box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(x.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
+  }
   function renderTripInto(box) {
+    var tp = tobaccoPlan();
+    if (tp) return renderTobaccoInto(box, tp);
     var plan = tripPlan();
     box.innerHTML = "";
     if (!plan) { box.classList.add("hidden"); return; }
