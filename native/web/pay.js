@@ -1,5 +1,7 @@
-// Nakupko Plus: naročnina 1 €/mesec prek App Store (samo v iOS aplikaciji).
+// Nakupko Plus: naročnina 0,99 €/mesec prek App Store (samo v iOS aplikaciji).
+// Samo v gradnji za App Store (window.NAKUPKO_RELEASE); testne gradnje na TestFlightu nimajo reklam ne naročnine.
 // Način (NAKUPKO_PLUS_MODE):
+//   "ads"        – aplikacija je zastonj z reklamo spodaj, naročnina odstrani reklame (privzeto),
 //   "full"       – brez naročnine se pokaže le okno za naročnino (prvi teden je brezplačen, nastavi se v App Store Connect),
 //   "background" – seznam je zastonj, zaznavanje trgovine v ozadju je za naročnike,
 //   "support"    – vse zastonj, v Nastavitvah je le gumb za podporo.
@@ -9,7 +11,10 @@
   var Cap = window.Capacitor;
   if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) return;
   if (Cap.getPlatform && Cap.getPlatform() !== "ios") return; // Android: ko bo aplikacija na Google Play
-  var MODE = window.NAKUPKO_PLUS_MODE || "full";
+  if (window.NAKUPKO_RELEASE !== true) return;
+  var MODE = window.NAKUPKO_PLUS_MODE || "ads";
+  // AdMob: ID oglasne enote (Google testni ID, dokler ni vpisan pravi).
+  var AD_UNIT = window.NAKUPKO_AD_UNIT || "ca-app-pub-3940256099942544/2435281174";
   var GRACE = 3 * 24 * 3600 * 1000; // brez povezave velja zadnja znana naročnina še 3 dni po izteku
 
   var Pay = {
@@ -28,7 +33,7 @@
     return !!(st.offline && st.expires && st.expires + GRACE > Date.now());
   }
   // Zaklenjeno samo, če naročnina v App Store obstaja in je nimaš.
-  function locked() { return MODE !== "support" && !!st && st.product === true && !active(); }
+  function locked() { return MODE !== "support" && MODE !== "ads" && !!st && st.product === true && !active(); }
   window.__nakupkoPlus = { active: active, locked: function (what) { return locked() && (MODE === "full" || what === MODE); }, mode: MODE };
 
   function save(s, offline) {
@@ -136,20 +141,59 @@
     var on = active();
     var line = on
       ? (st.trial ? "Brezplačno obdobje" : "Naročen") + (st.expires ? " · " + (st.trial ? "do " : "podaljša se ") + expiresText() : "")
-      : (MODE === "support" ? "Podpri razvoj Nakupka" : "Ni naročnine") + " · " + priceText() + "/mesec";
+      : (MODE === "support" ? "Podpri razvoj Nakupka" : MODE === "ads" ? "Brez reklam" : "Ni naročnine") + " · " + priceText() + "/mesec";
     c.innerHTML =
       '<div class="set-row"><div class="set-text"><b>Nakupko Plus</b><span class="muted small">' + line + '</span></div>' +
-      '<button id="plusCardBtn" class="mini" type="button"' + (busy ? " disabled" : "") + ">" + (on ? "Upravljaj" : "Naroči se") + "</button></div>" +
+      '<button id="plusCardBtn" class="mini" type="button"' + (busy ? " disabled" : "") + ">" + (on ? "Upravljaj" : MODE === "ads" ? "Odstrani reklame" : "Naroči se") + "</button></div>" +
       (on ? "" : '<button id="plusCardRestore" class="link small" type="button">Obnovi nakup</button>');
     document.getElementById("plusCardBtn").onclick = on ? manage : buy;
     var r = document.getElementById("plusCardRestore");
     if (r) r.onclick = restore;
   }
 
+  // ---------- Reklama (način »ads«) ----------
+  var Ads = {
+    addListener: function (event, cb) { return Cap.addListener("AdMob", event, cb); },
+    call: function (m, opts) { return Cap.nativePromise("AdMob", m, opts || {}); }
+  };
+  var ad = { started: false, shown: false, busy: false };
+  function setAdHeight(h) {
+    document.documentElement.style.setProperty("--ad-h", (h > 0 ? Math.round(h) : 0) + "px");
+  }
+  function startAds() {
+    ad.started = true;
+    Ads.addListener("bannerAdSizeChanged", function (s) {
+      // Reklama, ki se naloži šele po nakupu naročnine, takoj odstranimo.
+      if (!ad.shown && !ad.busy && s && s.height > 0) Ads.call("removeBanner", {}).catch(function () {});
+      setAdHeight(ad.shown && s ? s.height : 0);
+    });
+    // Privolitev (EU): Googlov obrazec se pokaže samo, če ga zakon zahteva in še ni odgovora.
+    return Ads.call("initialize", {})
+      .then(function () { return Ads.call("requestConsentInfo", {}); })
+      .then(function (info) {
+        if (info && info.status === "REQUIRED" && info.isConsentFormAvailable) return Ads.call("showConsentForm", {});
+      })
+      .catch(function () {});
+  }
+  function renderAds() {
+    if (MODE !== "ads" || ad.busy) return;
+    var want = !!st && !active();
+    if (want === ad.shown && ad.started) return;
+    ad.busy = true;
+    var p = ad.started ? Promise.resolve() : startAds();
+    p.then(function () {
+      if (want) return Ads.call("showBanner", { adId: AD_UNIT, adSize: "ADAPTIVE_BANNER", position: "BOTTOM_CENTER", margin: 0 });
+      return Ads.call("removeBanner", {});
+    }).then(function () { ad.shown = want; if (!want) setAdHeight(0); })
+      .catch(function () { setAdHeight(0); })
+      .then(function () { ad.busy = false; if ((!!st && !active()) !== ad.shown) renderAds(); });
+  }
+
   function render() {
     if (!document.body) return;
     renderGate();
     renderCard();
+    renderAds();
   }
 
   Pay.addListener("change", function (s) { save(s); });
