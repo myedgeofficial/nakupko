@@ -1,6 +1,6 @@
 // Nakupko Plus: naročnina 1 €/mesec prek App Store (samo v iOS aplikaciji).
 // Način (NAKUPKO_PLUS_MODE):
-//   "full"       – brez naročnine se pokaže le okno za naročnino (prvi mesec je brezplačen, nastavi se v App Store Connect),
+//   "full"       – brez naročnine se pokaže le okno za naročnino (prvi teden je brezplačen, nastavi se v App Store Connect),
 //   "background" – seznam je zastonj, zaznavanje trgovine v ozadju je za naročnike,
 //   "support"    – vse zastonj, v Nastavitvah je le gumb za podporo.
 // Dokler naročnine v App Store še ni, aplikacija nikogar ne zaklene.
