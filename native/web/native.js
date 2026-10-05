@@ -311,30 +311,30 @@
   // Vsak korak: naslov zaslona, vrstice, katero tapnemo (indeks, "plus", "done", "search", "back"), napis.
   var FLOWS = {
     back: [
-      { home: true, tap: 0, cap: "Odpri app Bližnjice (Shortcuts)" },
-      { title: "Bližnjice", rows: [], tap: "plus", cap: "Tapni +" },
-      { title: "Nova bližnjica", rows: [], btn: "Dodaj dejanje", tap: "btn", cap: "Tapni »Dodaj dejanje« (Add Action)" },
-      { title: "", search: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, cap: "Poišči Nakupko → Odpri Nakupko" },
-      { title: "Odpri Nakupko", rows: [], tap: "done", cap: "Tapni »Končano« (Done)" },
-      { title: "Nastavitve", rows: ["Splošno", "Dostopnost", "Zasebnost", "Baterija"], tap: 1, cap: "Nastavitve (Settings) → Dostopnost (Accessibility)" },
-      { title: "Dostopnost", rows: ["Zaslon in besedilo", "Gibanje", "Dotik", "Face ID"], tap: 2, cap: "Dotik (Touch)" },
-      { title: "Dotik", rows: ["AssistiveTouch", "Haptični dotik", "Pretresi za razveljavitev", "Dotik zadaj"], tap: 3, cap: "Čisto spodaj: Dotik zadaj (Back Tap)" },
-      { title: "Dotik zadaj", rows: ["Dvojni dotik", "Trojni dotik"], tap: 0, cap: "Dvojni dotik (Double Tap)" },
-      { title: "Dvojni dotik", rows: ["Brez", "Posnetek zaslona", "Odpri Nakupko"], tap: 2, check: 2, cap: "Izberi »Odpri Nakupko«" },
-      { knock: true, cap: "Dvakrat potrkaj po hrbtu telefona → Nakupko se odpre" }
+      { home: true, tap: 0, cap: "Odpri app Shortcuts" },
+      { title: "Shortcuts", rows: [], tap: "plus", cap: "Tapni + zgoraj desno" },
+      { title: "New Shortcut", rows: [], btn: "Add Action", tap: "btn", cap: "Tapni »Add Action«" },
+      { title: "", search: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, cap: "Vpiši Nakupko in tapni »Odpri Nakupko«" },
+      { title: "Odpri Nakupko", rows: [], tap: "done", cap: "Tapni »Done«" },
+      { title: "Settings", rows: ["General", "Accessibility", "Privacy & Security", "Battery"], tap: 1, cap: "Odpri Settings → Accessibility" },
+      { title: "Accessibility", rows: ["Display & Text Size", "Motion", "Touch", "Face ID & Attention"], tap: 2, cap: "Tapni »Touch«" },
+      { title: "Touch", rows: ["AssistiveTouch", "Haptic Touch", "Shake to Undo", "Back Tap"], tap: 3, cap: "Čisto spodaj tapni »Back Tap«" },
+      { title: "Back Tap", rows: ["Double Tap", "Triple Tap"], tap: 0, cap: "Tapni »Double Tap«" },
+      { title: "Double Tap", rows: ["None", "Screenshot", "Odpri Nakupko"], tap: 2, check: 2, cap: "Izberi »Odpri Nakupko«" },
+      { knock: true, cap: "Dvakrat potrkaj po hrbtu telefona in Nakupko se odpre" }
     ],
     action: [
-      { title: "Nastavitve", rows: ["Splošno", "Gumb Akcija", "Dostopnost", "Baterija"], tap: 1, cap: "Nastavitve (Settings) → Gumb Akcija (Action Button)" },
-      { title: "Gumb Akcija", rows: [], big: "Bližnjica", cap: "Podrsaj do »Bližnjica« (Shortcut)" },
-      { title: "Gumb Akcija", rows: [], big: "Bližnjica", btn: "Izberi bližnjico", tap: "btn", cap: "Tapni »Izberi bližnjico« (Choose a Shortcut)" },
-      { title: "Bližnjice", rows: ["Beležke", "Nakupko", "Ura"], tap: 1, cap: "Nakupko" },
-      { title: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, check: 0, cap: "Odpri Nakupko" },
-      { press: true, cap: "Drži gumb Akcija (Action Button) → Nakupko se odpre" }
+      { title: "Settings", rows: ["General", "Action Button", "Accessibility", "Battery"], tap: 1, cap: "Odpri Settings → Action Button" },
+      { title: "Action Button", rows: [], big: "Shortcut", cap: "Podrsaj do »Shortcut«" },
+      { title: "Action Button", rows: [], big: "Shortcut", btn: "Choose a Shortcut…", tap: "btn", cap: "Tapni »Choose a Shortcut«" },
+      { title: "Shortcuts", rows: ["Notes", "Nakupko", "Clock"], tap: 1, cap: "Tapni »Nakupko«" },
+      { title: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, check: 0, cap: "Izberi »Odpri Nakupko«" },
+      { press: true, cap: "Drži gumb Action Button in Nakupko se odpre" }
     ]
   };
   function quickScreen(st) {
     if (st.home) {
-      var apps = ["⚡️|Bližnjice", "⚙️|Nastavitve", "📷|Kamera", "🧺|Nakupko"];
+      var apps = ["⚡️|Shortcuts", "⚙️|Settings", "📷|Camera", "🧺|Nakupko"];
       return '<div class="qo-home">' + apps.map(function (a, i) {
         var x = a.split("|");
         return '<div class="qo-app' + (i === st.tap ? " qo-hit" : "") + '"><span>' + x[0] + '</span><small>' + x[1] + '</small></div>';
@@ -347,7 +347,7 @@
     }
     var h = '<div class="qo-bar"><span>' + (st.tap === "back" ? "‹" : "") + '</span><b>' + st.title + '</b>' +
       '<span class="' + (st.tap === "plus" ? "qo-hit" : "") + '">' + (st.tap === "plus" ? "+" : st.tap === "done" ? "" : "") + '</span>' +
-      (st.tap === "done" ? '<span class="qo-done qo-hit">Končano</span>' : "") + '</div>';
+      (st.tap === "done" ? '<span class="qo-done qo-hit">Done</span>' : "") + '</div>';
     if (st.search) h += '<div class="qo-search">🔍 <span class="qo-type">' + st.search + '</span></div>';
     if (st.big) h += '<div class="qo-big">⚡️<br>' + st.big + '</div>';
     if (st.btn) h += '<div class="qo-btn2' + (st.tap === "btn" ? " qo-hit" : "") + '">' + st.btn + '</div>';
@@ -367,16 +367,20 @@
       cap.textContent = (i + 1) + ". " + st.cap;
       dots.innerHTML = steps.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("");
       clearTimeout(timer);
-      if (box.offsetParent !== null || document.hidden === false) timer = setTimeout(function () { i = (i + 1) % steps.length; show(); }, st.knock || st.press ? 3600 : 2400);
+      if (!paused) timer = setTimeout(function () { i = (i + 1) % steps.length; show(); }, st.knock || st.press ? 6000 : 4500);
     }
+    var paused = false;
+    function go(d) { paused = true; var n = FLOWS[flow].length; i = (i + d + n) % n; show(); }
+    box.querySelector(".qo-prev").onclick = function () { go(-1); };
+    box.querySelector(".qo-next").onclick = function () { go(1); };
     box.querySelectorAll(".qo-tab").forEach(function (b) {
       b.onclick = function () {
-        flow = b.dataset.flow; i = 0;
+        flow = b.dataset.flow; i = 0; paused = false;
         box.querySelectorAll(".qo-tab").forEach(function (x) { x.classList.toggle("on", x === b); });
         show();
       };
     });
-    phone.onclick = function () { i = (i + 1) % FLOWS[flow].length; show(); };
+    phone.onclick = function () { go(1); };
     return { start: show, stop: function () { clearTimeout(timer); } };
   }
   function quickOpenCard() {
@@ -391,7 +395,7 @@
       '<div id="quickOpenBody" style="margin-top:10px">' +
       '<div class="qo-tabs"><button type="button" class="qo-tab on" data-flow="back">Dotik zadaj</button><button type="button" class="qo-tab" data-flow="action">Gumb Akcija</button></div>' +
       '<div class="qo-phone"><div class="qo-screen"></div></div>' +
-      '<div class="qo-dots"></div><p class="qo-cap"></p>' +
+      '<div class="qo-nav"><button type="button" class="qo-prev" aria-label="Nazaj">‹</button><div class="qo-dots"></div><button type="button" class="qo-next" aria-label="Naprej">›</button></div><p class="qo-cap"></p>' +
       '<button id="quickOpenOk" type="button" class="primary">V redu</button></div>';
     card.parentNode.insertBefore(box, card.nextSibling);
     var body = document.getElementById("quickOpenBody"), player = quickPlayer(box);
