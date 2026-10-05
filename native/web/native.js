@@ -306,8 +306,79 @@
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
   }
   // Hitro odpiranje: gumb Akcija in dvojni dotik zadaj. Apple tega ne pusti nastaviti iz aplikacije,
-  // zato navodila pokažemo enkrat ob prvem obisku Nastavitev, potem ostane le povezava.
+  // zato pokažemo kratko animacijo korakov (enkrat ob prvem obisku Nastavitev, potem na tap).
   var QUICK_KEY = "nakupko.quickOpenSeen";
+  // Vsak korak: naslov zaslona, vrstice, katero tapnemo (indeks, "plus", "done", "search", "back"), napis.
+  var FLOWS = {
+    back: [
+      { home: true, tap: 0, cap: "Odpri app Bližnjice" },
+      { title: "Bližnjice", rows: [], tap: "plus", cap: "Tapni +" },
+      { title: "Nova bližnjica", rows: [], btn: "Dodaj dejanje", tap: "btn", cap: "Tapni »Dodaj dejanje«" },
+      { title: "", search: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, cap: "Poišči Nakupko → Odpri Nakupko" },
+      { title: "Odpri Nakupko", rows: [], tap: "done", cap: "Tapni »Končano«" },
+      { title: "Nastavitve", rows: ["Splošno", "Dostopnost", "Zasebnost", "Baterija"], tap: 1, cap: "Nastavitve iPhona → Dostopnost" },
+      { title: "Dostopnost", rows: ["Zaslon in besedilo", "Gibanje", "Dotik", "Face ID"], tap: 2, cap: "Dotik" },
+      { title: "Dotik", rows: ["AssistiveTouch", "Haptični dotik", "Pretresi za razveljavitev", "Dotik zadaj"], tap: 3, cap: "Čisto spodaj: Dotik zadaj" },
+      { title: "Dotik zadaj", rows: ["Dvojni dotik", "Trojni dotik"], tap: 0, cap: "Dvojni dotik" },
+      { title: "Dvojni dotik", rows: ["Brez", "Posnetek zaslona", "Odpri Nakupko"], tap: 2, check: 2, cap: "Izberi »Odpri Nakupko«" },
+      { knock: true, cap: "Dvakrat potrkaj po hrbtu telefona → Nakupko se odpre" }
+    ],
+    action: [
+      { title: "Nastavitve", rows: ["Splošno", "Gumb Akcija", "Dostopnost", "Baterija"], tap: 1, cap: "Nastavitve iPhona → Gumb Akcija" },
+      { title: "Gumb Akcija", rows: [], big: "Bližnjica", cap: "Podrsaj do »Bližnjica«" },
+      { title: "Gumb Akcija", rows: [], big: "Bližnjica", btn: "Izberi bližnjico", tap: "btn", cap: "Tapni »Izberi bližnjico«" },
+      { title: "Bližnjice", rows: ["Beležke", "Nakupko", "Ura"], tap: 1, cap: "Nakupko" },
+      { title: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, check: 0, cap: "Odpri Nakupko" },
+      { press: true, cap: "Drži gumb Akcija → Nakupko se odpre" }
+    ]
+  };
+  function quickScreen(st) {
+    if (st.home) {
+      var apps = ["⚡️|Bližnjice", "⚙️|Nastavitve", "📷|Kamera", "🧺|Nakupko"];
+      return '<div class="qo-home">' + apps.map(function (a, i) {
+        var x = a.split("|");
+        return '<div class="qo-app' + (i === st.tap ? " qo-hit" : "") + '"><span>' + x[0] + '</span><small>' + x[1] + '</small></div>';
+      }).join("") + '</div>';
+    }
+    if (st.knock || st.press) {
+      return '<div class="qo-end"><div class="qo-phone-back' + (st.press ? " qo-side" : "") + '">' +
+        (st.knock ? '<i class="qo-ripple"></i><i class="qo-ripple qo-r2"></i>' : '<i class="qo-btn"></i>') +
+        '</div><div class="qo-open">🧺 Nakupko</div></div>';
+    }
+    var h = '<div class="qo-bar"><span>' + (st.tap === "back" ? "‹" : "") + '</span><b>' + st.title + '</b>' +
+      '<span class="' + (st.tap === "plus" ? "qo-hit" : "") + '">' + (st.tap === "plus" ? "+" : st.tap === "done" ? "" : "") + '</span>' +
+      (st.tap === "done" ? '<span class="qo-done qo-hit">Končano</span>' : "") + '</div>';
+    if (st.search) h += '<div class="qo-search">🔍 <span class="qo-type">' + st.search + '</span></div>';
+    if (st.big) h += '<div class="qo-big">⚡️<br>' + st.big + '</div>';
+    if (st.btn) h += '<div class="qo-btn2' + (st.tap === "btn" ? " qo-hit" : "") + '">' + st.btn + '</div>';
+    h += st.rows.map(function (r, i) {
+      return '<div class="qo-row' + (i === st.tap ? " qo-hit" : "") + '">' + r + (i === st.check ? '<span class="qo-check">✓</span>' : '<span class="qo-chev">›</span>') + '</div>';
+    }).join("");
+    return h;
+  }
+  function quickPlayer(box) {
+    var flow = "back", i = 0, timer = null;
+    var phone = box.querySelector(".qo-screen"), cap = box.querySelector(".qo-cap"), dots = box.querySelector(".qo-dots");
+    function show() {
+      var steps = FLOWS[flow], st = steps[i];
+      phone.classList.remove("qo-in"); void phone.offsetWidth;
+      phone.innerHTML = quickScreen(st);
+      phone.classList.add("qo-in");
+      cap.textContent = (i + 1) + ". " + st.cap;
+      dots.innerHTML = steps.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("");
+      clearTimeout(timer);
+      if (box.offsetParent !== null || document.hidden === false) timer = setTimeout(function () { i = (i + 1) % steps.length; show(); }, st.knock || st.press ? 3600 : 2400);
+    }
+    box.querySelectorAll(".qo-tab").forEach(function (b) {
+      b.onclick = function () {
+        flow = b.dataset.flow; i = 0;
+        box.querySelectorAll(".qo-tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+        show();
+      };
+    });
+    phone.onclick = function () { i = (i + 1) % FLOWS[flow].length; show(); };
+    return { start: show, stop: function () { clearTimeout(timer); } };
+  }
   function quickOpenCard() {
     var card = document.querySelector("#tab-stores .card.settings");
     if (!card || document.getElementById("quickOpen")) return;
@@ -317,14 +388,14 @@
     box.id = "quickOpen"; box.className = "card";
     box.innerHTML =
       '<button id="quickOpenHead" type="button" class="link" style="padding:0;font-weight:700">Hitro odpiranje Nakupka</button>' +
-      '<div id="quickOpenBody" class="small" style="margin-top:8px;line-height:1.5">' +
-      '<p style="margin:0 0 8px"><b>1. Bližnjica</b> (enkrat): app <b>Bližnjice</b> → <b>+</b> → Dodaj dejanje → poišči <b>Nakupko</b> → <b>Odpri Nakupko</b> → Končano.</p>' +
-      '<p style="margin:0 0 8px"><b>2. Dvojni dotik zadaj:</b> Nastavitve iPhona → Dostopnost → Dotik → <b>Dotik zadaj</b> → Dvojni dotik → izberi bližnjico »Odpri Nakupko«.</p>' +
-      '<p style="margin:0 0 10px"><b>Gumb Akcija</b> (iPhone 15 Pro in novejši): Nastavitve iPhona → Gumb Akcija → Bližnjica → Nakupko → Odpri Nakupko.</p>' +
+      '<div id="quickOpenBody" style="margin-top:10px">' +
+      '<div class="qo-tabs"><button type="button" class="qo-tab on" data-flow="back">Dotik zadaj</button><button type="button" class="qo-tab" data-flow="action">Gumb Akcija</button></div>' +
+      '<div class="qo-phone"><div class="qo-screen"></div></div>' +
+      '<div class="qo-dots"></div><p class="qo-cap"></p>' +
       '<button id="quickOpenOk" type="button" class="primary">V redu</button></div>';
     card.parentNode.insertBefore(box, card.nextSibling);
-    var body = document.getElementById("quickOpenBody");
-    function setOpen(o) { body.style.display = o ? "" : "none"; }
+    var body = document.getElementById("quickOpenBody"), player = quickPlayer(box);
+    function setOpen(o) { body.style.display = o ? "" : "none"; if (o) player.start(); else player.stop(); }
     setOpen(!seen);
     document.getElementById("quickOpenHead").onclick = function () { setOpen(body.style.display === "none"); };
     document.getElementById("quickOpenOk").onclick = function () {
