@@ -22,6 +22,7 @@
 		A1B2C3D42F00000400000001 /* NakupkoShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000400000002 /* NakupkoShortcuts.swift */; };
 		A1B2C3D42F00000200000005 /* NakupkoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000200000004 /* NakupkoWidget.swift */; };
 		A1B2C3D42F00000200000008 /* NakupkoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000200000007 /* NakupkoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		A1B2C3D42F00000900000001 /* NakupkoPay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000900000002 /* NakupkoPay.swift */; };
 		A1B2C3D42F00000300000001 /* StoreRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000300000002 /* StoreRules.swift */; };
 /* End PBXBuildFile section */
 
@@ -67,6 +68,7 @@
 		A1B2C3D42F00000200000004 /* NakupkoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NakupkoWidget.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000200000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1B2C3D42F00000200000007 /* NakupkoWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NakupkoWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1B2C3D42F00000900000002 /* NakupkoPay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NakupkoPay.swift; sourceTree = "<group>"; };
 		A1B2C3D42F00000300000002 /* StoreRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreRules.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -115,6 +117,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				A1B2C3D42F00000100000002 /* NakupkoGeo.swift */,
+				A1B2C3D42F00000900000002 /* NakupkoPay.swift */,
 				A1B2C3D42F00000300000002 /* StoreRules.swift */,
 				A1B2C3D42F00000200000001 /* ShoppingActivity.swift */,
 				A1B2C3D42F00000400000002 /* NakupkoShortcuts.swift */,
@@ -252,6 +255,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				A1B2C3D42F00000100000001 /* NakupkoGeo.swift in Sources */,
+				A1B2C3D42F00000900000001 /* NakupkoPay.swift in Sources */,
 				A1B2C3D42F00000300000001 /* StoreRules.swift in Sources */,
 				A1B2C3D42F00000200000002 /* ShoppingActivity.swift in Sources */,
 				A1B2C3D42F00000400000001 /* NakupkoShortcuts.swift in Sources */,

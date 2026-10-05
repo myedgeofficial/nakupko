@@ -7,6 +7,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      app_store:
+        description: "Gradnja za App Store (z reklamami in naročnino Nakupko Plus)"
+        type: boolean
+        default: false
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -42,6 +47,8 @@ jobs:
           "$RUNNER_TEMP/storerules"
 
       - name: Pripravi spletni del in Capacitor
+        env:
+          NAKUPKO_RELEASE: ${{ inputs.app_store && '1' || '' }}
         run: |
           npm ci
           npm run sync
@@ -123,8 +130,9 @@ jobs:
           rm -f "$KEY_PATH"
           echo "::notice::Gradnja $BUILD_NUMBER je naložena. Na TestFlightu bo vidna, ko jo Apple obdela (običajno 5–15 minut)."
 
+      # Gradnja za App Store (z reklamami) ne gre testerjem: ostane samo za oddajo v pregled.
       - name: Pošlji zunanjim testerjem
-        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true'
+        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true' && !inputs.app_store
         continue-on-error: true
         timeout-minutes: 50
         env:
