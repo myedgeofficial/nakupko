@@ -49,6 +49,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private let refetchDistance: CLLocationDistance = 2500
     // Isto trgovino znova javimo po 3 minutah (GPS na robu parkirišča niha), partnerja pa po 45.
     private let renotifyAfter: TimeInterval = 3 * 60
+    // Obvestilo »trgovina je blizu«: največ enkrat na 15 minut (za vse trgovine skupaj), lahko izklopljeno.
+    private let nearEvery: TimeInterval = 15 * 60
     private let visitAgainAfter: TimeInterval = 45 * 60
 
     var onPosition: (([String: Any]) -> Void)?
@@ -501,7 +503,10 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         notified = sent
 
         // 1. stopnja: »blizu si« (+ namig, če je bližnja trgovina občutno cenejša).
-        postNearNotification(id: id, store: store, count: count)
+        let lastNear = defaults.double(forKey: "geo.lastNear")
+        if defaults.object(forKey: "geo.nearNotify") as? Bool == false { log("  brez obvestila »blizu« (izklopljeno)") }
+        else if now - lastNear < nearEvery { log("  brez obvestila »blizu« (zadnje pred \(Int((now - lastNear) / 60)) min)") }
+        else { defaults.set(now, forKey: "geo.lastNear"); postNearNotification(id: id, store: store, count: count) }
         // 2. stopnja: ko obstaneš pri trgovini, se seznam odpre na zaklenjenem zaslonu.
         startArrivalWatch(Arrival(store: store, open: open, items: items, count: count, started: Date(), stillSince: nil))
     }
@@ -821,6 +826,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let groups = Self.parseGroups(call)
         let items = Self.parseItems(call)
         let dbUrl = call.getString("dbUrl")
+        let nearNotify = call.getBool("nearNotify") ?? true
         var costs: [String: Double] = [:]
         if let c = call.getObject("chainCost") { for (k, v) in c { if let n = v as? NSNumber { costs[k] = n.doubleValue } } }
         let stores: [GeoStore] = (call.getArray("stores", JSObject.self) ?? []).compactMap { s in
@@ -837,6 +843,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async {
             if let u = dbUrl, !u.isEmpty { UserDefaults.standard.set(u, forKey: "geo.dbUrl") }
             UserDefaults.standard.set(costs, forKey: "geo.chainCost")
+            UserDefaults.standard.set(nearNotify, forKey: "geo.nearNotify")
             GeoManager.shared.configure(enabled: on, radius: radius, stores: stores, groups: groups, items: items, household: hh)
             call.resolve()
         }

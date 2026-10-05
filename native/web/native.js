@@ -128,6 +128,28 @@
       });
   }
 
+  // ---------- Stikalo »Obvestilo, ko je trgovina blizu« (največ 1× na 15 min) ----------
+  var NEAR_KEY = "nakupko.nearNotify";
+  function nearNotifyOn() { try { return localStorage.getItem(NEAR_KEY) !== "0"; } catch (e) { return true; } }
+  function nearSwitch() {
+    var tip = document.getElementById("btnTip"), row = tip && tip.closest(".set-row");
+    if (!row || document.getElementById("btnNear")) return;
+    var r = document.createElement("div");
+    r.className = "set-row";
+    r.innerHTML = '<div class="set-text"><b>Obvestilo »trgovina je blizu«</b>' +
+      '<span class="muted small">Ko greš mimo trgovine. Največ enkrat na 15 minut. Seznam ob prihodu v trgovino deluje tudi brez tega.</span></div>' +
+      '<button id="btnNear" class="switch" type="button" role="switch" aria-label="Obvestilo trgovina je blizu"></button>';
+    row.parentNode.insertBefore(r, row);
+    var b = document.getElementById("btnNear");
+    function paint() { b.setAttribute("aria-checked", nearNotifyOn() ? "true" : "false"); }
+    paint();
+    b.onclick = function () {
+      try { localStorage.setItem(NEAR_KEY, nearNotifyOn() ? "0" : "1"); } catch (e) { /* ni shrambe */ }
+      paint(); sync();
+    };
+  }
+  window.addEventListener("DOMContentLoaded", nearSwitch);
+
   // ---------- Sinhronizacija z iPhonom (spremljanje trgovin v ozadju) ----------
   var lastSent = "";
   function sync() {
@@ -135,7 +157,7 @@
     if (!api || !api.state) return;
     var s = api.state();
     var on = !!(s.settings && s.settings.locOn);
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn() };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
