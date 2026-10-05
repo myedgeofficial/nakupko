@@ -368,23 +368,24 @@
   var FLOWS = {
     back: [
       { home: true, tap: 0, cap: "Odpri app Shortcuts" },
-      { title: "Shortcuts", rows: [], tap: "plus", cap: "Tapni + zgoraj desno" },
-      { title: "New Shortcut", rows: [], btn: "Add Action", tap: "btn", cap: "Tapni »Add Action«" },
-      { title: "", search: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, cap: "Vpiši Nakupko in tapni »Odpri Nakupko«" },
-      { title: "Odpri Nakupko", rows: [], tap: "done", cap: "Tapni »Done«" },
-      { title: "Settings", rows: ["General", "Accessibility", "Privacy & Security", "Battery"], tap: 1, cap: "Odpri Settings → Accessibility" },
-      { title: "Accessibility", rows: ["Display & Text Size", "Motion", "Touch", "Face ID & Attention"], tap: 2, cap: "Tapni »Touch«" },
-      { title: "Touch", rows: ["AssistiveTouch", "Haptic Touch", "Shake to Undo", "Back Tap"], tap: 3, cap: "Čisto spodaj tapni »Back Tap«" },
-      { title: "Back Tap", rows: ["Double Tap", "Triple Tap"], tap: 0, cap: "Tapni »Double Tap«" },
-      { title: "Double Tap", rows: ["None", "Screenshot", "Odpri Nakupko"], tap: 2, check: 2, cap: "Izberi »Odpri Nakupko«" },
+      { sc: "all", cap: "Tapni + spodaj na sredini" },
+      { sc: "new", cap: "Zgoraj desno tapni »Edit«" },
+      { sc: "actions", cap: "Spodaj tapni »Search«" },
+      { sc: "search", cap: "Vpiši Nakupko in tapni »Odpri Nakupko«" },
+      { sc: "done", cap: "Zgoraj levo tapni ‹ in bližnjica je shranjena" },
+      { dark: true, title: "Settings", rows: ["General", "Accessibility", "Action Button", "Camera"], tap: 1, cap: "Odpri Settings → Accessibility" },
+      { dark: true, title: "Accessibility", rows: ["Read & Speak", "Audio Descriptions", "Touch", "Face ID & Attention"], tap: 2, cap: "Pomakni dol do »Physical and Motor« → Touch" },
+      { dark: true, title: "Touch", rows: ["Vibration", "Prevent Lock to End Call", "Call Audio Routing", "Back Tap"], tap: 3, cap: "Pomakni čisto dol → Back Tap" },
+      { dark: true, title: "Back Tap", rows: ["Double Tap", "Triple Tap"], tap: 0, cap: "Tapni »Double Tap« (ali Triple Tap)" },
+      { dark: true, title: "Double Tap", rows: ["None", "Screenshot", "Odpri Nakupko"], tap: 2, check: 2, cap: "Pod »Shortcuts« izberi »Odpri Nakupko«" },
       { knock: true, cap: "Dvakrat potrkaj po hrbtu telefona in Nakupko se odpre" }
     ],
     action: [
-      { title: "Settings", rows: ["General", "Action Button", "Accessibility", "Battery"], tap: 1, cap: "Odpri Settings → Action Button" },
-      { title: "Action Button", rows: [], big: "Shortcut", cap: "Podrsaj do »Shortcut«" },
-      { title: "Action Button", rows: [], big: "Shortcut", btn: "Choose a Shortcut…", tap: "btn", cap: "Tapni »Choose a Shortcut«" },
-      { title: "Shortcuts", rows: ["Notes", "Nakupko", "Clock"], tap: 1, cap: "Tapni »Nakupko«" },
-      { title: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, check: 0, cap: "Izberi »Odpri Nakupko«" },
+      { dark: true, title: "Settings", rows: ["General", "Accessibility", "Action Button", "Camera"], tap: 2, cap: "Odpri Settings → Action Button" },
+      { dark: true, title: "Action Button", rows: [], big: "Shortcut", cap: "Podrsaj do »Shortcut«" },
+      { dark: true, title: "Action Button", rows: [], big: "Shortcut", btn: "Choose a Shortcut…", tap: "btn", cap: "Tapni »Choose a Shortcut«" },
+      { dark: true, title: "Shortcuts", rows: ["Notes", "Nakupko", "Clock"], tap: 1, cap: "Tapni »Nakupko«" },
+      { dark: true, title: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, check: 0, cap: "Izberi »Odpri Nakupko«" },
       { press: true, cap: "Drži gumb Action Button in Nakupko se odpre" }
     ]
   };
@@ -395,6 +396,21 @@
         var x = a.split("|");
         return '<div class="qo-app' + (i === st.tap ? " qo-hit" : "") + '"><span>' + x[0] + '</span><small>' + x[1] + '</small></div>';
       }).join("") + '</div>';
+    }
+    if (st.sc) {
+      var hit = ' qo-hit';
+      if (st.sc === "all") return '<div class="qo-sc"><div class="qo-sc-top"><i>‹</i><i class="pill">Select</i></div><b class="qo-sc-h">All Shortcuts</b>' +
+        '<div class="qo-sc-search">🔍 Search</div><div class="qo-sc-tiles"><span>Jarvis</span><span class="pink">Time of Day</span></div>' +
+        '<div class="qo-sc-plus' + hit + '">+</div></div>';
+      if (st.sc === "new") return '<div class="qo-sc"><div class="qo-sc-top"><i>‹</i><small>New Shortcut</small><i class="pill' + hit + '">Edit</i></div>' +
+        '<div class="qo-sc-ask">What do you want your shortcut to do?</div><div class="qo-sc-desc">Describe a shortcut</div></div>';
+      if (st.sc === "actions") return '<div class="qo-sc"><div class="qo-sc-top"><i>‹</i><small>New Shortcut</small><i></i></div>' +
+        '<p class="qo-sc-note">Add actions from below to create a shortcut.</p><div class="qo-sc-sheet"><div class="qo-sc-search' + hit + '">🔍 Search</div>' +
+        '<div class="qo-sc-act">💬 Send Message</div><div class="qo-sc-act">↗ Open App</div></div></div>';
+      if (st.sc === "search") return '<div class="qo-sc"><div class="qo-sc-sheet top"><div class="qo-sc-search">🔍 <span class="qo-type">Nakupko</span></div>' +
+        '<div class="qo-sc-app">🧺 Nakupko</div><div class="qo-sc-act' + hit + '">🧺 Odpri Nakupko</div></div></div>';
+      return '<div class="qo-sc"><div class="qo-sc-top"><i class="' + hit.trim() + '">‹</i><small>Odpri Nakupko</small><i></i></div>' +
+        '<div class="qo-sc-act" style="margin-top:20px">🧺 Odpri Nakupko</div></div>';
     }
     if (st.knock || st.press) {
       return '<div class="qo-end"><div class="qo-phone-back' + (st.press ? " qo-side" : "") + '">' +
@@ -419,6 +435,7 @@
       var steps = FLOWS[flow], st = steps[i];
       phone.classList.remove("qo-in"); void phone.offsetWidth;
       phone.innerHTML = quickScreen(st);
+      phone.classList.toggle("qo-dk", !!(st.sc || st.dark));
       phone.classList.add("qo-in");
       cap.textContent = (i + 1) + ". " + st.cap;
       dots.innerHTML = steps.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("");
