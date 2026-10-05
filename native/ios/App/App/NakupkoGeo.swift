@@ -408,7 +408,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }.resume()
     }
 
-    // Pravi prihod (obstal pri trgovini, seznam ni prazen) zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
+    // Pravi prihod (obstal pri trgovini) zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
     private func reportVisit(storeId id: String) {
         guard let hh = household, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
         if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
@@ -490,13 +490,18 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         let items = items.filter { store.sells("\($0.cat ?? "Drugo") \($0.label)") }
         let count = open.reduce(0) { $0 + $1.items.count }
-        guard count > 0 else { return log("  preskok: seznam je prazen") }
-        if UIApplication.shared.applicationState == .active { return log("  preskok: aplikacija je odprta") }
+        // Tudi brez obvestila zase spremljamo prihod, da partner izve, ko si res v trgovini.
+        let visitOnly = { [weak self] in
+            guard let self = self, let hh = self.household, !hh.member.isEmpty else { return }
+            self.startArrivalWatch(Arrival(store: store, open: [], items: [], count: 0, started: Date(), stillSince: nil))
+        }
+        guard count > 0 else { visitOnly(); return log("  preskok: seznam je prazen") }
+        if UIApplication.shared.applicationState == .active { visitOnly(); return log("  preskok: aplikacija je odprta") }
         // Zaprta trgovina (npr. ob 6h pred Sparom, ki odpre ob 7:30): brez obvestila.
         if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return log("  preskok: trgovina je zaprta (\(store.hours ?? "?"))") }
         let now = Date().timeIntervalSince1970
         var sent = notified
-        if let last = sent[id], now - last < renotifyAfter { return log("  preskok: obvestilo pred \(Int(now - last)) s") }
+        if let last = sent[id], now - last < renotifyAfter { visitOnly(); return log("  preskok: obvestilo pred \(Int(now - last)) s") }
         sent = sent.filter { now - $0.value < 24 * 3600 }
         sent[id] = now
         notified = sent
@@ -585,8 +590,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     private func arrived(_ a: Arrival) {
         let id = a.store.id, store = a.store, open = a.open, count = a.count, items = a.items
-        // Partner izve šele, ko si res v trgovini in imaš kaj na seznamu (ne ko se pelješ mimo).
+        // Partner izve šele, ko si res v trgovini (ne ko se pelješ mimo).
         reportVisit(storeId: id)
+        if count == 0 || UIApplication.shared.applicationState == .active { return }
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
         // iOS 17.2+: strežnik na zaklenjenem zaslonu odpre seznam, ki ga lahko kljukaš. Sicer navadno obvestilo.
         if !items.isEmpty, startLive(store: store.name, items: items, completion: { [weak self] ok in
