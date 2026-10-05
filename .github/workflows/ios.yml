@@ -130,8 +130,9 @@ jobs:
           rm -f "$KEY_PATH"
           echo "::notice::Gradnja $BUILD_NUMBER je naložena. Na TestFlightu bo vidna, ko jo Apple obdela (običajno 5–15 minut)."
 
+      # Gradnja za App Store (z reklamami) ne gre testerjem: ostane samo za oddajo v pregled.
       - name: Pošlji zunanjim testerjem
-        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true'
+        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true' && !inputs.app_store
         continue-on-error: true
         timeout-minutes: 50
         env:
