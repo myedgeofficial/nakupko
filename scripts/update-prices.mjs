@@ -170,31 +170,37 @@ async function brandPrices(p, brand) {
   const bw = norm(brand).split(" ").filter(Boolean);
   if (!bw.length) return null;
   const pw = norm(name).split(" ").filter((w) => w.length >= 3).map(stem);
-  const catRe = CAT_RE[p[1]];
-  let found = (await search(brand)).filter((prod) => {
+  const nn = norm(name);
+  const all = (await search(brand)).filter((prod) => {
     const n = norm(prod.name), toks = n.split(" ");
     if (!bw.every((w) => toks.includes(w))) return false;
-    if (BAD.some((b) => n.includes(b) && !norm(name).includes(b))) return false;
-    return pw.some((w) => toks.some((t) => t.startsWith(w))) || (catRe && catRe.test(norm(prod.category_name)));
+    return !BAD.some((b) => n.includes(b) && !nn.includes(b));
   });
+  // ime izdelka mora biti v nazivu (»Gauda«, ne katerikoli sir te znamke);
+  // le pijače so pogosto poimenovane samo z znamko (»Red Bull 0,25 l«)
+  let found = all.filter((prod) => { const toks = norm(prod.name).split(" "); return pw.every((w) => toks.some((t) => t.startsWith(w))); });
+  if (!found.length && p[1] === "Pijače") found = all.filter((prod) => CAT_RE["Pijače"].test(norm(prod.category_name)));
   if (!found.length) return null;
+  // pakiranje: kot v katalogu, sicer najpogostejše pakiranje te znamke (cena, ki jo plačaš na polici)
   const pk = pack(unit);
-  const sameSize = (prod) => {
+  const amountOf = (prod) => {
     const u = String(prod.unit || "").toLowerCase(), q = Number(prod.quantity);
-    const amt = u === "g" || u === "ml" ? q / 1000 : q;
-    return pk.kind !== "kos" && Math.abs(amt - pk.amount) < 1e-6;
+    return u === "g" || u === "ml" ? q / 1000 : q;
   };
-  if (found.some(sameSize)) found = found.filter(sameSize);
+  const same = found.filter((prod) => pk.kind !== "kos" && Math.abs(amountOf(prod) - pk.amount) < 1e-6);
+  if (same.length) found = same;
+  else {
+    const cnt = {};
+    for (const prod of found) { const k = String(prod.unit) + ":" + prod.quantity; cnt[k] = (cnt[k] || 0) + (prod.storePrices || []).length; }
+    const top = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0];
+    found = found.filter((prod) => String(prod.unit) + ":" + prod.quantity === top);
+  }
   const byStore = {};
   for (const prod of found) {
     for (const sp of prod.storePrices || []) {
       const st = STORES[sp.storeSlug];
       const reg = sp.regularPrice ?? sp.actionPrice;
-      if (!st || !(reg > 0)) continue;
-      let v;
-      if (pk.kind === "kos" || sameSize(prod)) v = reg;
-      else { const u = perUnit(prod, { ...sp, actionPrice: null, regularPrice: reg }, pk.kind); v = u == null ? null : u * pk.amount; }
-      if (v > 0) (byStore[st] = byStore[st] || []).push(v);
+      if (st && reg > 0) (byStore[st] = byStore[st] || []).push(reg);
     }
   }
   const cene = {};
@@ -235,7 +241,7 @@ async function brandWorker() {
 await Promise.all([brandWorker(), brandWorker(), brandWorker()]);
 console.log(`Znamke: ${brandJobs.length} poizvedb, s cenami: ${brandResults.length}`);
 // povzetek na strani workflowa (preverjanje cen po znamkah)
-const brandShow = brandResults.filter((r) => /^(Red Bull|Monster|Coca-Cola|Milka|Barcaffe|Ljubljanske mlekarne|Pepsi|Nutella|Jana|Radenska)$/.test(r.znamka)).slice(0, 15);
+const brandShow = brandResults.filter((r) => /^(Red Bull|Monster|Coca-Cola|Milka|Barcaffe|Pepsi|Jana|Radenska)$/.test(r.znamka) || (r.znamka === "Ljubljanske mlekarne" && /Gauda|Mleko$|Jogurt/.test(r.ime))).slice(0, 15);
 console.log(`::notice title=Cene po znamkah::${brandResults.length} od ${brandJobs.length} znamk. ` + brandShow.map((r) => `${r.ime} · ${r.znamka}: ${Object.entries(r.cene).map(([k, v]) => k + " " + v).join(", ")}`).join(" | "));
 for (const r of brandResults.filter((r) => /Red Bull|Monster|Coca|Milka|Barcaffe/.test(r.znamka)).slice(0, 12)) console.log(" ", r.ime, "·", r.znamka, JSON.stringify(r.cene));
 
