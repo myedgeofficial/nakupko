@@ -68,6 +68,33 @@
   try { Object.defineProperty(navigator, "geolocation", { value: geo, configurable: true }); geoOverridden = navigator.geolocation === geo; }
   catch (e) { /* ostane spletna lokacija */ }
 
+  // ---------- Skupen seznam: EventSource prek rednega branja ----------
+  // V iOS aplikaciji (capacitor://) se tok do Firebase ne vzpostavi in seznam ostane »Ni povezave«.
+  // Zato household.js namesto toka dobi enako obliko dogodkov z branjem vsake 3 s.
+  function PollSource(u) {
+    var self = this, last = null, timer = null, stopped = false, handlers = {};
+    self.url = u; self.onerror = null;
+    self.addEventListener = function (t, fn) { (handlers[t] = handlers[t] || []).push(fn); };
+    self.close = function () { stopped = true; clearTimeout(timer); };
+    function emit(t, data) { (handlers[t] || []).forEach(function (fn) { fn({ type: t, data: data }); }); }
+    function tick() {
+      if (stopped) return;
+      if (document.hidden) { timer = setTimeout(tick, 3000); return; }
+      fetch(u, { cache: "no-store" }).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.text();
+      }).then(function (t) {
+        if (stopped) return;
+        if (t !== last) { last = t; emit("put", JSON.stringify({ path: "/", data: JSON.parse(t) })); }
+      }).catch(function () {
+        last = null;
+        if (!stopped && self.onerror) self.onerror({ type: "error" });
+      }).then(function () { if (!stopped) timer = setTimeout(tick, 3000); });
+    }
+    tick();
+  }
+  window.EventSource = PollSource;
+
   // ---------- Odprti izdelki po oddelkih (vrstni red kot pot po trgovini) ----------
   var CATS = [
     ["Sadje in zelenjava", "🥦"], ["Kruh in pecivo", "🥖"], ["Mlečni izdelki", "🥛"], ["Meso in ribe", "🥩"],
