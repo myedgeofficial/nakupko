@@ -14,7 +14,7 @@
   if (window.NAKUPKO_RELEASE !== true) return;
   var MODE = window.NAKUPKO_PLUS_MODE || "ads";
   // AdMob: ID oglasne enote (Google testni ID, dokler ni vpisan pravi).
-  var AD_UNIT = window.NAKUPKO_AD_UNIT || "ca-app-pub-3940256099942544/2435281174";
+  var AD_UNIT = window.NAKUPKO_AD_UNIT || "ca-app-pub-1387718701947622/2328125258";
   var GRACE = 3 * 24 * 3600 * 1000; // brez povezave velja zadnja znana naročnina še 3 dni po izteku
 
   var Pay = {
