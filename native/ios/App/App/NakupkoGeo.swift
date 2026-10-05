@@ -408,7 +408,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }.resume()
     }
 
-    // Prihod v trgovino zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
+    // Pravi prihod (obstal pri trgovini, seznam ni prazen) zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
     private func reportVisit(storeId id: String) {
         guard let hh = household, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
         if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
@@ -452,7 +452,6 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private func notifyEntered(regionId: String) {
         let sid = String(regionId.dropFirst(storePrefix.count))
         log("vstop: " + (stores.first(where: { $0.id == sid })?.name ?? sid))
-        reportVisit(storeId: String(regionId.dropFirst(storePrefix.count)))
         guard let hh = household, let url = URL(string: "\(hh.url)/h/\(hh.code)/items.json") else { return showStoreNotification(regionId: regionId, open: groups, items: liveItems) }
         // Partner je morda kaj dodal, medtem ko je bila aplikacija zaprta: preberemo skupen seznam.
         let app = UIApplication.shared
@@ -586,6 +585,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     private func arrived(_ a: Arrival) {
         let id = a.store.id, store = a.store, open = a.open, count = a.count, items = a.items
+        // Partner izve šele, ko si res v trgovini in imaš kaj na seznamu (ne ko se pelješ mimo).
+        reportVisit(storeId: id)
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(id)"])
         // iOS 17.2+: strežnik na zaklenjenem zaslonu odpre seznam, ki ga lahko kljukaš. Sicer navadno obvestilo.
         if !items.isEmpty, startLive(store: store.name, items: items, completion: { [weak self] ok in
