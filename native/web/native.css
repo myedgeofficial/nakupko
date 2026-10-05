@@ -10,3 +10,10 @@ html.size-mid body, html.size-senior body { zoom: 1 !important; }
 
 /* »Cene po trgovinah« v iOS aplikaciji ni (uporabnik: nepregledno, manjkajo izdelki). */
 #pricesMore { display: none !important; }
+
+/* Ena velikost za vse (native.js poveča stran), izbire velikosti ni. */
+#tab-stores details.card:has(#sizeBox) { display: none !important; }
+html.size-mid body, html.size-senior body { font-weight: 500; }
+html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inherit; }
+/* Spletna navodila za bližnjico (Safari) v aplikaciji nadomesti kartica »Hitro odpiranje Nakupka«. */
+#tab-stores details.card:has(> ol) { display: none !important; }

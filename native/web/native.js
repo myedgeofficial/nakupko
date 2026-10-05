@@ -227,12 +227,32 @@
     }).catch(function () {});
   }
 
-  // Velikost prikaza (Mlajši / Srednja leta / Starejši): povečamo celo stran prek iPhona.
+  // Ena velikost za vse (tudi za starejše): stran je 12 % večja prek viewporta – postavitev se
+  // prilagodi ožjemu zaslonu, zato se ne da premikati levo-desno. Izbire velikosti v aplikaciji ni.
+  var VIEW_ZOOM = 1.12;
+  (function () {
+    var m = document.querySelector('meta[name="viewport"]');
+    if (!m) return;
+    var w = Math.min(screen.width, screen.height);
+    m.setAttribute("content", "width=" + Math.round(w / VIEW_ZOOM) + ", initial-scale=" + VIEW_ZOOM + ", maximum-scale=" + VIEW_ZOOM + ", user-scalable=no, viewport-fit=cover");
+  })();
+  function oneSize() {
+    var api = window.__nakupko, st = api && api.state && api.state().settings;
+    if (st) st.size = "young";
+    var c = document.documentElement.classList;
+    c.remove("size-mid", "size-senior"); c.add("size-young");
+  }
+  window.addEventListener("DOMContentLoaded", function () {
+    oneSize();
+    // Uvodno vprašanje »Kako velik naj bo prikaz?« preskočimo.
+    var t = document.getElementById("obTitle"), ob = document.getElementById("onboard");
+    if (!t || !ob || !window.MutationObserver) return;
+    new MutationObserver(function () {
+      if (/Kako velik/.test(t.textContent) && !ob.classList.contains("hidden")) { ob.classList.add("hidden"); oneSize(); }
+    }).observe(ob, { attributes: true, childList: true, subtree: true, characterData: true });
+  });
   var lastZoom = 0;
   function syncZoom() {
-    var c = document.documentElement.classList;
-    // Večji prikaz že naredi CSS (zoom na body, s prelomom vrstic). Povečava cele strani
-    // prek iPhona bi jo podvojila in stran bi se dalo premikati levo-desno, zato ostane 1.
     var z = 1;
     if (z === lastZoom) return;
     lastZoom = z;
