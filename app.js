@@ -282,17 +282,26 @@
     fetch(PRICES_URL + "?d=" + new Date().toISOString().slice(0, 13), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (!d || !d.izdelki || (d.datum || "") <= PRICES_DATE) return;
-        try { localStorage.setItem("nakupko-prices", JSON.stringify(d)); } catch (e) { /* poln */ }
+        // isti dan se cene lahko osvežijo večkrat: sprejmi tudi enak datum, če so podatki drugačni
+        if (!d || !d.izdelki || (d.datum || "") < PRICES_DATE) return;
+        var raw = JSON.stringify(d), prev = null;
+        try { prev = localStorage.getItem("nakupko-prices"); } catch (e) { /* nič */ }
+        if (raw === prev) return;
+        try { localStorage.setItem("nakupko-prices", raw); } catch (e) { /* poln */ }
         useBasePrices(d);
         renderAll();
       })
       .catch(function () { /* brez povezave */ });
   }
-  // Izdelek z znamko (Red Bull) ima svojo ceno, če jo poznamo; sicer velja cena izdelka na splošno.
+  // Izdelek z znamko (Red Bull) ima svojo ceno, če jo poznamo; brez znamke velja glavna znamka, sicer cena izdelka na splošno.
   function brandPriceKey(it) {
     var key = norm(it.name), p = CATALOG_BY_KEY[key], b = norm(it.brand);
-    if (!b || !p) return null;
+    if (!p) return null;
+    // brez izbrane znamke: cena glavne znamke iz kataloga (npr. Red Bull), ne povprečje s cenenimi in akcijami
+    if (!b) {
+      var first = brandGroups(p).filter(function (x) { return BASE_PRICES[key + "|" + norm(x.name)]; })[0];
+      return first ? key + "|" + norm(first.name) : null;
+    }
     var g = brandGroups(p).filter(function (x) { var n = norm(x.name); return b === n || b.indexOf(n + " ") === 0; })[0];
     var k = g ? key + "|" + norm(g.name) : null;
     return k && BASE_PRICES[k] ? k : null;
