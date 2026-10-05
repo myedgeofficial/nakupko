@@ -234,6 +234,9 @@ async function brandWorker() {
 }
 await Promise.all([brandWorker(), brandWorker(), brandWorker()]);
 console.log(`Znamke: ${brandJobs.length} poizvedb, s cenami: ${brandResults.length}`);
+// povzetek na strani workflowa (preverjanje cen po znamkah)
+const brandShow = brandResults.filter((r) => /^(Red Bull|Monster|Coca-Cola|Milka|Barcaffe|Ljubljanske mlekarne|Pepsi|Nutella|Jana|Radenska)$/.test(r.znamka)).slice(0, 15);
+console.log(`::notice title=Cene po znamkah::${brandResults.length} od ${brandJobs.length} znamk. ` + brandShow.map((r) => `${r.ime} · ${r.znamka}: ${Object.entries(r.cene).map(([k, v]) => k + " " + v).join(", ")}`).join(" | "));
 for (const r of brandResults.filter((r) => /Red Bull|Monster|Coca|Milka|Barcaffe/.test(r.znamka)).slice(0, 12)) console.log(" ", r.ime, "·", r.znamka, JSON.stringify(r.cene));
 
 console.log("Oddelki vira:", JSON.stringify(Object.entries(CATS).sort((a, b) => b[1] - a[1]).slice(0, 60)));
