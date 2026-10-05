@@ -256,14 +256,18 @@
   // Cene, ki jih je Nakupko poiskal na spletu (prices.js); uvožene cene jih prepišejo.
   // Cene se osvežijo vsako noč; aplikacija (tudi iPhone/Android) si sveže prenese sama.
   var BASE_PRICES = {}, PRICES_DATE = "";
+  var SALE_PRICES = {};
   function useBasePrices(data) {
     if (!data || !data.izdelki) return;
-    BASE_PRICES = {}; PRICES_DATE = data.datum || "";
+    BASE_PRICES = {}; SALE_PRICES = {}; PRICES_DATE = data.datum || "";
     data.izdelki.forEach(function (e) {
       var rec = {};
       Object.keys(e.cene || {}).forEach(function (c) { if (typeof e.cene[c] === "number" && e.cene[c] > 0) rec[c] = e.cene[c]; });
       // cene po znamki (npr. Energijska pijača · Red Bull) imajo ključ »ime|znamka«
-      if (Object.keys(rec).length) BASE_PRICES[norm(e.ime) + (e.znamka ? "|" + norm(e.znamka) : "")] = rec;
+      var k = norm(e.ime) + (e.znamka ? "|" + norm(e.znamka) : "");
+      if (Object.keys(rec).length) BASE_PRICES[k] = rec;
+      // akcijska cena (cene so vedno redne; akcija se pokaže posebej)
+      if (e.akcija && !Array.isArray(e.akcija)) SALE_PRICES[k] = e.akcija;
     });
   }
   var PRICES_URL = "https://myedgeofficial.github.io/nakupko/prices.json";
@@ -299,7 +303,10 @@
     var key = norm(name);
     var imp = Object.assign({}, BASE_PRICES[bk || key] || {}, bk ? {} : state.prices[key] || {});
     if (!Object.keys(imp).some(function (k) { return typeof imp[k] === "number"; })) imp = null;
-    if (imp && typeof imp[chain] === "number") return { price: imp[chain], est: false };
+    if (imp && typeof imp[chain] === "number") {
+      var sp = (SALE_PRICES[bk || key] || {})[chain];
+      return { price: imp[chain], est: false, sale: typeof sp === "number" && sp < imp[chain] ? sp : null };
+    }
     if (imp) {
       var vals = Object.keys(imp).map(function (k) { return imp[k]; }).filter(function (v) { return typeof v === "number"; });
       if (vals.length) {
@@ -410,17 +417,18 @@
   function prefPrice(name) {
     if (pricesOff()) return null;
     var chains = pref().chains;
-    if (!chains) { var b = cheapestChain(name); return b ? { price: b.price, est: b.est, chain: b.chain } : null; }
+    if (!chains) { var b = cheapestChain(name); return b ? { price: b.price, est: b.est, chain: b.chain, sale: b.sale } : null; }
     var sum = 0, n = 0, est = false;
-    chains.forEach(function (c) { var p = priceFor(name, c); if (p.price != null) { sum += p.price; n++; est = est || p.est; } });
+    var sale = null;
+    chains.forEach(function (c) { var p = priceFor(name, c); if (p.price != null) { sum += p.price; n++; est = est || p.est; sale = p.sale; } });
     if (!n) return null;
-    return { price: Math.round(sum / n * 100) / 100, est: est, chain: chains.length === 1 ? chains[0] : null, group: chains.length > 1 };
+    return { price: Math.round(sum / n * 100) / 100, est: est, chain: chains.length === 1 ? chains[0] : null, group: chains.length > 1, sale: chains.length === 1 ? sale : null };
   }
   function cheapestChain(name) {
     var best = null;
     compareChains().forEach(function (c) {
       var p = priceFor(name, c);
-      if (p.price != null && (!best || p.price < best.price)) best = { chain: c, price: p.price, est: p.est };
+      if (p.price != null && (!best || p.price < best.price)) best = { chain: c, price: p.price, est: p.est, sale: p.sale };
     });
     return best;
   }
@@ -436,7 +444,8 @@
     var kg = perKg(it.name);
     var txt = kg ? eur(p.price / kg.amount) + "/" + kg.unit : eur(p.price * q);
     return el("span", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
-      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : "")
+      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : ""),
+      chain && p.sale ? el("b", { class: "sale", text: "akcija " + (kg ? eur(p.sale / kg.amount) : eur(p.sale * q)) }) : null
     ]);
   }
   // Sir, meso, ribe ipd. so v zelo različnih pakiranjih: pokažemo ceno na kg (izdelki na kg vedno).
