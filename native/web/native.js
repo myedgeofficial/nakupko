@@ -68,6 +68,33 @@
   try { Object.defineProperty(navigator, "geolocation", { value: geo, configurable: true }); geoOverridden = navigator.geolocation === geo; }
   catch (e) { /* ostane spletna lokacija */ }
 
+  // ---------- Skupen seznam: EventSource prek rednega branja ----------
+  // V iOS aplikaciji (capacitor://) se tok do Firebase ne vzpostavi in seznam ostane »Ni povezave«.
+  // Zato household.js namesto toka dobi enako obliko dogodkov z branjem vsake 3 s.
+  function PollSource(u) {
+    var self = this, last = null, timer = null, stopped = false, handlers = {};
+    self.url = u; self.onerror = null;
+    self.addEventListener = function (t, fn) { (handlers[t] = handlers[t] || []).push(fn); };
+    self.close = function () { stopped = true; clearTimeout(timer); };
+    function emit(t, data) { (handlers[t] || []).forEach(function (fn) { fn({ type: t, data: data }); }); }
+    function tick() {
+      if (stopped) return;
+      if (document.hidden) { timer = setTimeout(tick, 3000); return; }
+      fetch(u, { cache: "no-store" }).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        return r.text();
+      }).then(function (t) {
+        if (stopped) return;
+        if (t !== last) { last = t; emit("put", JSON.stringify({ path: "/", data: JSON.parse(t) })); }
+      }).catch(function () {
+        last = null;
+        if (!stopped && self.onerror) self.onerror({ type: "error" });
+      }).then(function () { if (!stopped) timer = setTimeout(tick, 3000); });
+    }
+    tick();
+  }
+  window.EventSource = PollSource;
+
   // ---------- Odprti izdelki po oddelkih (vrstni red kot pot po trgovini) ----------
   var CATS = [
     ["Sadje in zelenjava", "🥦"], ["Kruh in pecivo", "🥖"], ["Mlečni izdelki", "🥛"], ["Meso in ribe", "🥩"],
@@ -101,6 +128,62 @@
       });
   }
 
+  // ---------- Stikalo »Obvestilo, ko je trgovina blizu« (največ 1× na 15 min) ----------
+  var NEAR_KEY = "nakupko.nearNotify";
+  function nearNotifyOn() { try { return localStorage.getItem(NEAR_KEY) !== "0"; } catch (e) { return true; } }
+  function nearSwitch() {
+    var tip = document.getElementById("btnTip"), row = tip && tip.closest(".set-row");
+    if (!row || document.getElementById("btnNear")) return;
+    var r = document.createElement("div");
+    r.className = "set-row";
+    r.innerHTML = '<div class="set-text"><b>Obvestilo »trgovina je blizu«</b>' +
+      '<span class="muted small">Ko greš mimo trgovine. Največ enkrat na 15 minut. Seznam ob prihodu v trgovino deluje tudi brez tega.</span></div>' +
+      '<button id="btnNear" class="switch" type="button" role="switch" aria-label="Obvestilo trgovina je blizu"></button>';
+    row.parentNode.insertBefore(r, row);
+    var b = document.getElementById("btnNear");
+    function paint() { b.setAttribute("aria-checked", nearNotifyOn() ? "true" : "false"); }
+    paint();
+    b.onclick = function () {
+      try { localStorage.setItem(NEAR_KEY, nearNotifyOn() ? "0" : "1"); } catch (e) { /* ni shrambe */ }
+      paint(); sync();
+    };
+  }
+  window.addEventListener("DOMContentLoaded", nearSwitch);
+
+  // ---------- Skupen seznam: vidna oznaka nad seznamom (s kom je povezan) ----------
+  var hhKnown = null;
+  function hhBadge() {
+    var hh = window.__nakupkoHousehold ? window.__nakupkoHousehold() : null;
+    var head = document.querySelector("#countOpen") && document.querySelector("#countOpen").closest(".card-head");
+    var b = document.getElementById("hhBadge");
+    if (!hh || !head) { if (b) b.remove(); hhKnown = null; return; }
+    if (!b) {
+      b = document.createElement("button");
+      b.id = "hhBadge"; b.type = "button"; b.className = "hh-badge";
+      b.onclick = function () { var t = document.querySelector('[data-tab="stores"]'); if (t) t.click(); var c = document.getElementById("hhCard"); if (c) setTimeout(function () { c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 100); };
+      head.parentNode.insertBefore(b, head.nextSibling);
+    }
+    fetch(hh.url + "/h/" + hh.code + "/members.json", { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (m) {
+      var others = Object.keys(m || {}).filter(function (k) { return k !== hh.member && m[k]; })
+        .map(function (k) { return m[k].name || "Član"; });
+      b.classList.remove("off");
+      b.textContent = others.length ? "👥 Skupen seznam z: " + others.join(", ") : "👥 Skupen seznam · čakam, da se pridruži še kdo";
+      if (hhKnown) others.filter(function (n) { return hhKnown.indexOf(n) < 0; }).forEach(function (n) {
+        var api = window.__nakupko; if (api && api.toast) api.toast("👥 " + n + " je zdaj na tvojem seznamu");
+      });
+      hhKnown = others;
+    }).catch(function () {
+      b.classList.add("off");
+      b.textContent = "👥 Skupen seznam · ni povezave";
+    });
+  }
+  window.addEventListener("load", function () { setTimeout(hhBadge, 600); });
+  setInterval(function () { if (!document.hidden) hhBadge(); }, 15000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(hhBadge, 300); });
+
   // ---------- Sinhronizacija z iPhonom (spremljanje trgovin v ozadju) ----------
   var lastSent = "";
   function sync() {
@@ -109,7 +192,7 @@
     var s = api.state();
     // Brez naročnine Nakupko Plus (če jo ta način zahteva) iPhone trgovin v ozadju ne spremlja.
     var on = !!(s.settings && s.settings.locOn) && !(window.__nakupkoPlus && window.__nakupkoPlus.locked("background"));
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn() };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
@@ -201,12 +284,32 @@
     }).catch(function () {});
   }
 
-  // Velikost prikaza (Mlajši / Srednja leta / Starejši): povečamo celo stran prek iPhona.
+  // Ena velikost za vse (tudi za starejše): stran je 12 % večja prek viewporta – postavitev se
+  // prilagodi ožjemu zaslonu, zato se ne da premikati levo-desno. Izbire velikosti v aplikaciji ni.
+  var VIEW_ZOOM = 1.12;
+  (function () {
+    var m = document.querySelector('meta[name="viewport"]');
+    if (!m) return;
+    var w = Math.min(screen.width, screen.height);
+    m.setAttribute("content", "width=" + Math.round(w / VIEW_ZOOM) + ", initial-scale=" + VIEW_ZOOM + ", maximum-scale=" + VIEW_ZOOM + ", user-scalable=no, viewport-fit=cover");
+  })();
+  function oneSize() {
+    var api = window.__nakupko, st = api && api.state && api.state().settings;
+    if (st) st.size = "young";
+    var c = document.documentElement.classList;
+    c.remove("size-mid", "size-senior"); c.add("size-young");
+  }
+  window.addEventListener("DOMContentLoaded", function () {
+    oneSize();
+    // Uvodno vprašanje »Kako velik naj bo prikaz?« preskočimo.
+    var t = document.getElementById("obTitle"), ob = document.getElementById("onboard");
+    if (!t || !ob || !window.MutationObserver) return;
+    new MutationObserver(function () {
+      if (/Kako velik/.test(t.textContent) && !ob.classList.contains("hidden")) { ob.classList.add("hidden"); oneSize(); }
+    }).observe(ob, { attributes: true, childList: true, subtree: true, characterData: true });
+  });
   var lastZoom = 0;
   function syncZoom() {
-    var c = document.documentElement.classList;
-    // Večji prikaz že naredi CSS (zoom na body, s prelomom vrstic). Povečava cele strani
-    // prek iPhona bi jo podvojila in stran bi se dalo premikati levo-desno, zato ostane 1.
     var z = 1;
     if (z === lastZoom) return;
     lastZoom = z;
@@ -259,23 +362,136 @@
     document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
   }
-  // Gumb Akcija (iPhone 15 Pro in novejši): Apple ga ne pusti nastaviti iz aplikacije, zato pokažemo pot.
-  function actionButtonHint() {
-    var st = document.getElementById("locStatus");
-    if (!st || document.getElementById("actionHint")) return;
-    var b = document.createElement("button");
-    b.id = "actionHint"; b.type = "button"; b.className = "link small";
-    b.style.display = "block"; b.style.marginTop = "10px";
-    b.textContent = "Nakupko na gumb Akcija";
-    b.onclick = function () {
-      alert("Nastavitve iPhona → Gumb Akcija → podrsaj do »Bližnjica« → Izberi bližnjico → Nakupko → Odpri Nakupko.\n\nPotem Nakupko odpreš tako, da držiš gumb Akcija.");
+  // Hitro odpiranje: gumb Akcija in dvojni dotik zadaj. Apple tega ne pusti nastaviti iz aplikacije,
+  // zato pokažemo kratko animacijo korakov (enkrat ob prvem obisku Nastavitev, potem na tap).
+  var QUICK_KEY = "nakupko.quickOpenSeen";
+  // Vsak korak: naslov zaslona, vrstice, katero tapnemo (indeks, "plus", "done", "search", "back"), napis.
+  var FLOWS = {
+    back: [
+      { home: true, tap: 0, cap: "Odpri app Shortcuts" },
+      { sc: "all", cap: "Tapni + spodaj na sredini" },
+      { sc: "new", cap: "Zgoraj desno tapni »Edit«" },
+      { sc: "actions", cap: "Spodaj tapni »Search«" },
+      { sc: "search", cap: "Vpiši Nakupko in tapni »Odpri Nakupko«" },
+      { sc: "done", cap: "Zgoraj levo tapni ‹ in bližnjica je shranjena" },
+      { dark: true, title: "Settings", rows: ["General", "Accessibility", "Action Button", "Camera"], tap: 1, cap: "Odpri Settings → Accessibility" },
+      { dark: true, title: "Accessibility", rows: ["Read & Speak", "Audio Descriptions", "Touch", "Face ID & Attention"], tap: 2, cap: "Pomakni dol do »Physical and Motor« → Touch" },
+      { dark: true, title: "Touch", rows: ["Vibration", "Prevent Lock to End Call", "Call Audio Routing", "Back Tap"], tap: 3, cap: "Pomakni čisto dol → Back Tap" },
+      { dark: true, title: "Back Tap", rows: ["Double Tap", "Triple Tap"], tap: 0, cap: "Tapni »Double Tap« (ali Triple Tap)" },
+      { dark: true, title: "Double Tap", rows: ["None", "Screenshot", "Odpri Nakupko"], tap: 2, check: 2, cap: "Pod »Shortcuts« izberi »Odpri Nakupko«" },
+      { knock: true, cap: "Dvakrat potrkaj po hrbtu telefona in Nakupko se odpre" }
+    ],
+    action: [
+      { dark: true, title: "Settings", rows: ["General", "Accessibility", "Action Button", "Camera"], tap: 2, cap: "Odpri Settings → Action Button" },
+      { dark: true, title: "Action Button", rows: [], big: "Shortcut", cap: "Podrsaj do »Shortcut«" },
+      { dark: true, title: "Action Button", rows: [], big: "Shortcut", btn: "Choose a Shortcut…", tap: "btn", cap: "Tapni »Choose a Shortcut«" },
+      { dark: true, title: "Shortcuts", rows: ["Notes", "Nakupko", "Clock"], tap: 1, cap: "Tapni »Nakupko«" },
+      { dark: true, title: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, check: 0, cap: "Izberi »Odpri Nakupko«" },
+      { press: true, cap: "Drži gumb Action Button in Nakupko se odpre" }
+    ]
+  };
+  function quickScreen(st) {
+    if (st.home) {
+      var apps = ["⚡️|Shortcuts", "⚙️|Settings", "📷|Camera", "🧺|Nakupko"];
+      return '<div class="qo-home">' + apps.map(function (a, i) {
+        var x = a.split("|");
+        return '<div class="qo-app' + (i === st.tap ? " qo-hit" : "") + '"><span>' + x[0] + '</span><small>' + x[1] + '</small></div>';
+      }).join("") + '</div>';
+    }
+    if (st.sc) {
+      var hit = ' qo-hit';
+      if (st.sc === "all") return '<div class="qo-sc"><div class="qo-sc-top"><i>‹</i><i class="pill">Select</i></div><b class="qo-sc-h">All Shortcuts</b>' +
+        '<div class="qo-sc-search">🔍 Search</div><div class="qo-sc-tiles"><span>Jarvis</span><span class="pink">Time of Day</span></div>' +
+        '<div class="qo-sc-plus' + hit + '">+</div></div>';
+      if (st.sc === "new") return '<div class="qo-sc"><div class="qo-sc-top"><i>‹</i><small>New Shortcut</small><i class="pill' + hit + '">Edit</i></div>' +
+        '<div class="qo-sc-ask">What do you want your shortcut to do?</div><div class="qo-sc-desc">Describe a shortcut</div></div>';
+      if (st.sc === "actions") return '<div class="qo-sc"><div class="qo-sc-top"><i>‹</i><small>New Shortcut</small><i></i></div>' +
+        '<p class="qo-sc-note">Add actions from below to create a shortcut.</p><div class="qo-sc-sheet"><div class="qo-sc-search' + hit + '">🔍 Search</div>' +
+        '<div class="qo-sc-act">💬 Send Message</div><div class="qo-sc-act">↗ Open App</div></div></div>';
+      if (st.sc === "search") return '<div class="qo-sc"><div class="qo-sc-sheet top"><div class="qo-sc-search">🔍 <span class="qo-type">Nakupko</span></div>' +
+        '<div class="qo-sc-app">🧺 Nakupko</div><div class="qo-sc-act' + hit + '">🧺 Odpri Nakupko</div></div></div>';
+      return '<div class="qo-sc"><div class="qo-sc-top"><i class="' + hit.trim() + '">‹</i><small>Odpri Nakupko</small><i></i></div>' +
+        '<div class="qo-sc-act" style="margin-top:20px">🧺 Odpri Nakupko</div></div>';
+    }
+    if (st.knock || st.press) {
+      return '<div class="qo-end"><div class="qo-phone-back' + (st.press ? " qo-side" : "") + '">' +
+        (st.knock ? '<i class="qo-ripple"></i><i class="qo-ripple qo-r2"></i>' : '<i class="qo-btn"></i>') +
+        '</div><div class="qo-open">🧺 Nakupko</div></div>';
+    }
+    var h = '<div class="qo-bar"><span>' + (st.tap === "back" ? "‹" : "") + '</span><b>' + st.title + '</b>' +
+      '<span class="' + (st.tap === "plus" ? "qo-hit" : "") + '">' + (st.tap === "plus" ? "+" : st.tap === "done" ? "" : "") + '</span>' +
+      (st.tap === "done" ? '<span class="qo-done qo-hit">Done</span>' : "") + '</div>';
+    if (st.search) h += '<div class="qo-search">🔍 <span class="qo-type">' + st.search + '</span></div>';
+    if (st.big) h += '<div class="qo-big">⚡️<br>' + st.big + '</div>';
+    if (st.btn) h += '<div class="qo-btn2' + (st.tap === "btn" ? " qo-hit" : "") + '">' + st.btn + '</div>';
+    h += st.rows.map(function (r, i) {
+      return '<div class="qo-row' + (i === st.tap ? " qo-hit" : "") + '">' + r + (i === st.check ? '<span class="qo-check">✓</span>' : '<span class="qo-chev">›</span>') + '</div>';
+    }).join("");
+    return h;
+  }
+  function quickPlayer(box) {
+    var flow = "back", i = 0, timer = null;
+    var phone = box.querySelector(".qo-screen"), cap = box.querySelector(".qo-cap"), dots = box.querySelector(".qo-dots");
+    function show() {
+      var steps = FLOWS[flow], st = steps[i];
+      phone.classList.remove("qo-in"); void phone.offsetWidth;
+      phone.innerHTML = quickScreen(st);
+      phone.classList.toggle("qo-dk", !!(st.sc || st.dark));
+      phone.classList.add("qo-in");
+      cap.textContent = (i + 1) + ". " + st.cap;
+      dots.innerHTML = steps.map(function (_, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>'; }).join("");
+      clearTimeout(timer);
+      if (!paused) timer = setTimeout(function () { i = (i + 1) % steps.length; show(); }, st.knock || st.press ? 6000 : 4500);
+    }
+    var paused = false;
+    function go(d) { paused = true; var n = FLOWS[flow].length; i = (i + d + n) % n; show(); }
+    box.querySelector(".qo-prev").onclick = function () { go(-1); };
+    box.querySelector(".qo-next").onclick = function () { go(1); };
+    box.querySelectorAll(".qo-tab").forEach(function (b) {
+      b.onclick = function () {
+        flow = b.dataset.flow; i = 0; paused = false;
+        box.querySelectorAll(".qo-tab").forEach(function (x) { x.classList.toggle("on", x === b); });
+        show();
+      };
+    });
+    phone.onclick = function () { go(1); };
+    return { start: show, stop: function () { clearTimeout(timer); } };
+  }
+  function quickOpenCard() {
+    var card = document.querySelector("#tab-stores .card.settings");
+    if (!card || document.getElementById("quickOpen")) return;
+    var seen = false;
+    try { seen = localStorage.getItem(QUICK_KEY) === "1"; } catch (e) { /* ni shrambe */ }
+    var box = document.createElement("div");
+    box.id = "quickOpen"; box.className = "card";
+    box.innerHTML =
+      '<button id="quickOpenHead" type="button" class="link" style="padding:0;font-weight:700">Hitro odpiranje Nakupka</button>' +
+      '<div id="quickOpenBody" style="margin-top:10px">' +
+      '<div class="qo-tabs"><button type="button" class="qo-tab on" data-flow="back">Dotik zadaj</button><button type="button" class="qo-tab" data-flow="action">Gumb Akcija</button></div>' +
+      '<div class="qo-phone"><div class="qo-screen"></div></div>' +
+      '<div class="qo-nav"><button type="button" class="qo-prev" aria-label="Nazaj">‹</button><div class="qo-dots"></div><button type="button" class="qo-next" aria-label="Naprej">›</button></div><p class="qo-cap"></p>' +
+      '<button id="quickOpenOk" type="button" class="primary">V redu</button></div>';
+    card.parentNode.insertBefore(box, card.nextSibling);
+    var body = document.getElementById("quickOpenBody"), player = quickPlayer(box);
+    function setOpen(o) { body.style.display = o ? "" : "none"; if (o) player.start(); else player.stop(); }
+    setOpen(!seen);
+    document.getElementById("quickOpenHead").onclick = function () { setOpen(body.style.display === "none"); };
+    document.getElementById("quickOpenOk").onclick = function () {
+      setOpen(false);
+      try { localStorage.setItem(QUICK_KEY, "1"); } catch (e) { /* ni shrambe */ }
     };
-    st.parentNode.appendChild(b);
+  }
+
+  // Razdalja in zamik sta za vse enaka (preizkušeno najbolj tekoče), drsnikov v aplikaciji ni.
+  function fixedDetection() {
+    var api = window.__nakupko, st = api && api.state && api.state().settings;
+    if (!st) return;
+    st.radius = 75; st.delay = 10;
   }
 
   function showBackgroundStatus() {
     if (!isIOS) return;
-    actionButtonHint();
+    quickOpenCard();
     var st = document.getElementById("locStatus");
     var api = window.__nakupko;
     var on = api && api.state && (api.state().settings || {}).locOn;
@@ -342,13 +558,14 @@
     box.textContent = "Seznam na zaklenjenem zaslonu: " + (s.liveToken ? "pripravljen" : "ni žetona (odpri aplikacijo)") + "\n" + (lines.length ? lines.join("\n") : "Še ni zaznanih trgovin.");
   }
   function diag(text) {
-    var st = document.getElementById("locStatus");
-    if (!st) return;
+    var st = document.getElementById("locStatus"), api = window.__nakupko;
     var d = document.getElementById("geoDiag");
+    // Tehnični podatki samo v razvijalskem načinu (7 tapov na »Cene«).
+    if (!st || !(api && api.state && (api.state().settings || {}).dev)) { if (d) d.remove(); return; }
     if (!d) { d = document.createElement("div"); d.id = "geoDiag"; d.className = "small muted"; d.style.marginTop = "4px"; st.parentNode.appendChild(d); }
     d.textContent = text;
   }
-  window.addEventListener("load", function () { setTimeout(showBackgroundStatus, 1500); });
+  window.addEventListener("load", function () { fixedDetection(); quickOpenCard(); setTimeout(showBackgroundStatus, 1500); });
   setInterval(showBackgroundStatus, 5000);
 
   // Navodila za dovoljenje naj kažejo na aplikacijo, ne na Safari.
