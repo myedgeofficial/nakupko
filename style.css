@@ -168,10 +168,11 @@ input[type=text], input[type=search], textarea {
 .done .check { background: var(--brand); border-color: var(--brand); color: #fff; }
 .done .iname { text-decoration: line-through; color: var(--muted); }
 .ibody { flex: 1; min-width: 0; }
-.iname { font-weight: 620; font-size: 16.5px; overflow-wrap: anywhere; }
+.iname { font-weight: 620; font-size: 16.5px; overflow-wrap: break-word; }
 .imeta { font-size: 13px; color: var(--muted); margin-top: 1px; }
 .price { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; background: var(--surface-2); border-radius: 999px; padding: 5px 10px; white-space: nowrap; }
 .price.est { font-weight: 550; color: var(--muted); }
+.price .sale { color: #C4320A; font-weight: 700; }
 .del { border: 0; background: none; color: var(--muted); padding: 6px; border-radius: 10px; display: grid; place-items: center; opacity: .7; }
 .del svg { width: 17px; height: 17px; }
 .empty { color: var(--muted); text-align: center; margin: 14px 0 6px; }
@@ -407,3 +408,12 @@ details.card[open] > summary { margin-bottom: 12px; }
 .hh-code { font-size: 18px; margin: 0 0 4px; letter-spacing: .04em; }
 .hh-join { margin-top: 10px; }
 #hhBox .row { align-items: center; margin-top: 10px; }
+
+/* Ime izdelka čez vso širino, cena (in akcija) pod njim: besede se ne lomijo. */
+.list li.item { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; }
+.list li.item > .check { grid-column: 1; grid-row: 1 / span 2; }
+.list li.item > .check + * { grid-column: 2; grid-row: 1 / span 2; }
+.list li.item > .ibody { grid-column: 3; grid-row: 1; align-self: end; }
+.list li.item > .price { grid-column: 3; grid-row: 2; justify-self: start; align-self: start; font-size: 13px; padding: 3px 9px; }
+.list li.item > .del { grid-column: 4; grid-row: 1 / span 2; }
+.list li.item:not(:has(> .price)) > .ibody { grid-row: 1 / span 2; align-self: center; }

@@ -44,8 +44,8 @@ function pack(unit) {
   return { kind: "l", amount: n };
 }
 // cena na kg/l za ponudbo trgovine
-function perUnit(prod, sp, kind) {
-  const eff = sp.actionPrice ?? sp.regularPrice;
+function perUnit(prod, sp, kind, price) {
+  const eff = price ?? sp.actionPrice ?? sp.regularPrice;
   if (!(eff > 0)) return null;
   const u = String(prod.unit || "").toLowerCase(), q = Number(prod.quantity);
   const k = u === "g" || u === "kg" ? "kg" : u === "ml" || u === "l" ? "l" : null;
@@ -135,15 +135,21 @@ async function pricesFor(p) {
   const pk = pack(unit);
   const byStore = {};
   const sale = {};
+  // vedno redna cena; akcijska cena posebej (aplikacija jo pokaže kot »akcija«)
   for (const prod of found) {
     for (const sp of prod.storePrices || []) {
       const st = STORES[sp.storeSlug];
       if (!st) continue;
-      let v;
-      if (pk.kind === "kos") v = sp.actionPrice ?? sp.regularPrice;
-      else { const u = perUnit(prod, sp, pk.kind); v = u == null ? null : u * pk.amount; }
+      const reg = sp.regularPrice ?? sp.actionPrice;
+      const act = sp.actionPrice != null && sp.actionPrice < reg ? sp.actionPrice : null;
+      let v, a = null;
+      if (pk.kind === "kos") { v = reg; a = act; }
+      else {
+        const u = perUnit(prod, sp, pk.kind, reg); v = u == null ? null : u * pk.amount;
+        if (act != null) { const ua = perUnit(prod, sp, pk.kind, act); a = ua == null ? null : ua * pk.amount; }
+      }
       if (!(v > 0)) continue;
-      (byStore[st] = byStore[st] || []).push({ v, sale: sp.actionPrice != null && sp.actionPrice < sp.regularPrice, starts: norm(prod.name).startsWith(first) });
+      (byStore[st] = byStore[st] || []).push({ v, a, starts: norm(prod.name).startsWith(first) });
     }
   }
   const cene = {};
@@ -153,13 +159,14 @@ async function pricesFor(p) {
     const vals = list.map((x) => x.v);
     const v = quantile(vals, pk.kind === "kos" ? 0.5 : 0.25);
     cene[st] = Math.round(v * 100) / 100;
-    if (list.some((x) => x.sale && Math.abs(x.v - v) < 0.01)) sale[st] = 1;
+    const onSale = list.filter((x) => x.a > 0 && Math.abs(x.v - v) < 0.01).map((x) => x.a);
+    if (onSale.length) sale[st] = Math.round(Math.min(...onSale) * 100) / 100;
   }
   if (!Object.keys(cene).length) return null;
   // nesmiselne odstopanje (napačen zadetek): zavrži cene, ki so >4× od mediane trgovin
   const med = quantile(Object.values(cene), 0.5);
   for (const st of Object.keys(cene)) if (cene[st] > med * 2.5 || cene[st] < med / 2.5) { delete cene[st]; delete sale[st]; }
-  return { ime: name, cene, akcija: Object.keys(sale) };
+  return { ime: name, cene, akcija: sale };
 }
 
 // Cena po znamki (npr. Energijska pijača · Red Bull): splošna cena izdelka vključuje tudi trgovske
@@ -195,20 +202,24 @@ async function brandPrices(p, brand) {
     const top = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0];
     found = found.filter((prod) => String(prod.unit) + ":" + prod.quantity === top);
   }
-  const byStore = {};
+  const byStore = {}, acts = {};
   for (const prod of found) {
     for (const sp of prod.storePrices || []) {
       const st = STORES[sp.storeSlug];
       const reg = sp.regularPrice ?? sp.actionPrice;
       if (st && reg > 0) (byStore[st] = byStore[st] || []).push(reg);
+      if (st && sp.actionPrice > 0 && sp.actionPrice < reg) (acts[st] = acts[st] || []).push(sp.actionPrice);
     }
   }
-  const cene = {};
+  const cene = {}, akcija = {};
   for (const [st, vals] of Object.entries(byStore)) cene[st] = Math.round(quantile(vals, 0.5) * 100) / 100;
   if (!Object.keys(cene).length) return null;
   const med = quantile(Object.values(cene), 0.5);
   for (const st of Object.keys(cene)) if (cene[st] > med * 2.5 || cene[st] < med / 2.5) delete cene[st];
-  return { ime: name, znamka: brand, cene };
+  for (const st of Object.keys(cene)) if (acts[st]) { const a = Math.min(...acts[st]); if (a < cene[st]) akcija[st] = Math.round(a * 100) / 100; }
+  const out = { ime: name, znamka: brand, cene };
+  if (Object.keys(akcija).length) out.akcija = akcija;
+  return out;
 }
 const brandJobs = [];
 for (const p of catalog) {
@@ -242,7 +253,7 @@ await Promise.all([brandWorker(), brandWorker(), brandWorker()]);
 console.log(`Znamke: ${brandJobs.length} poizvedb, s cenami: ${brandResults.length}`);
 // povzetek na strani workflowa (preverjanje cen po znamkah)
 const brandShow = brandResults.filter((r) => /^(Red Bull|Monster|Coca-Cola|Milka|Barcaffe|Pepsi|Jana|Radenska)$/.test(r.znamka) || (r.znamka === "Ljubljanske mlekarne" && /Gauda|Mleko$|Jogurt/.test(r.ime))).slice(0, 15);
-console.log(`::notice title=Cene po znamkah::${brandResults.length} od ${brandJobs.length} znamk. ` + brandShow.map((r) => `${r.ime} · ${r.znamka}: ${Object.entries(r.cene).map(([k, v]) => k + " " + v).join(", ")}`).join(" | "));
+console.log(`::notice title=Cene po znamkah::${brandResults.length} od ${brandJobs.length} znamk. ` + brandShow.map((r) => `${r.ime} · ${r.znamka}: ${Object.entries(r.cene).map(([k, v]) => k + " " + v + (r.akcija && r.akcija[k] ? " (akcija " + r.akcija[k] + ")" : "")).join(", ")}`).join(" | "));
 for (const r of brandResults.filter((r) => /Red Bull|Monster|Coca|Milka|Barcaffe/.test(r.znamka)).slice(0, 12)) console.log(" ", r.ime, "·", r.znamka, JSON.stringify(r.cene));
 
 console.log("Oddelki vira:", JSON.stringify(Object.entries(CATS).sort((a, b) => b[1] - a[1]).slice(0, 60)));
@@ -263,8 +274,8 @@ for (const r of results) {
   // stare cene ostanejo le za trgovine, ki jih vir nocoj sploh ni vrnil (izpad); sicer veljajo samo sveže
   const keep = Object.fromEntries(Object.entries(prev.cene).filter(([st]) => !seenStores.has(st)));
   const next = { ime: r.ime, cene: { ...keep, ...r.cene } };
-  if (r.akcija.length) next.akcija = r.akcija;
-  if (JSON.stringify(prev.cene) !== JSON.stringify(next.cene) || JSON.stringify(prev.akcija || []) !== JSON.stringify(next.akcija || [])) changed++;
+  if (Object.keys(r.akcija).length) next.akcija = r.akcija;
+  if (JSON.stringify(prev.cene) !== JSON.stringify(next.cene) || JSON.stringify(prev.akcija || {}) !== JSON.stringify(next.akcija || {})) changed++;
   map.set(k, next);
 }
 // ohrani akcije samo za osvežene izdelke
@@ -286,4 +297,4 @@ fs.writeFileSync(ROOT + "prices.js",
   `// Cene se osvežijo vsako noč ob ~3h (scripts/update-prices.mjs). Vir: polnakosarica.si (Spar, Mercator, Lidl, Hofer, Eurospin, Tuš).\nwindow.NAKUPKO_PRICES = ${JSON.stringify(out)};\n`);
 console.log(`Spremenjenih izdelkov: ${changed}, skupaj s cenami: ${izdelki.length}`);
 const SHOW = /^(Banane|Lubenica|Paprika|Por|Sir |Mozzarella|Parmezan|Feta|Mleto|Pi..an|Hrenovke|Pr.ut|.unka|Jajca|Kruh|Kava|Pivo|Maslo|Jogurt)/;
-for (const r of results.filter((r) => SHOW.test(r.ime))) console.log(" ", r.ime, JSON.stringify(r.cene), r.akcija.length ? "akcija:" + r.akcija.join(",") : "");
+for (const r of results.filter((r) => SHOW.test(r.ime))) console.log(" ", r.ime, JSON.stringify(r.cene), Object.keys(r.akcija).length ? "akcija:" + JSON.stringify(r.akcija) : "");
