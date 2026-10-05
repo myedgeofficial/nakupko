@@ -162,6 +162,60 @@ async function pricesFor(p) {
   return { ime: name, cene, akcija: Object.keys(sale) };
 }
 
+// Cena po znamki (npr. Energijska pijača · Red Bull): splošna cena izdelka vključuje tudi trgovske
+// znamke in akcije, zato je za znane znamke prenizka. Tu: redna cena (brez akcije), mediana,
+// raje točno tako pakiranje kot v katalogu.
+async function brandPrices(p, brand) {
+  const [name, , , , unit] = p;
+  const bw = norm(brand).split(" ").filter(Boolean);
+  if (!bw.length) return null;
+  const pw = norm(name).split(" ").filter((w) => w.length >= 3).map(stem);
+  const nn = norm(name);
+  const all = (await search(brand)).filter((prod) => {
+    const n = norm(prod.name), toks = n.split(" ");
+    if (!bw.every((w) => toks.includes(w))) return false;
+    return !BAD.some((b) => n.includes(b) && !nn.includes(b));
+  });
+  // ime izdelka mora biti v nazivu (»Gauda«, ne katerikoli sir te znamke);
+  // le pijače so pogosto poimenovane samo z znamko (»Red Bull 0,25 l«)
+  let found = all.filter((prod) => { const toks = norm(prod.name).split(" "); return pw.every((w) => toks.some((t) => t.startsWith(w))); });
+  if (!found.length && p[1] === "Pijače") found = all.filter((prod) => CAT_RE["Pijače"].test(norm(prod.category_name)));
+  if (!found.length) return null;
+  // pakiranje: kot v katalogu, sicer najpogostejše pakiranje te znamke (cena, ki jo plačaš na polici)
+  const pk = pack(unit);
+  const amountOf = (prod) => {
+    const u = String(prod.unit || "").toLowerCase(), q = Number(prod.quantity);
+    return u === "g" || u === "ml" ? q / 1000 : q;
+  };
+  const same = found.filter((prod) => pk.kind !== "kos" && Math.abs(amountOf(prod) - pk.amount) < 1e-6);
+  if (same.length) found = same;
+  else {
+    const cnt = {};
+    for (const prod of found) { const k = String(prod.unit) + ":" + prod.quantity; cnt[k] = (cnt[k] || 0) + (prod.storePrices || []).length; }
+    const top = Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0];
+    found = found.filter((prod) => String(prod.unit) + ":" + prod.quantity === top);
+  }
+  const byStore = {};
+  for (const prod of found) {
+    for (const sp of prod.storePrices || []) {
+      const st = STORES[sp.storeSlug];
+      const reg = sp.regularPrice ?? sp.actionPrice;
+      if (st && reg > 0) (byStore[st] = byStore[st] || []).push(reg);
+    }
+  }
+  const cene = {};
+  for (const [st, vals] of Object.entries(byStore)) cene[st] = Math.round(quantile(vals, 0.5) * 100) / 100;
+  if (!Object.keys(cene).length) return null;
+  const med = quantile(Object.values(cene), 0.5);
+  for (const st of Object.keys(cene)) if (cene[st] > med * 2.5 || cene[st] < med / 2.5) delete cene[st];
+  return { ime: name, znamka: brand, cene };
+}
+const brandJobs = [];
+for (const p of catalog) {
+  const groups = [...new Set((p[2] || []).map((b) => String(b).split("›")[0].trim()).filter(Boolean))];
+  for (const g of groups) brandJobs.push([p, g]);
+}
+
 // --- zagon (3 hkrati, vljudno do strežnika) ---
 const results = [];
 let idx = 0;
@@ -174,6 +228,22 @@ async function worker() {
   }
 }
 await Promise.all([worker(), worker(), worker()]);
+const brandResults = [];
+let bidx = 0;
+async function brandWorker() {
+  while (bidx < brandJobs.length) {
+    const [p, g] = brandJobs[bidx++];
+    const r = await brandPrices(p, g).catch(() => null);
+    if (r) brandResults.push(r);
+    await new Promise((res) => setTimeout(res, 300));
+  }
+}
+await Promise.all([brandWorker(), brandWorker(), brandWorker()]);
+console.log(`Znamke: ${brandJobs.length} poizvedb, s cenami: ${brandResults.length}`);
+// povzetek na strani workflowa (preverjanje cen po znamkah)
+const brandShow = brandResults.filter((r) => /^(Red Bull|Monster|Coca-Cola|Milka|Barcaffe|Pepsi|Jana|Radenska)$/.test(r.znamka) || (r.znamka === "Ljubljanske mlekarne" && /Gauda|Mleko$|Jogurt/.test(r.ime))).slice(0, 15);
+console.log(`::notice title=Cene po znamkah::${brandResults.length} od ${brandJobs.length} znamk. ` + brandShow.map((r) => `${r.ime} · ${r.znamka}: ${Object.entries(r.cene).map(([k, v]) => k + " " + v).join(", ")}`).join(" | "));
+for (const r of brandResults.filter((r) => /Red Bull|Monster|Coca|Milka|Barcaffe/.test(r.znamka)).slice(0, 12)) console.log(" ", r.ime, "·", r.znamka, JSON.stringify(r.cene));
 
 console.log("Oddelki vira:", JSON.stringify(Object.entries(CATS).sort((a, b) => b[1] - a[1]).slice(0, 60)));
 console.log(`Katalog: ${catalog.length}, z novimi cenami: ${results.length}`);
@@ -184,7 +254,8 @@ if (results.length < 150) blocked(`polnakosarica.si vrača premalo zadetkov (${r
 // --- združi s starimi (trgovina brez nove cene obdrži staro) ---
 const seenStores = new Set(results.flatMap((r) => Object.keys(r.cene)));
 const map = new Map();
-for (const e of old.izdelki || []) map.set(norm(e.ime), { ime: e.ime, cene: { ...e.cene } });
+const keyOf = (e) => norm(e.ime) + (e.znamka ? "|" + norm(e.znamka) : "");
+for (const e of old.izdelki || []) if (!e.znamka) map.set(keyOf(e), { ime: e.ime, cene: { ...e.cene } });
 let changed = 0;
 for (const r of results) {
   const k = norm(r.ime);
@@ -200,9 +271,13 @@ for (const r of results) {
 const fresh = new Set(results.map((r) => norm(r.ime)));
 for (const [k, e] of map) if (!fresh.has(k)) delete e.akcija;
 
-const izdelki = [...map.values()].sort((a, b) => a.ime.localeCompare(b.ime, "sl"));
+// cene po znamkah: sveže; če znamke nocoj ni, ostane včerajšnja
+const brandMap = new Map();
+for (const e of old.izdelki || []) if (e.znamka) brandMap.set(keyOf(e), e);
+for (const r of brandResults) brandMap.set(keyOf(r), r);
+const izdelki = [...map.values(), ...brandMap.values()].sort((a, b) => a.ime.localeCompare(b.ime, "sl") || (a.znamka || "").localeCompare(b.znamka || "", "sl"));
 const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Ljubljana" });
-const same = JSON.stringify(izdelki) === JSON.stringify((old.izdelki || []).slice().sort((a, b) => a.ime.localeCompare(b.ime, "sl")));
+const same = JSON.stringify(izdelki) === JSON.stringify((old.izdelki || []).slice().sort((a, b) => a.ime.localeCompare(b.ime, "sl") || (a.znamka || "").localeCompare(b.znamka || "", "sl")));
 if (same) console.log("Cene so enake kot včeraj.");
 // datum = zadnja sprememba cen (po njem aplikacija ve, da so novejše), preverjeno = zadnji uspešen pregled
 const out = { datum: same && old.datum ? old.datum : today, preverjeno: today, vir: "polnakosarica.si", izdelki };
