@@ -258,23 +258,44 @@
     document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
   }
-  // Gumb Akcija (iPhone 15 Pro in novejši): Apple ga ne pusti nastaviti iz aplikacije, zato pokažemo pot.
-  function actionButtonHint() {
-    var st = document.getElementById("locStatus");
-    if (!st || document.getElementById("actionHint")) return;
-    var b = document.createElement("button");
-    b.id = "actionHint"; b.type = "button"; b.className = "link small";
-    b.style.display = "block"; b.style.marginTop = "10px";
-    b.textContent = "Nakupko na gumb Akcija";
-    b.onclick = function () {
-      alert("Nastavitve iPhona → Gumb Akcija → podrsaj do »Bližnjica« → Izberi bližnjico → Nakupko → Odpri Nakupko.\n\nPotem Nakupko odpreš tako, da držiš gumb Akcija.");
+  // Hitro odpiranje: gumb Akcija in dvojni dotik zadaj. Apple tega ne pusti nastaviti iz aplikacije,
+  // zato navodila pokažemo enkrat ob prvem obisku Nastavitev, potem ostane le povezava.
+  var QUICK_KEY = "nakupko.quickOpenSeen";
+  function quickOpenCard() {
+    var card = document.querySelector("#tab-stores .card.settings");
+    if (!card || document.getElementById("quickOpen")) return;
+    var seen = false;
+    try { seen = localStorage.getItem(QUICK_KEY) === "1"; } catch (e) { /* ni shrambe */ }
+    var box = document.createElement("div");
+    box.id = "quickOpen"; box.className = "card";
+    box.innerHTML =
+      '<button id="quickOpenHead" type="button" class="link" style="padding:0;font-weight:700">Hitro odpiranje Nakupka</button>' +
+      '<div id="quickOpenBody" class="small" style="margin-top:8px;line-height:1.5">' +
+      '<p style="margin:0 0 8px"><b>1. Bližnjica</b> (enkrat): app <b>Bližnjice</b> → <b>+</b> → Dodaj dejanje → poišči <b>Nakupko</b> → <b>Odpri Nakupko</b> → Končano.</p>' +
+      '<p style="margin:0 0 8px"><b>2. Dvojni dotik zadaj:</b> Nastavitve iPhona → Dostopnost → Dotik → <b>Dotik zadaj</b> → Dvojni dotik → izberi bližnjico »Odpri Nakupko«.</p>' +
+      '<p style="margin:0 0 10px"><b>Gumb Akcija</b> (iPhone 15 Pro in novejši): Nastavitve iPhona → Gumb Akcija → Bližnjica → Nakupko → Odpri Nakupko.</p>' +
+      '<button id="quickOpenOk" type="button" class="primary">V redu</button></div>';
+    card.parentNode.insertBefore(box, card.nextSibling);
+    var body = document.getElementById("quickOpenBody");
+    function setOpen(o) { body.style.display = o ? "" : "none"; }
+    setOpen(!seen);
+    document.getElementById("quickOpenHead").onclick = function () { setOpen(body.style.display === "none"); };
+    document.getElementById("quickOpenOk").onclick = function () {
+      setOpen(false);
+      try { localStorage.setItem(QUICK_KEY, "1"); } catch (e) { /* ni shrambe */ }
     };
-    st.parentNode.appendChild(b);
+  }
+
+  // Razdalja in zamik sta za vse enaka (preizkušeno najbolj tekoče), drsnikov v aplikaciji ni.
+  function fixedDetection() {
+    var api = window.__nakupko, st = api && api.state && api.state().settings;
+    if (!st) return;
+    st.radius = 75; st.delay = 10;
   }
 
   function showBackgroundStatus() {
     if (!isIOS) return;
-    actionButtonHint();
+    quickOpenCard();
     var st = document.getElementById("locStatus");
     var api = window.__nakupko;
     var on = api && api.state && (api.state().settings || {}).locOn;
@@ -341,13 +362,14 @@
     box.textContent = "Seznam na zaklenjenem zaslonu: " + (s.liveToken ? "pripravljen" : "ni žetona (odpri aplikacijo)") + "\n" + (lines.length ? lines.join("\n") : "Še ni zaznanih trgovin.");
   }
   function diag(text) {
-    var st = document.getElementById("locStatus");
-    if (!st) return;
+    var st = document.getElementById("locStatus"), api = window.__nakupko;
     var d = document.getElementById("geoDiag");
+    // Tehnični podatki samo v razvijalskem načinu (7 tapov na »Cene«).
+    if (!st || !(api && api.state && (api.state().settings || {}).dev)) { if (d) d.remove(); return; }
     if (!d) { d = document.createElement("div"); d.id = "geoDiag"; d.className = "small muted"; d.style.marginTop = "4px"; st.parentNode.appendChild(d); }
     d.textContent = text;
   }
-  window.addEventListener("load", function () { setTimeout(showBackgroundStatus, 1500); });
+  window.addEventListener("load", function () { fixedDetection(); quickOpenCard(); setTimeout(showBackgroundStatus, 1500); });
   setInterval(showBackgroundStatus, 5000);
 
   // Navodila za dovoljenje naj kažejo na aplikacijo, ne na Safari.
