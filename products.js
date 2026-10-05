@@ -182,6 +182,7 @@ window.NAKUPKO_PRODUCTS = [
   ["Čokolada", "Prigrizki", ["Milka", "Gorenjka", "Lindt", "Ritter Sport"], 1.99, "100 g"],
   ["Piškoti", "Prigrizki", ["Kraš", "Leibniz", "Oreo", "Domaćica"], 1.79, "kos"],
   ["Napolitanke", "Prigrizki", ["Kraš", "Loacker", "Manner"], 1.69, "kos"],
+  ["Čokolino", "Shramba", ["Podravka"], 2.99, "400 g"],
   ["Čips", "Prigrizki", ["Chio", "Pringles", "Lay's", "Pomurka"], 2.29, "kos"],
   ["Smoki", "Prigrizki", ["Štark"], 1.29, "kos"],
   ["Palčke slane", "Prigrizki", ["Štark", "Lorenz"], 0.99, "kos"],
