@@ -256,13 +256,18 @@
   // Cene, ki jih je Nakupko poiskal na spletu (prices.js); uvožene cene jih prepišejo.
   // Cene se osvežijo vsako noč; aplikacija (tudi iPhone/Android) si sveže prenese sama.
   var BASE_PRICES = {}, PRICES_DATE = "";
+  var SALE_PRICES = {};
   function useBasePrices(data) {
     if (!data || !data.izdelki) return;
-    BASE_PRICES = {}; PRICES_DATE = data.datum || "";
+    BASE_PRICES = {}; SALE_PRICES = {}; PRICES_DATE = data.datum || "";
     data.izdelki.forEach(function (e) {
       var rec = {};
       Object.keys(e.cene || {}).forEach(function (c) { if (typeof e.cene[c] === "number" && e.cene[c] > 0) rec[c] = e.cene[c]; });
-      if (Object.keys(rec).length) BASE_PRICES[norm(e.ime)] = rec;
+      // cene po znamki (npr. Energijska pijača · Red Bull) imajo ključ »ime|znamka«
+      var k = norm(e.ime) + (e.znamka ? "|" + norm(e.znamka) : "");
+      if (Object.keys(rec).length) BASE_PRICES[k] = rec;
+      // akcijska cena (cene so vedno redne; akcija se pokaže posebej)
+      if (e.akcija && !Array.isArray(e.akcija)) SALE_PRICES[k] = e.akcija;
     });
   }
   var PRICES_URL = "https://myedgeofficial.github.io/nakupko/prices.json";
@@ -277,18 +282,40 @@
     fetch(PRICES_URL + "?d=" + new Date().toISOString().slice(0, 13), { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (!d || !d.izdelki || (d.datum || "") <= PRICES_DATE) return;
-        try { localStorage.setItem("nakupko-prices", JSON.stringify(d)); } catch (e) { /* poln */ }
+        // isti dan se cene lahko osvežijo večkrat: sprejmi tudi enak datum, če so podatki drugačni
+        if (!d || !d.izdelki || (d.datum || "") < PRICES_DATE) return;
+        var raw = JSON.stringify(d), prev = null;
+        try { prev = localStorage.getItem("nakupko-prices"); } catch (e) { /* nič */ }
+        if (raw === prev) return;
+        try { localStorage.setItem("nakupko-prices", raw); } catch (e) { /* poln */ }
         useBasePrices(d);
         renderAll();
       })
       .catch(function () { /* brez povezave */ });
   }
+  // Izdelek z znamko (Red Bull) ima svojo ceno, če jo poznamo; brez znamke velja glavna znamka, sicer cena izdelka na splošno.
+  function brandPriceKey(it) {
+    var key = norm(it.name), p = CATALOG_BY_KEY[key], b = norm(it.brand);
+    if (!p) return null;
+    // brez izbrane znamke: cena glavne znamke iz kataloga (npr. Red Bull), ne povprečje s cenenimi in akcijami
+    if (!b) {
+      var first = brandGroups(p).filter(function (x) { return BASE_PRICES[key + "|" + norm(x.name)]; })[0];
+      return first ? key + "|" + norm(first.name) : null;
+    }
+    var g = brandGroups(p).filter(function (x) { var n = norm(x.name); return b === n || b.indexOf(n + " ") === 0; })[0];
+    var k = g ? key + "|" + norm(g.name) : null;
+    return k && BASE_PRICES[k] ? k : null;
+  }
   function priceFor(name, chain) {
+    var bk = name && typeof name === "object" ? brandPriceKey(name) : null;
+    if (name && typeof name === "object") name = name.name;
     var key = norm(name);
-    var imp = Object.assign({}, BASE_PRICES[key] || {}, state.prices[key] || {});
+    var imp = Object.assign({}, BASE_PRICES[bk || key] || {}, bk ? {} : state.prices[key] || {});
     if (!Object.keys(imp).some(function (k) { return typeof imp[k] === "number"; })) imp = null;
-    if (imp && typeof imp[chain] === "number") return { price: imp[chain], est: false };
+    if (imp && typeof imp[chain] === "number") {
+      var sp = (SALE_PRICES[bk || key] || {})[chain];
+      return { price: imp[chain], est: false, sale: typeof sp === "number" && sp < imp[chain] ? sp : null };
+    }
     if (imp) {
       var vals = Object.keys(imp).map(function (k) { return imp[k]; }).filter(function (v) { return typeof v === "number"; });
       if (vals.length) {
@@ -399,17 +426,18 @@
   function prefPrice(name) {
     if (pricesOff()) return null;
     var chains = pref().chains;
-    if (!chains) { var b = cheapestChain(name); return b ? { price: b.price, est: b.est, chain: b.chain } : null; }
+    if (!chains) { var b = cheapestChain(name); return b ? { price: b.price, est: b.est, chain: b.chain, sale: b.sale } : null; }
     var sum = 0, n = 0, est = false;
-    chains.forEach(function (c) { var p = priceFor(name, c); if (p.price != null) { sum += p.price; n++; est = est || p.est; } });
+    var sale = null;
+    chains.forEach(function (c) { var p = priceFor(name, c); if (p.price != null) { sum += p.price; n++; est = est || p.est; sale = p.sale; } });
     if (!n) return null;
-    return { price: Math.round(sum / n * 100) / 100, est: est, chain: chains.length === 1 ? chains[0] : null, group: chains.length > 1 };
+    return { price: Math.round(sum / n * 100) / 100, est: est, chain: chains.length === 1 ? chains[0] : null, group: chains.length > 1, sale: chains.length === 1 ? sale : null };
   }
   function cheapestChain(name) {
     var best = null;
     compareChains().forEach(function (c) {
       var p = priceFor(name, c);
-      if (p.price != null && (!best || p.price < best.price)) best = { chain: c, price: p.price, est: p.est };
+      if (p.price != null && (!best || p.price < best.price)) best = { chain: c, price: p.price, est: p.est, sale: p.sale };
     });
     return best;
   }
@@ -419,13 +447,14 @@
   function priceChip(it, storeCtx) {
     if (pricesOff()) return null;
     var q = it.qty || 1, chain = null, p = null;
-    if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it.name, chain); if (p.price == null) p = null; }
-    if (!p) { p = prefPrice(it.name); if (p) chain = p.chain; }
+    if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it, chain); if (p.price == null) p = null; }
+    if (!p) { p = prefPrice(it); if (p) chain = p.chain; }
     if (!p) return null;
     var kg = perKg(it.name);
     var txt = kg ? eur(p.price / kg.amount) + "/" + kg.unit : eur(p.price * q);
     return el("span", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
-      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : "")
+      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : ""),
+      chain && p.sale ? el("b", { class: "sale", text: "akcija " + (kg ? eur(p.sale / kg.amount) : eur(p.sale * q)) }) : null
     ]);
   }
   // Sir, meso, ribe ipd. so v zelo različnih pakiranjih: pokažemo ceno na kg (izdelki na kg vedno).
@@ -1080,7 +1109,7 @@
     var total = open.length + done.length;
     $("smBar").style.width = (total ? Math.round(done.length / total * 100) : 100) + "%";
     var sum = 0;
-    open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it.name, activeStore.chain) : null; if (!p || p.price == null) p = prefPrice(it.name); if (p) sum += p.price * (it.qty || 1); });
+    open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it, activeStore.chain) : null; if (!p || p.price == null) p = prefPrice(it); if (p) sum += p.price * (it.qty || 1); });
     $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && !pricesOff() ? " · še ≈ " + eur(sum) : "");
     renderRecoInto($("smReco"), activeStore);
   }
@@ -1090,7 +1119,7 @@
     return compareChains().map(function (c) {
       var sum = 0, est = 0, missing = 0;
       open.forEach(function (it) {
-        var p = priceFor(it.name, c);
+        var p = priceFor(it, c);
         if (p.price == null) missing++;
         else { sum += p.price * (it.qty || 1); if (p.est) est++; }
       });
@@ -1106,7 +1135,7 @@
     if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = "Dodaj izdelke na seznam"; return; }
     if (pref().chains) {
       var total = 0;
-      open.forEach(function (it) { var p = prefPrice(it.name); if (p) total += p.price * (it.qty || 1); });
+      open.forEach(function (it) { var p = prefPrice(it); if (p) total += p.price * (it.qty || 1); });
       $("heroTotal").textContent = "≈ " + eur(total);
       var grp = compareRows(open).filter(function (r) { return pref().chains.indexOf(r.c) >= 0; });
       $("heroBest").innerHTML = "";
@@ -1116,7 +1145,7 @@
         var t2 = 0, n2 = 0;
         open.forEach(function (it) {
           var s = 0, n = 0;
-          pref2().chains.forEach(function (c) { var p = priceFor(it.name, c); if (p.price != null) { s += p.price; n++; } });
+          pref2().chains.forEach(function (c) { var p = priceFor(it, c); if (p.price != null) { s += p.price; n++; } });
           if (n) { t2 += s / n * (it.qty || 1); n2++; }
         });
         if (n2) $("heroBest").appendChild(el("div", { class: "hero-alt", text: pref2().short + " ≈ " + eur(t2) }));
@@ -1344,7 +1373,7 @@
     cand.forEach(function (x) {
       var c = x.s.chain;
       if (cost[c] != null) return;
-      price[c] = open.map(function (it) { var p = priceFor(it.name, c); return p.price == null ? null : p.price * (it.qty || 1); });
+      price[c] = open.map(function (it) { var p = priceFor(it, c); return p.price == null ? null : p.price * (it.qty || 1); });
       cost[c] = price[c].reduce(function (a, v) { return a + (v || 0); }, 0);
     });
     // ena trgovina: najbližja, razen če je druga občutno cenejša
