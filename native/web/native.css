@@ -102,3 +102,13 @@ html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inh
 .qo-sc-act { background: #2c2c2e; border-radius: 12px; padding: 9px 10px; margin-bottom: 6px; font-weight: 600; }
 .qo-sc-app { padding: 8px 4px 10px; font-weight: 600; }
 .qo-sc .qo-hit::after { background: rgba(138,63,252,.6); }
+
+/* Ime izdelka čez vso širino, cena pod njim (večja pisava ne lomi besed). */
+.list li.item { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; align-items: center; }
+.list li.item > .check { grid-column: 1; grid-row: 1 / span 2; }
+.list li.item > .check + * { grid-column: 2; grid-row: 1 / span 2; }
+.list li.item > .ibody { grid-column: 3; grid-row: 1; align-self: end; }
+.list li.item > .price { grid-column: 3; grid-row: 2; justify-self: start; align-self: start; font-size: 13px; padding: 3px 9px; }
+.list li.item > .del { grid-column: 4; grid-row: 1 / span 2; }
+.list li.item:not(:has(> .price)) > .ibody { grid-row: 1 / span 2; align-self: center; }
+.iname { overflow-wrap: break-word; word-break: normal; }
