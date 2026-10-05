@@ -193,7 +193,7 @@
 
   // ---------- Reklama čez cel zaslon: največ 2× na teden, ob 3. in 6. odprtju v tednu ----------
   // Ne ob samem odprtju: pokaže se ob naslednjem premoru (konec nakupa ali menjava zavihka).
-  var AD_INTER = window.NAKUPKO_AD_INTER || "";
+  var AD_INTER = window.NAKUPKO_AD_INTER || "ca-app-pub-1387718701947622/3310034439";
   var OPEN_KEY = "nakupko-odprtja", AWAY = 10 * 60 * 1000;
   var inter = { ready: false, loading: false, listening: false }, openedAt = 0, hiddenAt = 0;
   function weekKey() {
