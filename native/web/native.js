@@ -150,6 +150,40 @@
   }
   window.addEventListener("DOMContentLoaded", nearSwitch);
 
+  // ---------- Skupen seznam: vidna oznaka nad seznamom (s kom je povezan) ----------
+  var hhKnown = null;
+  function hhBadge() {
+    var hh = window.__nakupkoHousehold ? window.__nakupkoHousehold() : null;
+    var head = document.querySelector("#countOpen") && document.querySelector("#countOpen").closest(".card-head");
+    var b = document.getElementById("hhBadge");
+    if (!hh || !head) { if (b) b.remove(); hhKnown = null; return; }
+    if (!b) {
+      b = document.createElement("button");
+      b.id = "hhBadge"; b.type = "button"; b.className = "hh-badge";
+      b.onclick = function () { var t = document.querySelector('[data-tab="stores"]'); if (t) t.click(); var c = document.getElementById("hhCard"); if (c) setTimeout(function () { c.scrollIntoView({ behavior: "smooth", block: "center" }); }, 100); };
+      head.parentNode.insertBefore(b, head.nextSibling);
+    }
+    fetch(hh.url + "/h/" + hh.code + "/members.json", { cache: "no-store" }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (m) {
+      var others = Object.keys(m || {}).filter(function (k) { return k !== hh.member && m[k]; })
+        .map(function (k) { return m[k].name || "Član"; });
+      b.classList.remove("off");
+      b.textContent = others.length ? "👥 Skupen seznam z: " + others.join(", ") : "👥 Skupen seznam · čakam, da se pridruži še kdo";
+      if (hhKnown) others.filter(function (n) { return hhKnown.indexOf(n) < 0; }).forEach(function (n) {
+        var api = window.__nakupko; if (api && api.toast) api.toast("👥 " + n + " je zdaj na tvojem seznamu");
+      });
+      hhKnown = others;
+    }).catch(function () {
+      b.classList.add("off");
+      b.textContent = "👥 Skupen seznam · ni povezave";
+    });
+  }
+  window.addEventListener("load", function () { setTimeout(hhBadge, 600); });
+  setInterval(function () { if (!document.hidden) hhBadge(); }, 15000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) setTimeout(hhBadge, 300); });
+
   // ---------- Sinhronizacija z iPhonom (spremljanje trgovin v ozadju) ----------
   var lastSent = "";
   function sync() {
