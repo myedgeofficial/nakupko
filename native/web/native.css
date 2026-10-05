@@ -7,3 +7,6 @@ html.size-mid body, html.size-senior body { zoom: 1 !important; }
 
 /* Nastavitve v iOS aplikaciji: brez drsnikov in preizkusov, razdalja in zamik sta nastavljena (native.js). */
 #tab-stores .settings details.more { display: none !important; }
+
+/* »Cene po trgovinah« v iOS aplikaciji ni (uporabnik: nepregledno, manjkajo izdelki). */
+#pricesMore { display: none !important; }
