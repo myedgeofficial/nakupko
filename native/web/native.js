@@ -311,25 +311,25 @@
   // Vsak korak: naslov zaslona, vrstice, katero tapnemo (indeks, "plus", "done", "search", "back"), napis.
   var FLOWS = {
     back: [
-      { home: true, tap: 0, cap: "Odpri app Bližnjice" },
+      { home: true, tap: 0, cap: "Odpri app Bližnjice (Shortcuts)" },
       { title: "Bližnjice", rows: [], tap: "plus", cap: "Tapni +" },
-      { title: "Nova bližnjica", rows: [], btn: "Dodaj dejanje", tap: "btn", cap: "Tapni »Dodaj dejanje«" },
+      { title: "Nova bližnjica", rows: [], btn: "Dodaj dejanje", tap: "btn", cap: "Tapni »Dodaj dejanje« (Add Action)" },
       { title: "", search: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, cap: "Poišči Nakupko → Odpri Nakupko" },
-      { title: "Odpri Nakupko", rows: [], tap: "done", cap: "Tapni »Končano«" },
-      { title: "Nastavitve", rows: ["Splošno", "Dostopnost", "Zasebnost", "Baterija"], tap: 1, cap: "Nastavitve iPhona → Dostopnost" },
-      { title: "Dostopnost", rows: ["Zaslon in besedilo", "Gibanje", "Dotik", "Face ID"], tap: 2, cap: "Dotik" },
-      { title: "Dotik", rows: ["AssistiveTouch", "Haptični dotik", "Pretresi za razveljavitev", "Dotik zadaj"], tap: 3, cap: "Čisto spodaj: Dotik zadaj" },
-      { title: "Dotik zadaj", rows: ["Dvojni dotik", "Trojni dotik"], tap: 0, cap: "Dvojni dotik" },
+      { title: "Odpri Nakupko", rows: [], tap: "done", cap: "Tapni »Končano« (Done)" },
+      { title: "Nastavitve", rows: ["Splošno", "Dostopnost", "Zasebnost", "Baterija"], tap: 1, cap: "Nastavitve (Settings) → Dostopnost (Accessibility)" },
+      { title: "Dostopnost", rows: ["Zaslon in besedilo", "Gibanje", "Dotik", "Face ID"], tap: 2, cap: "Dotik (Touch)" },
+      { title: "Dotik", rows: ["AssistiveTouch", "Haptični dotik", "Pretresi za razveljavitev", "Dotik zadaj"], tap: 3, cap: "Čisto spodaj: Dotik zadaj (Back Tap)" },
+      { title: "Dotik zadaj", rows: ["Dvojni dotik", "Trojni dotik"], tap: 0, cap: "Dvojni dotik (Double Tap)" },
       { title: "Dvojni dotik", rows: ["Brez", "Posnetek zaslona", "Odpri Nakupko"], tap: 2, check: 2, cap: "Izberi »Odpri Nakupko«" },
       { knock: true, cap: "Dvakrat potrkaj po hrbtu telefona → Nakupko se odpre" }
     ],
     action: [
-      { title: "Nastavitve", rows: ["Splošno", "Gumb Akcija", "Dostopnost", "Baterija"], tap: 1, cap: "Nastavitve iPhona → Gumb Akcija" },
-      { title: "Gumb Akcija", rows: [], big: "Bližnjica", cap: "Podrsaj do »Bližnjica«" },
-      { title: "Gumb Akcija", rows: [], big: "Bližnjica", btn: "Izberi bližnjico", tap: "btn", cap: "Tapni »Izberi bližnjico«" },
+      { title: "Nastavitve", rows: ["Splošno", "Gumb Akcija", "Dostopnost", "Baterija"], tap: 1, cap: "Nastavitve (Settings) → Gumb Akcija (Action Button)" },
+      { title: "Gumb Akcija", rows: [], big: "Bližnjica", cap: "Podrsaj do »Bližnjica« (Shortcut)" },
+      { title: "Gumb Akcija", rows: [], big: "Bližnjica", btn: "Izberi bližnjico", tap: "btn", cap: "Tapni »Izberi bližnjico« (Choose a Shortcut)" },
       { title: "Bližnjice", rows: ["Beležke", "Nakupko", "Ura"], tap: 1, cap: "Nakupko" },
       { title: "Nakupko", rows: ["🧺  Odpri Nakupko"], tap: 0, check: 0, cap: "Odpri Nakupko" },
-      { press: true, cap: "Drži gumb Akcija → Nakupko se odpre" }
+      { press: true, cap: "Drži gumb Akcija (Action Button) → Nakupko se odpre" }
     ]
   };
   function quickScreen(st) {
