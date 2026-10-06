@@ -276,8 +276,9 @@ final class GeoManager {
         new Thread(() -> {
             JSONArray list = new JSONArray();
             try {
-                String q = String.format(Locale.US, "[out:json][timeout:20];(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store)$\"](around:5000,%f,%f););out center tags 150;",
-                    loc.getLatitude(), loc.getLongitude());
+                // Najprej država (is_in): zunaj Slovenije spremljamo vse trgovine z živili, ne le slovenskih verig.
+                String q = String.format(Locale.US, "[out:json][timeout:20];is_in(%f,%f)->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store)$\"](around:5000,%f,%f););out center tags 150;",
+                    loc.getLatitude(), loc.getLongitude(), loc.getLatitude(), loc.getLongitude());
                 HttpURLConnection c = (HttpURLConnection) new URL("https://overpass-api.de/api/interpreter").openConnection();
                 c.setRequestMethod("POST");
                 c.setConnectTimeout(10000);
@@ -294,6 +295,12 @@ final class GeoManager {
                     while ((n = in.read(b)) > 0) buf.write(b, 0, n);
                 }
                 JSONArray els = new JSONObject(buf.toString("UTF-8")).optJSONArray("elements");
+                String country = "SI";
+                for (int i = 0; els != null && i < els.length(); i++) {
+                    JSONObject t = els.getJSONObject(i).optJSONObject("tags");
+                    if (t != null && t.has("ISO3166-1")) { country = t.optString("ISO3166-1", "SI").toUpperCase(Locale.ROOT); break; }
+                }
+                boolean abroad = !"SI".equals(country);
                 for (int i = 0; els != null && i < els.length(); i++) {
                     JSONObject e = els.getJSONObject(i);
                     JSONObject tags = e.optJSONObject("tags");
@@ -304,8 +311,11 @@ final class GeoManager {
                     if (Double.isNaN(lat) || Double.isNaN(lon)) continue;
                     String hours = tags.optString("opening_hours", "");
                     String text = (tags.optString("brand", "") + " " + tags.optString("name", "") + " " + tags.optString("operator", "")).trim();
-                    // Samo verige in dežurne trgovine, kot v aplikaciji.
-                    StoreRules.Kind kind = StoreRules.kind(text, hours);
+                    // V tujini vse trgovine z živili (brez verige, brez slovenskih urnikov); doma samo verige in dežurne.
+                    String shop = tags.optString("shop", "");
+                    StoreRules.Kind kind = abroad
+                        ? (shop.matches("supermarket|convenience|grocery|discount") ? new StoreRules.Kind(null, false) : null)
+                        : StoreRules.kind(text, hours);
                     if (kind == null) continue;
                     String name = tags.optString("name", tags.optString("brand", tags.optString("operator", "Trgovina")));
                     JSONObject s = new JSONObject();
