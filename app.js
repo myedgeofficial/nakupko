@@ -10,6 +10,7 @@
     { key: "hofer", name: "Hofer", factor: 0.86, color: "#2B3A78", match: /hofer|aldi/i },
     { key: "eurospin", name: "Eurospin", factor: 0.85, color: "#2B8FD6", match: /eurospin/i },
     { key: "jager", name: "Jager", factor: 1.0, color: "#8A5A2B", match: /jager/i },
+    { key: "leclerc", name: "E.Leclerc", factor: 0.96, color: "#0066B3", match: /leclerc/i, hours: "Mo-Sa 08:00-21:00; Su off; PH off" },
     // Specializirane trgovine: zaznamo jih le, ko imaš na seznamu izdelke zanje (only).
     { key: "babycenter", name: "Baby Center", factor: 1.05, color: "#E86A9A", match: /baby ?cent(er|ar)/i, only: /^otroci |plenic|robčk/i },
     { key: "mrpet", name: "Mr. Pet", factor: 1.0, color: "#C4572B", match: /mr\.? ?pet\b/i, only: /^ljubljenčki /i },
@@ -1382,7 +1383,7 @@
     '{"izdelki":[{"ime":"Mleko","cene":{"spar":1.19,"mercator":1.25,"tus":1.22,"lidl":0.99,"hofer":0.99}}]}«',
     "",
     "Nato JSON shrani v datoteko in jo uvozi z »Uvozi cene« ali ga prilepi z »Prilepi JSON«.",
-    "Ključi trgovin: spar, mercator, tus, lidl, hofer, eurospin, jager.",
+    "Ključi trgovin: spar, mercator, tus, lidl, hofer, eurospin, jager, leclerc.",
     "Če za kakšno trgovino ni cene, Nakupko uporabi povprečje cen drugih trgovin."
   ].join("\n");
 
