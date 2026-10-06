@@ -21,7 +21,8 @@ final class StoreRules {
         {"lidl", "lidl"},
         {"hofer", "hofer|aldi"},
         {"eurospin", "eurospin"},
-        {"jager", "jager"}
+        {"jager", "jager"},
+        {"leclerc", "leclerc"}
     };
     private static final String DUTY = "koren[cč]ek|betka|ekspres|de[zž]urn|non ?-?stop";
     private static final String CHAIN_DEFAULT_HOURS = "Mo-Sa 07:00-21:00; Su off; PH off";
