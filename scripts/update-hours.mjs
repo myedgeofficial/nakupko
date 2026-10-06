@@ -96,7 +96,7 @@ function jsonLd(html) {
 const strip = (html) => String(html).replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, " ").replace(/<br\s*\/?>|<\/(p|div|li|tr|h\d)>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#8211;|&ndash;/g, "-").replace(/[ \t]+/g, " ");
 async function sitemap(url) {
   const x = await getText(url);
-  return x ? [...x.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)].map((m) => m[1].replace(/&amp;/g, "&")) : [];
+  return x ? [...x.matchAll(/<loc>\s*(?:<!\[CDATA\[)?\s*([^<\s\]]+)\s*(?:\]\]>)?\s*<\/loc>/g)].map((m) => m[1].replace(/&amp;/g, "&")) : [];
 }
 async function pool(items, n, fn) {
   const out = [];
@@ -232,12 +232,13 @@ async function pages(v, urls, filter) {
       const i = text.search(/odpiraln|delovni [čc]as/i);
       week = parseDayText(i >= 0 ? text.slice(i, i + 1500) : text);
       // ure so lahko tudi v skripti / atributih (stran sestavljena z JavaScriptom)
-      if (!week) { const j = html.search(/PON\s*-\s*PET|ponedeljek|Pon-Pet/i); if (j >= 0) week = parseDayText(strip(html.slice(Math.max(0, j - 50), j + 1500)).replace(/\\n|\\u002F|\\\//g, " ")); }
+      if (!week) { const j = html.search(/\bPON\b\s*(?::|-|–|&#8211;)|ponedeljek|Pon-Pet/i); if (j >= 0) week = parseDayText(strip(html.slice(Math.max(0, j - 50), j + 1500)).replace(/\\n|\\u002F|\\\//g, " ")); }
     }
     if (lat == null) {
       const m = html.match(/data-lat(?:itude)?=["']([\d.]+)["'][^>]*data-(?:lng|lon|longitude)=["']([\d.]+)/i) || html.match(/["']lat["']\s*:\s*["']?(4[56]\.\d+)["']?\s*,\s*["'](?:lng|lon)["']\s*:\s*["']?(1[3-6]\.\d+)/i) || html.match(/[?&](?:q|query|ll|destination)=(4[56]\.\d{3,})\s*,\s*(1[3-6]\.\d{3,})/);
       if (m) { lat = +m[1]; lon = +m[2]; }
     }
+    if (!addr) { const g = html.match(/maps\.google\.[a-z]+\/(?:maps)?\?q=([^"'&<]+)/i); if (g) addr = decodeURIComponent(g[1].replace(/\+/g, " ")).replace(/&amp;/g, "&").trim(); }
     if (!addr) { const m = text.match(/([A-ZČŠŽ][^\n,]{2,60}?\s\d+[a-z]?)\s*,?\s*(\d{4})\s+([A-ZČŠŽ][^\n,]{1,40})/); if (m) addr = m[1].trim() + ", " + m[2] + " " + m[3].trim(); }
     const h = week ? toOsm(week.map((d) => d || [])) : null;
     if (shown < 2 && !h) { const j = html.search(/PON\s*-\s*PET|ponedeljek|odpiraln/i); dbg.push(v + " surovo(" + html.length + "): " + (j >= 0 ? html.slice(Math.max(0, j - 150), j + 300) : html.slice(0, 300)).replace(/\s+/g, " ")); }
@@ -276,7 +277,7 @@ async function jager() {
     const week = parseDayText(b.slice(0, 600));
     const addr = m ? (m[1].trim() + ", " + m[2] + " " + m[3].trim()) : "";
     const h = week ? toOsm(week.map((d) => d || [])) : null;
-    if (shown++ < 2) { console.log("  vzorec jager |", addr, "|", h); dbg.push("jager vzorec | " + addr + " | " + h + " | " + b.slice(0, 200).replace(/\s+/g, " ")); }
+    if (shown++ < 2 || (!h && shown < 6)) { console.log("  vzorec jager |", addr, "|", h); dbg.push("jager vzorec | " + addr + " | " + h + " | " + b.slice(0, 450).replace(/\s+/g, " ")); }
     if (addr) add("jager", { lat: null, lon: null, a: addr, h, n: addr });
   }
 }
