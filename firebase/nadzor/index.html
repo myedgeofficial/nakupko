@@ -16,7 +16,7 @@
   button, .btn { font: inherit; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
   button.main { background: var(--acc); border-color: var(--acc); color: #fff; }
   button:disabled { opacity: .6; cursor: default; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
   .tile .k { color: var(--mute); font-size: 13px; }
   .tile .v { font-size: 28px; font-weight: 700; margin: 2px 0; font-variant-numeric: tabular-nums; }
@@ -63,6 +63,7 @@
       <div class="card tile"><div class="k">Prenosi skupaj</div><div class="v" id="tDl">–</div><div class="s" id="tDlS"></div></div>
       <div class="card tile"><div class="k">Aktivni uporabniki</div><div class="v" id="tAct">–</div><div class="s" id="tActS"></div></div>
       <div class="card tile"><div class="k">Naročniki Plus</div><div class="v" id="tSub">–</div><div class="s" id="tSubS"></div></div>
+      <div class="card tile"><div class="k">Reklame ta mesec (AdMob)</div><div class="v" id="tAd">–</div><div class="s" id="tAdS"></div></div>
       <div class="card tile"><div class="k">Prihodek ta mesec</div><div class="v" id="tRev">–</div><div class="s" id="tRevS"></div></div>
       <div class="card tile"><div class="k">Za davek ta mesec (ocena)</div><div class="v" id="tTax">–</div><div class="s" id="tTaxS"></div></div>
     </div>
@@ -234,6 +235,9 @@
     $("tSub").textContent = n ? int(n.placljive + n.brezplacne) : "–";
     $("tSubS").textContent = (n ? "po Applu (" + n.datum.split("-").reverse().join(".") + ")" : "Apple še ni poslal poročila") + " · v aplikaciji " + int(akt.plusTeden);
     var cm = months[month];
+    var am0 = data.admob || {}, amM = (am0.meseci || {})[month] || {};
+    $("tAd").textContent = eur(cm.ad);
+    $("tAdS").textContent = am0.osvezeno ? int(amM.prikazi) + " prikazov · skupaj " + eur(sum.ad) : "še ni povezano: prijava z Urškinim računom ali gumb »Osveži AdMob« spodaj";
     $("tRev").textContent = eur(cm.rev);
     $("tRevS").textContent = "Apple " + eur(cm.net) + " · AdMob " + eur(cm.ad);
     $("tTax").textContent = eur(cm.tax);
