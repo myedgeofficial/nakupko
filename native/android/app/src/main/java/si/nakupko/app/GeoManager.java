@@ -433,7 +433,7 @@ final class GeoManager {
         if (count == 0 || foreground) return; // odprta aplikacija to pokaže sama
         // Zaprta trgovina (npr. ob 6h pred Sparom, ki odpre ob 7:30): brez obvestila.
         String chain = store.has("chain") && !store.isNull("chain") ? store.optString("chain") : null;
-        if (Boolean.FALSE.equals(StoreRules.isOpen(store.optString("hours", ""), chain))) return;
+        if (!StoreRules.mayBeOpen(store.optString("hours", ""), chain)) return;
         long now = System.currentTimeMillis();
         JSONObject sent;
         try { sent = new JSONObject(prefs.getString("notified", "{}")); } catch (Exception e) { sent = new JSONObject(); }

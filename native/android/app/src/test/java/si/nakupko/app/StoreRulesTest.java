@@ -45,4 +45,12 @@ public class StoreRulesTest {
         assertEquals("odprto", open("Mo-Fr 07:00-20:00; Sa,Su 08:00-12:00", null, at(2026, 10, 4, 9, 0)));
         assertEquals("zaprto", open("Mo-Su 06:00-22:00; PH 08:00-12:00", null, at(2026, 11, 1, 13, 0)));
     }
+
+    // Zastareli urnik v OSM: uro po zapiranju in pol ure pred odprtjem trgovina še velja za morda odprto.
+    @Test public void grace() {
+        assertEquals(true, StoreRules.mayBeOpen("Mo-Sa 07:00-20:00", "spar", at(2026, 10, 5, 20, 40)));
+        assertEquals(false, StoreRules.mayBeOpen("Mo-Sa 07:00-20:00", "spar", at(2026, 10, 5, 21, 30)));
+        assertEquals(true, StoreRules.mayBeOpen("Mo-Sa 07:30-21:00", "spar", at(2026, 10, 5, 7, 10)));
+        assertEquals(false, StoreRules.mayBeOpen("Mo-Sa 07:30-21:00", "spar", at(2026, 10, 5, 6, 0)));
+    }
 }
