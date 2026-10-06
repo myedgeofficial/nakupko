@@ -411,7 +411,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     // Pravi prihod (obstal pri trgovini) zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
     private func reportVisit(storeId id: String) {
         guard let hh = household, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
-        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return }
+        if !mayBeOpen(store) { return }
         let now = Date().timeIntervalSince1970
         var sent = visitSent
         if let last = sent[id], now - last < visitAgainAfter { return }
@@ -498,7 +498,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         guard count > 0 else { visitOnly(); return log("  preskok: seznam je prazen") }
         if UIApplication.shared.applicationState == .active { visitOnly(); return log("  preskok: aplikacija je odprta") }
         // Zaprta trgovina (npr. ob 6h pred Sparom, ki odpre ob 7:30): brez obvestila.
-        if StoreRules.isOpen(hours: store.hours, chain: store.chain) == false { return log("  preskok: trgovina je zaprta (\(store.hours ?? "?"))") }
+        if !mayBeOpen(store) { return log("  preskok: trgovina je zaprta (\(store.hours ?? "?"))") }
         let now = Date().timeIntervalSince1970
         var sent = notified
         if let last = sent[id], now - last < renotifyAfter { visitOnly(); return log("  preskok: obvestilo pred \(Int(now - last)) s") }
@@ -513,6 +513,15 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         else { defaults.set(now, forKey: "geo.lastNear"); postNearNotification(id: id, store: store, count: count) }
         // 2. stopnja: ko obstaneš pri trgovini, se seznam odpre na zaklenjenem zaslonu.
         startArrivalWatch(Arrival(store: store, open: open, items: items, count: count, started: Date(), stillSince: nil))
+    }
+
+    // Delovni čas v OpenStreetMap je pogosto zastarel (npr. Spar do 20h, v resnici do 21h):
+    // trgovino štejemo za zaprto šele uro po zapiranju in pol ure pred odprtjem.
+    private func mayBeOpen(_ store: GeoStore) -> Bool {
+        let now = Date()
+        return StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now) != false
+            || StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now.addingTimeInterval(-60 * 60)) == true
+            || StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now.addingTimeInterval(30 * 60)) == true
     }
 
     private func postNearNotification(id: String, store: GeoStore, count: Int) {
