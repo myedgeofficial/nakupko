@@ -42,6 +42,31 @@
     items.forEach(function (it) { sub.appendChild(itemRow(it, big, storeCtx)); });
     return el("li", { class: "other" }, [el("details", { class: "more" }, [el("summary", { text: "Iz druge trgovine rabiš še (" + items.length + ")" }), sub])]);
   }
+  // Zunaj Slovenije verig ne poznamo: trgovino zaznamo po vrsti iz OpenStreetMap (oznaka shop).
+  var NEVER = /$^/;
+  CHAINS.push(
+    { key: "trgovina", name: "Trgovina", factor: 1.0, color: "#8A3FFC", match: NEVER },
+    { key: "zelenjava", name: "Sadje in zelenjava", factor: 1.0, color: "#5B8C2A", match: NEVER, only: /^sadje in zelenjava /i },
+    { key: "zivali", name: "Trgovina za živali", factor: 1.0, color: "#C4572B", match: NEVER, only: /^ljubljenčki /i },
+    { key: "otroska", name: "Otroška trgovina", factor: 1.0, color: "#E86A9A", match: NEVER, only: /^otroci |plenic|robčk/i },
+    { key: "dom", name: "Dom in vrt", factor: 1.0, color: "#F18E00", match: NEVER, only: /^dom in vrt /i },
+    { key: "drogerija", name: "Drogerija", factor: 1.0, color: "#2A4B9B", match: NEVER, only: /^(higiena|gospodinjstvo|otroci|zdravje) |pralni|detergent|mehčal/i }
+  );
+  var ABROAD_SHOP = {
+    supermarket: "trgovina", convenience: "trgovina", grocery: "trgovina", discount: "trgovina", greengrocer: "zelenjava",
+    pet: "zivali", baby_goods: "otroska", doityourself: "dom", hardware: "dom", garden_centre: "dom", chemist: "drogerija",
+    tobacco: "trafika", kiosk: "trafika", newsagent: "trafika"
+  };
+  // Groba meja Slovenije (lat, lon, ...), le kadar OpenStreetMap države ne vrne.
+  var SI_BORDER = [45.46,13.64,45.49,13.59,45.52,13.6,45.54,13.57,45.55,13.75,45.59,13.71,45.58,13.85,45.63,13.89,45.65,13.86,45.74,13.78,45.81,13.58,45.86,13.57,45.97,13.62,45.99,13.61,45.97,13.51,46.01,13.46,46.07,13.51,46.13,13.62,46.16,13.65,46.18,13.64,46.18,13.56,46.22,13.47,46.23,13.42,46.21,13.44,46.21,13.41,46.29,13.37,46.35,13.43,46.39,13.53,46.44,13.6,46.45,13.68,46.52,13.7,46.48,14.05,46.44,14.15,46.44,14.41,46.41,14.45,46.42,14.5,46.38,14.54,46.43,14.59,46.46,14.68,46.49,14.71,46.51,14.79,46.6,14.85,46.62,14.93,46.6,14.97,46.64,15.0,46.65,15.06,46.65,15.39,46.61,15.46,46.63,15.51,46.67,15.55,46.68,15.63,46.72,15.64,46.7,15.73,46.72,15.85,46.67,16.02,46.74,15.97,46.82,15.97,46.86,16.09,46.86,16.27,46.84,16.33,46.78,16.3,46.69,16.37,46.69,16.41,46.67,16.41,46.64,16.37,46.63,16.38,46.54,16.5,46.5,16.52,46.55,16.34,46.49,16.23,46.4,16.25,46.37,16.28,46.37,16.19,46.39,16.14,46.37,16.11,46.38,16.06,46.33,16.06,46.3,16.02,46.26,15.82,46.21,15.75,46.22,15.66,46.19,15.62,46.11,15.59,46.04,15.7,45.99,15.67,45.89,15.66,45.84,15.68,45.82,15.63,45.82,15.45,45.78,15.43,45.72,15.26,45.71,15.25,45.68,15.28,45.68,15.33,45.64,15.37,45.63,15.3,45.6,15.27,45.52,15.3,45.48,15.36,45.45,15.33,45.43,15.14,45.48,15.06,45.51,14.92,45.51,14.9,45.47,14.88,45.47,14.8,45.49,14.78,45.53,14.67,45.56,14.67,45.6,14.6,45.67,14.58,45.6,14.5,45.53,14.47,45.48,14.37,45.5,14.22,45.47,14.09,45.51,13.97,45.49,13.96,45.48,13.98,45.42,13.89,45.46,13.76];
+  function inSlovenia(lat, lon) {
+    var c = false, n = SI_BORDER.length;
+    for (var i = 0, j = n - 2; i < n; j = i, i += 2) {
+      var yi = SI_BORDER[i], xi = SI_BORDER[i + 1], yj = SI_BORDER[j], xj = SI_BORDER[j + 1];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) c = !c;
+    }
+    return c;
+  }
   var CHAIN_BY_KEY = {};
   CHAINS.forEach(function (c) { CHAIN_BY_KEY[c.key] = c; });
   var COMPARE_CHAINS = ["spar", "mercator", "tus", "lidl", "hofer"];
@@ -253,9 +278,10 @@
       .catch(function () { /* brez povezave */ });
   }
   function spansFor(s, dt) {
-    var h = parseHours(officialHours(s) || s.hours || (s.chain ? CHAIN_DEFAULT_HOURS : ""));
+    // V tujini ne ugibamo urnika in ne upoštevamo slovenskih praznikov.
+    var h = parseHours(officialHours(s) || s.hours || (s.chain && !s.tuj ? CHAIN_DEFAULT_HOURS : ""));
     if (h && h.always) return [[0, 1440]];
-    var hol = isHoliday(dt), dow = dt.getDay();
+    var hol = !s.tuj && isHoliday(dt), dow = dt.getDay();
     if (h) {
       if (hol && h.ph !== null) return h.ph;
       if (hol && s.chain) return [];
@@ -268,7 +294,7 @@
   function openState(s, now) {
     var r = openState0(s, now);
     // Za verige brez vpisanega urnika uporabimo običajni delovni čas.
-    if (s.chain && !s.hours && !officialHours(s) && r.open !== null) r.text += " (okvirno)";
+    if (s.chain && !s.tuj && !s.hours && !officialHours(s) && r.open !== null) r.text += " (okvirno)";
     return r;
   }
   function openState0(s, now) {
@@ -449,7 +475,9 @@
     none: { label: "Cene me ne zanimajo", short: "", chains: null }
   };
   function pref() { return PREFS[state.settings.pricePref] || PREFS.all; }
-  function pricesOff() { return state.settings.pricePref === "none"; }
+  // Cene imamo samo za slovenske trgovine: v tujini jih ne pišemo.
+  function abroad() { var c = state.storesCache && state.storesCache.country; return !!c && c !== "SI"; }
+  function pricesOff() { return state.settings.pricePref === "none" || abroad(); }
   function pref2() { var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
   // trgovine, ki jih uporabnik sploh obiskuje (prva + druga izbira); null = vse
   function myChains() {
@@ -929,10 +957,11 @@
   function fetchStores(p, force) {
     if (fetching && !force) return;
     fetching = true;
-    var q = "[out:json][timeout:20];(" +
+    // Najprej država (is_in), nato trgovine.
+    var q = "[out:json][timeout:20];is_in(" + p.lat + "," + p.lon + ")->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(" +
       "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist|tobacco|kiosk|newsagent)$\"](around:3000," + p.lat + "," + p.lon + ");" +
       "nwr[\"amenity\"=\"fuel\"](around:3000," + p.lat + "," + p.lon + ");" +
-      ");out center tags 120;";
+      ");out center tags 250;";
     var tryAt = function (i) {
       if (i >= OVERPASS.length) {
         fetching = false;
@@ -943,12 +972,23 @@
         .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
         .then(function (data) {
           fetching = false;
-          stores = (data.elements || []).map(function (e) {
+          var els = data.elements || [], ctry = null;
+          els.forEach(function (e) { if (e.type === "area" && e.tags && e.tags["ISO3166-1"]) ctry = e.tags["ISO3166-1"].toUpperCase(); });
+          if (!ctry) ctry = inSlovenia(p.lat, p.lon) ? "SI" : "XX";
+          var tuj = ctry !== "SI", wasAbroad = abroad();
+          stores = els.map(function (e) {
             var t = e.tags || {};
             var lat = e.lat != null ? e.lat : (e.center && e.center.lat);
             var lon = e.lon != null ? e.lon : (e.center && e.center.lon);
             if (lat == null || lon == null) return null;
             var nm = t.name || t.brand || t.operator || "Trgovina";
+            if (tuj) {
+              // V tujini: vse trgovine z živili (in specializirane) po vrsti, brez slovenskih cen in urnikov.
+              var gk = t.amenity === "fuel" ? "bencinska" : ABROAD_SHOP[t.shop];
+              if (!gk) return null;
+              var ad = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
+              return { id: e.type + "/" + e.id, name: nm + (ad ? ", " + ad : ""), short: nm, chain: gk, duty: false, tuj: true, lat: lat, lon: lon, hours: t.opening_hours || "" };
+            }
             var kind = storeKind([t.brand, t.name, t.operator].join(" "), t.opening_hours);
             if (!kind && t.amenity === "fuel") kind = "bencinska";
             if (!kind) return null;
@@ -961,8 +1001,9 @@
           }).filter(Boolean);
           applyOfficial(stores);
           lastFetchPos = { lat: p.lat, lon: p.lon };
-          state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now() };
+          state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now(), country: ctry };
           save();
+          if (abroad() !== wasAbroad) renderAll();
           evaluateNear();
           renderStores();
           renderTrip(true);
