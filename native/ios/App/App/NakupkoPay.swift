@@ -37,8 +37,13 @@ public class NakupkoPayPlugin: CAPPlugin, CAPBridgedPlugin {
 
     deinit { updates?.cancel() }
 
+    // App Store izdelka včasih ne vrne v prvem poskusu: poskusimo do 3-krat.
     private func product() async -> Product? {
-        try? await Product.products(for: [PayConfig.productId]).first
+        for attempt in 0..<3 {
+            if let p = try? await Product.products(for: [PayConfig.productId]).first { return p }
+            if attempt < 2 { try? await Task.sleep(nanoseconds: 1_500_000_000) }
+        }
+        return nil
     }
 
     // active: naročnina velja; product: ali izdelek v App Store sploh obstaja (sicer nikogar ne zaklenemo).
