@@ -1,4 +1,30 @@
 {
-  "database": { "rules": "database.rules.json" },
-  "functions": [{ "source": "functions", "codebase": "default", "runtime": "nodejs22" }]
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs22"
+    }
+  ],
+  "hosting": {
+    "public": "nadzor",
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          },
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex"
+          }
+        ]
+      }
+    ]
+  }
 }

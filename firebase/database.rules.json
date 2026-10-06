@@ -31,6 +31,23 @@
         },
         ".read": "$dev.matches(/^[A-Z0-9]{16}$/)"
       }
+    },
+    "akt": {
+      "$day": {
+        "$id": {
+          ".write": "$day.matches(/^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) && $id.matches(/^[A-Z0-9]{20}$/)",
+          ".validate": "newData.child('p').isString() && newData.child('p').val().length < 12"
+        }
+      }
+    },
+    "nadzor": {
+      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')",
+      "rocno": {
+        ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')"
+      },
+      "osvezi": {
+        ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')"
+      }
     }
   }
 }
