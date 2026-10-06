@@ -57,6 +57,8 @@ jobs:
           print("Ključ za obvestila:", "da" if os.environ.get("APNS_KEY_P8") else "manjka")
           print("Ključ App Store Connect:", "da" if os.environ.get("ASC_KEY_P8") else "manjka")
           PY
+          # AdMob API za samodejni prikaz zaslužka na nadzorni plošči.
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa.json" --quiet && gcloud services enable admob.googleapis.com --project nakupko-8ad19 --quiet || echo "::warning::AdMob API ni bil vklopljen"
           FB="npx --yes firebase-tools@14 --project nakupko-8ad19 --non-interactive"
           # Spletna aplikacija (za prijavo z Googlom na nadzorni plošči) in privzeta stran gostovanja.
           if ! $FB apps:list WEB --json | grep -q '"appId"'; then $FB apps:create WEB "Nakupko nadzor"; fi
