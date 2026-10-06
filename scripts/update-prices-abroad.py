@@ -278,7 +278,7 @@ def build(country, products, tr):
                     if ok != kind or oa <= 0:
                         continue
                     ratio = oa / amount
-                    if ratio < 0.25 or ratio > 4:
+                    if ratio < 0.4 or ratio > 4:
                         continue
                     vals.append(price / oa * amount)
                 else:
