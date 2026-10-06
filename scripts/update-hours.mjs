@@ -161,7 +161,7 @@ async function lidl() {
       for (let d = 0; d < 7; d++) if (week[d] == null && week.some((x) => x && x.length)) week[d] = [];
       for (let d = 0; d < 7; d++) if (week[d]) week[d] = [...new Map(week[d].map((x) => [x.join("-"), x])).values()];
       const a = s.address || {};
-      add("lidl", { lat: +(a.latitude ?? s.latitude), lon: +(a.longitude ?? s.longitude), h: toOsm(week), n: [s.name, s.street, s.housenumber].filter(Boolean).join(" ") });
+      add("lidl", { lat: +(a.latitude ?? s.latitude), lon: +(a.longitude ?? s.longitude), h: toOsm(week), n: ["Lidl " + (s.storeName || s.name || ""), [a.streetName || s.street, a.streetNumber || s.housenumber].filter(Boolean).join(" ")].join(", ") });
     }
     const meta = j.meta || {};
     total = meta.total ?? items.length;
@@ -231,6 +231,8 @@ async function pages(v, urls, filter) {
       // le del strani okoli »odpiralni čas« (da ne poberemo ur iz noge strani)
       const i = text.search(/odpiraln|delovni [čc]as/i);
       week = parseDayText(i >= 0 ? text.slice(i, i + 1500) : text);
+      // ure so lahko tudi v skripti / atributih (stran sestavljena z JavaScriptom)
+      if (!week) { const j = html.search(/PON\s*-\s*PET|ponedeljek|Pon-Pet/i); if (j >= 0) week = parseDayText(strip(html.slice(Math.max(0, j - 50), j + 1500)).replace(/\\n|\\u002F|\\\//g, " ")); }
     }
     if (lat == null) {
       const m = html.match(/data-lat(?:itude)?=["']([\d.]+)["'][^>]*data-(?:lng|lon|longitude)=["']([\d.]+)/i) || html.match(/["']lat["']\s*:\s*["']?(4[56]\.\d+)["']?\s*,\s*["'](?:lng|lon)["']\s*:\s*["']?(1[3-6]\.\d+)/i) || html.match(/[?&](?:q|query|ll|destination)=(4[56]\.\d{3,})\s*,\s*(1[3-6]\.\d{3,})/);
@@ -238,6 +240,7 @@ async function pages(v, urls, filter) {
     }
     if (!addr) { const m = text.match(/([A-ZČŠŽ][^\n,]{2,60}?\s\d+[a-z]?)\s*,?\s*(\d{4})\s+([A-ZČŠŽ][^\n,]{1,40})/); if (m) addr = m[1].trim() + ", " + m[2] + " " + m[3].trim(); }
     const h = week ? toOsm(week.map((d) => d || [])) : null;
+    if (shown < 2 && !h) { const j = html.search(/PON\s*-\s*PET|ponedeljek|odpiraln/i); dbg.push(v + " surovo(" + html.length + "): " + (j >= 0 ? html.slice(Math.max(0, j - 150), j + 300) : html.slice(0, 300)).replace(/\s+/g, " ")); }
     if (shown++ < 2) { console.log("  vzorec", v, u, "|", addr, "|", lat, lon, "|", h); dbg.push(`${v} vzorec ${u.split("/").filter(Boolean).pop()} | ${addr} | ${lat},${lon} | ${h} | ld ${lds.length}` + (h ? "" : " | besedilo: " + text.slice(Math.max(0, text.search(/odpiraln/i)), Math.max(0, text.search(/odpiraln/i)) + 250).replace(/\s+/g, " "))); }
     add(v, { lat, lon, a: addr, h, n: addr || u });
   });
@@ -252,7 +255,9 @@ async function tus() {
   await pages("tus", urls, (u) => /poslovalnica\//.test(u) && !/cashcarry|cash-carry|drogerij|tehnik|gradben|fitnes|kino|planet/i.test(u));
 }
 async function eurospin() {
-  const urls = await sitemap("https://www.eurospin.si/store-sitemap.xml");
+  let urls = await sitemap("https://www.eurospin.si/store-sitemap.xml");
+  if (!urls.length) { const x = await getText("https://www.eurospin.si/store-sitemap.xml"); dbg.push("eurospin sitemap: " + String(x).slice(0, 200).replace(/\s+/g, " ")); }
+  if (!urls.length) { const idx = await sitemap("https://www.eurospin.si/sitemap_index.xml"); dbg.push("eurospin index: " + idx.join(" ").slice(0, 300)); for (const sm of idx.filter((u) => /store|prodaj|trgov/i.test(u))) urls.push(...await sitemap(sm)); }
   await pages("eurospin", urls, (u) => /prodajna-mesta\/.+/.test(u));
 }
 
@@ -266,9 +271,10 @@ async function jager() {
   dbg.push("jager blokov " + blocks.length);
   let shown = 0;
   for (const b of blocks) {
-    const m = b.match(/^JAGER[^\n]*?[-–]?\s*([^\n]*?)\s*[,\n]\s*([^\n,]+?\d+[a-z]?)\s*,?\s*(\d{4})/i);
+    const one = b.replace(/\s+/g, " ");
+    const m = one.match(/^JAGER\s.*?[-–]\s*[A-ZČŠŽ .]+?\s+([A-ZČŠŽ](?:[a-zčšž]|\s[a-zčšž])[^0-9]*?\s\d+[a-zA-Z]?)\s+(\d{4})\s+([A-ZČŠŽ][a-zčšž]+(?:\s(?:ob|na|pri|v|(?!Pon|Tor|Sre|Čet|Pet|Sob|Ned|Odpiral|Delovn)[A-ZČŠŽ][a-zčšž]+))*)/);
     const week = parseDayText(b.slice(0, 600));
-    const addr = m ? (m[2].trim() + ", " + m[3] + " " + m[1].trim()) : "";
+    const addr = m ? (m[1].trim() + ", " + m[2] + " " + m[3].trim()) : "";
     const h = week ? toOsm(week.map((d) => d || [])) : null;
     if (shown++ < 2) { console.log("  vzorec jager |", addr, "|", h); dbg.push("jager vzorec | " + addr + " | " + h + " | " + b.slice(0, 200).replace(/\s+/g, " ")); }
     if (addr) add("jager", { lat: null, lon: null, a: addr, h, n: addr });
@@ -276,6 +282,7 @@ async function jager() {
 }
 
 // --- naslov → koordinate (Nominatim; shranimo za naslednjič) ---
+const geoHits = { photon: 0, nominatim: 0 };
 async function geocode() {
   let asked = 0;
   for (const t of all) {
@@ -285,13 +292,18 @@ async function geocode() {
     if (oldGeo.has(key)) { [t.lat, t.lon] = oldGeo.get(key); t.g = 1; continue; }
     if (asked >= 1200) continue;
     asked++;
-    const q = t.a.replace(/\s+/g, " ");
-    const j = await getJson("https://nominatim.openstreetmap.org/search?format=json&countrycodes=si&limit=1&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
-    if (j && j[0]) { t.lat = +j[0].lat; t.lon = +j[0].lon; t.g = 1; }
+    const q = t.a.replace(/\s+/g, " ").replace(/,\s*(\d{4}),/, ", $1 ");
+    const p = await getJson("https://photon.komoot.io/api/?limit=1&bbox=13.3,45.4,16.7,46.9&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
+    const f = p && p.features && p.features[0];
+    if (f && f.geometry) { [t.lon, t.lat] = f.geometry.coordinates; t.g = 1; geoHits.photon++; }
+    else {
+      const j = await getJson("https://nominatim.openstreetmap.org/search?format=json&countrycodes=si&limit=1&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
+      if (j && j[0]) { t.lat = +j[0].lat; t.lon = +j[0].lon; t.g = 1; geoHits.nominatim++; }
+    }
     await sleep(1100);
   }
   console.log("Nominatim poizvedb:", asked);
-  dbg.push("nominatim " + asked + ", najdeno " + all.filter((t) => t.g).length);
+  dbg.push("geokodiranje " + asked + ", najdeno " + JSON.stringify(geoHits));
 }
 
 for (const [name, fn] of [["spar", spar], ["lidl", lidl], ["hofer", hofer], ["mercator", mercator], ["tus", tus], ["eurospin", eurospin], ["jager", jager]]) {
