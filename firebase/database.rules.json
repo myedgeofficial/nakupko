@@ -47,6 +47,9 @@
       },
       "osvezi": {
         ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')"
+      },
+      "admob": {
+        ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')"
       }
     }
   }
