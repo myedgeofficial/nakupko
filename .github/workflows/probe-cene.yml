@@ -3,24 +3,23 @@ on: { push: { branches: [probe-cene] } }
 jobs:
   probe:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
-      - name: HU xlsx
-        continue-on-error: true
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: pip install -q openpyxl
+      - run: python3 scripts/update-prices-abroad.py
+      - name: Pregled
+        if: always()
         run: |
-          set +e
-          pip install -q openpyxl
-          curl -sSL -o hu.xlsx -w "%{http_code} %{size_download}\n" https://cdnarfigyeloprodweu.azureedge.net/excel/arfigyelo_napi_termekadatok.xlsx
-          python3 - <<'PY'
-          import openpyxl
-          wb=openpyxl.load_workbook('hu.xlsx',read_only=True)
-          for ws in wb.worksheets:
-              print("SHEET",ws.title,ws.max_row,ws.max_column)
-              for i,r in enumerate(ws.iter_rows(values_only=True)):
-                  if i<8: print(r)
-                  else: break
-          ws=wb.worksheets[0]
-          n=0
-          for r in ws.iter_rows(values_only=True):
-              s=" ".join(str(x) for x in r if x is not None).lower()
-              if "tej" in s and n<10: print("TEJ",r); n+=1
+          ls -la prices-*.json || true
+          for c in AT HR HU; do [ -f prices-$c.json ] && python3 - "$c" <<'PY'
+          import json,sys
+          c=sys.argv[1];d=json.load(open(f'prices-{c}.json'))
+          print(c,d['valuta'],len(d['izdelki']),list(d['verige']))
+          want=['Mleko','Kruh beli','Jajca','Banane','Maslo','Jogurt navadni','Sladkor','Moka bela','Kava mleta','Pivo','Coca-Cola','Toaletni papir','Olje sončnično','Riž','Testenine špageti','Piščančji file','Sir Gauda','Paradižnik','Krompir','Voda','Čokolada','Čips','Zobna pasta','Šampon']
+          by={x['ime']:x['cene'] for x in d['izdelki']}
+          for w in want: print(' ',w,by.get(w))
           PY
+          done
