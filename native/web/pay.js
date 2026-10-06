@@ -42,15 +42,21 @@
     try { localStorage.setItem("nakupko-plus", JSON.stringify(st)); } catch (e) { /* nič */ }
     render();
   }
+  var retries = 0;
+  function retryLater() {
+    // App Store včasih izdelka ne vrne takoj (slaba povezava, pregled): poskusimo znova.
+    if (retries < 5) setTimeout(refresh, 3000 * Math.pow(2, retries++));
+  }
   function refresh() {
     Pay.status().then(function (s) {
+      if (s.product !== true) retryLater(); else retries = 0;
       // Brez povezave App Store vrne product=false: obdržimo zadnje znano stanje.
       if (s.product === false && st && st.product) save(null, true);
       else save(s);
-    }).catch(function () { render(); });
+    }).catch(function () { render(); retryLater(); });
   }
 
-  function priceText() { return (st && st.price) || "1 €"; }
+  function priceText() { return (st && st.price) || "0,99 €"; }
   function trialText() {
     if (!st || !st.trialEligible || !st.trialDays) return "";
     var d = st.trialDays;
@@ -131,7 +137,9 @@
   // ---------- Vrstica v Nastavitvah ----------
   function renderCard() {
     var anchor = document.querySelector("#tab-stores .card.settings");
-    if (!anchor || !st || st.product !== true) { var o = document.getElementById("plusCard"); if (o && (!st || st.product !== true)) o.remove(); return; }
+    // Način »ads«: kartica je vedno vidna (tudi če App Store izdelka še ni naložil), nakup ga naloži znova.
+    var ready = MODE === "ads" || (!!st && st.product === true);
+    if (!anchor || !ready) { var o = document.getElementById("plusCard"); if (o && !ready) o.remove(); return; }
     var c = document.getElementById("plusCard");
     if (!c) {
       c = document.createElement("div");
