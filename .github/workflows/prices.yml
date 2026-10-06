@@ -22,6 +22,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write
 
 concurrency:
   group: prices
@@ -64,6 +65,11 @@ jobs:
           git commit -m "Cene $(TZ=Europe/Ljubljana date +%Y-%m-%d)"
           for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
           exit 1
+      - name: Osveži še odpiralne čase trgovin
+        if: steps.when.outputs.run == 'yes' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run hours.yml --ref main || true
       - name: Predogled sprememb (testna veja)
         if: steps.when.outputs.run == 'yes' && github.ref != 'refs/heads/main'
         run: git diff --stat; git diff prices.js | head -c 3000 || true

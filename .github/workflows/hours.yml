@@ -4,9 +4,8 @@ name: Odpiralni časi trgovin
 # Zažene ga nočna osvežitev cen (prices.yml) in ročno; aplikacija hours.json prenese sama.
 on:
   workflow_dispatch:
-  push:
-    branches: [odpiralni-casi]
-    paths: [scripts/update-hours.mjs, .github/workflows/hours.yml]
+  schedule:
+    - cron: "20 4 * * 1"
 
 permissions:
   contents: write

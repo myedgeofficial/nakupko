@@ -37,6 +37,13 @@ const toMin = (s) => { const m = String(s).match(/(\d{1,2})[:.](\d{2})/); return
 // week: 7 seznamov [[od, do], ...] v minutah (Mo..Su); null = ni podatka za dan
 function toOsm(week) {
   if (week.every((d) => d == null)) return null;
+  // posamezen »zaprt« delavnik med enakimi odprtimi dnevi je skoraj vedno napaka vira (posebni datum)
+  const key = (d) => JSON.stringify(d || []);
+  for (let i = 0; i < 5; i++) {
+    if (week[i] && week[i].length) continue;
+    const others = [0, 1, 2, 3, 4].filter((j) => j !== i).map((j) => key(week[j]));
+    if (others.every((k) => k === others[0] && k !== "[]")) week[i] = JSON.parse(others[0]);
+  }
   const txt = week.map((d) => (!d || !d.length) ? "off" : d.map(([a, b]) => hm(a) + "-" + hm(b === 1440 ? 1440 : b).replace("24:00", "24:00")).join(","));
   if (txt.every((t) => t === "off")) return null;
   const parts = [];
