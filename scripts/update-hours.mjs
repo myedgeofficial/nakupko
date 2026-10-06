@@ -109,6 +109,7 @@ async function pool(items, n, fn) {
 
 const all = [];
 const stat = {};
+const dbg = [];  // povzetek za stran workflowa (dnevnik se iz aplikacije ne da brati)
 function add(v, s) {
   stat[v] = stat[v] || { vse: 0, ure: 0, xy: 0 };
   stat[v].vse++;
@@ -147,6 +148,7 @@ async function lidl() {
     if (!j) return console.log("Lidl: ni podatkov");
     const items = j.items || j.stores || j.data || [];
     if (n === 1) console.log("Lidl ključi:", Object.keys(j).join(","), "| trgovina:", Object.keys(items[0] || {}).join(","));
+    if (n === 1) dbg.push("lidl trgovina " + JSON.stringify(Object.fromEntries(Object.entries(items[0] || {}).filter(([k]) => k !== "openingHours"))).slice(0, 300));
     for (const s of items) {
       const week = Array(7).fill(null);
       for (const it of (s.openingHours && s.openingHours.items) || []) {
@@ -186,6 +188,7 @@ async function hofer() {
   const probe = await getJson(`https://api.hofer.si/v2/service-points/${encodeURIComponent(list[0].id)}`, { headers: { accept: "application/json" } });
   const ph = findHours(probe) || findHours(list[0]);
   console.log("Hofer urnik:", ph ? ph.k + " " + JSON.stringify(ph.v).slice(0, 400) : "ni v odgovoru");
+  dbg.push("hofer ključi " + Object.keys(list[0]).join(",") + " | urnik " + (ph ? ph.k + " " + JSON.stringify(ph.v).slice(0, 300) : "ni") + " | detajl " + JSON.stringify(probe || {}).slice(0, 300));
   const DN = { monday: 0, tuesday: 1, wednesday: 2, thursday: 3, friday: 4, saturday: 5, sunday: 6 };
   for (const s of list) {
     const a = s.address || {};
@@ -207,8 +210,10 @@ async function hofer() {
 
 // --- strani s seznamom trgovin (Mercator, Tuš, Eurospin): JSON-LD ali besedilo ---
 async function pages(v, urls, filter) {
+  const n0 = urls.length;
   urls = urls.filter((u) => filter(u));
   console.log(v + ": strani", urls.length);
+  dbg.push(v + " strani " + urls.length + "/" + n0);
   let shown = 0;
   await pool(urls, 4, async (u) => {
     const html = await getText(u);
@@ -233,7 +238,7 @@ async function pages(v, urls, filter) {
     }
     if (!addr) { const m = text.match(/([A-ZČŠŽ][^\n,]{2,60}?\s\d+[a-z]?)\s*,?\s*(\d{4})\s+([A-ZČŠŽ][^\n,]{1,40})/); if (m) addr = m[1].trim() + ", " + m[2] + " " + m[3].trim(); }
     const h = week ? toOsm(week.map((d) => d || [])) : null;
-    if (shown++ < 2) console.log("  vzorec", v, u, "|", addr, "|", lat, lon, "|", h);
+    if (shown++ < 2) { console.log("  vzorec", v, u, "|", addr, "|", lat, lon, "|", h); dbg.push(`${v} vzorec ${u.split("/").filter(Boolean).pop()} | ${addr} | ${lat},${lon} | ${h} | ld ${lds.length}` + (h ? "" : " | besedilo: " + text.slice(Math.max(0, text.search(/odpiraln/i)), Math.max(0, text.search(/odpiraln/i)) + 250).replace(/\s+/g, " "))); }
     add(v, { lat, lon, a: addr, h, n: addr || u });
   });
 }
@@ -258,13 +263,14 @@ async function jager() {
   const text = strip(html);
   // bloki se začnejo z »JAGER ...« in vsebujejo naslov s poštno številko
   const blocks = text.split(/(?=JAGER\s)/).slice(1);
+  dbg.push("jager blokov " + blocks.length);
   let shown = 0;
   for (const b of blocks) {
     const m = b.match(/^JAGER[^\n]*?[-–]?\s*([^\n]*?)\s*[,\n]\s*([^\n,]+?\d+[a-z]?)\s*,?\s*(\d{4})/i);
     const week = parseDayText(b.slice(0, 600));
     const addr = m ? (m[2].trim() + ", " + m[3] + " " + m[1].trim()) : "";
     const h = week ? toOsm(week.map((d) => d || [])) : null;
-    if (shown++ < 2) console.log("  vzorec jager |", addr, "|", h);
+    if (shown++ < 2) { console.log("  vzorec jager |", addr, "|", h); dbg.push("jager vzorec | " + addr + " | " + h + " | " + b.slice(0, 200).replace(/\s+/g, " ")); }
     if (addr) add("jager", { lat: null, lon: null, a: addr, h, n: addr });
   }
 }
@@ -277,7 +283,7 @@ async function geocode() {
     if (!t.a) continue;
     const key = t.v + "|" + t.a;
     if (oldGeo.has(key)) { [t.lat, t.lon] = oldGeo.get(key); t.g = 1; continue; }
-    if (asked >= 400) continue;
+    if (asked >= 1200) continue;
     asked++;
     const q = t.a.replace(/\s+/g, " ");
     const j = await getJson("https://nominatim.openstreetmap.org/search?format=json&countrycodes=si&limit=1&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
@@ -285,6 +291,7 @@ async function geocode() {
     await sleep(1100);
   }
   console.log("Nominatim poizvedb:", asked);
+  dbg.push("nominatim " + asked + ", najdeno " + all.filter((t) => t.g).length);
 }
 
 for (const [name, fn] of [["spar", spar], ["lidl", lidl], ["hofer", hofer], ["mercator", mercator], ["tus", tus], ["eurospin", eurospin], ["jager", jager]]) {
@@ -296,6 +303,8 @@ await geocode();
 
 const ok = all.filter((t) => t.lat > 45 && t.lat < 47.1 && t.lon > 13 && t.lon < 16.7 && t.h);
 for (const t of ok) { stat[t.v].xy++; t.lat = Math.round(t.lat * 1e5) / 1e5; t.lon = Math.round(t.lon * 1e5) / 1e5; }
+for (const v of Object.keys(stat)) { const a = all.filter((t) => t.v === v); dbg.push(`${v}: z urnikom ${a.length}, z naslovom ${a.filter((t) => t.a).length}, s koord. ${a.filter((t) => t.lat).length}`); }
+console.log("::notice title=Odpiralni časi (podrobno)::" + dbg.join(" ¦ ").slice(0, 3800));
 const summary = Object.entries(stat).map(([v, s]) => `${v}: ${s.xy}/${s.vse}`).join(", ");
 console.log(`::notice title=Odpiralni časi::${ok.length} trgovin z urnikom in lokacijo. ${summary}`);
 const samples = ["spar", "lidl", "hofer", "mercator", "tus", "eurospin", "jager"].map((v) => ok.find((t) => t.v === v)).filter(Boolean);
