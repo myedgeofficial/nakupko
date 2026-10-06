@@ -8,25 +8,16 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          curl -sSL https://cijene.dev/archive -o a.html; wc -c a.html; grep -oE '(href|src)="[^"]+"' a.html | head -40
-          grep -oiE '[a-z0-9/_.:-]*(zip|archive|v0|v1)[a-z0-9/_.?=-]*' a.html | sort -u | head -40
-          for p in /v0/archive/ /v1/archive/ /archive/list /archive.json /v0/list; do echo "$p $(curl -s -o /dev/null -w '%{http_code}' https://api.cijene.dev$p)"; done
-      - name: AT heisse-preise
-        continue-on-error: true
-        run: |
-          set +e
-          curl -sSL -o at.json -w "%{http_code} %{size_download}\n" https://heisse-preise.io/data/latest-canonical.json
-          python3 - <<'PY'
-          import json
-          d=json.load(open('at.json'));print(type(d),len(d))
-          from collections import Counter;print(Counter(x.get('store') for x in d))
-          print(json.dumps(d[0])[:700])
-          print(max(x['priceHistory'][0]['date'] for x in d if x.get('priceHistory')))
-          print([(x['store'],x['name'],x['price'],x.get('unit'),x.get('quantity')) for x in d if 'milch' in x['name'].lower()][:10])
-          PY
+          curl -sS https://api.cijene.dev/v0/list | head -c 1500; echo
+          U=$(curl -sS https://api.cijene.dev/v0/list | python3 -c "import json,sys;d=json.load(sys.stdin);a=d.get('archives',d) if isinstance(d,dict) else d;print(sorted(a,key=lambda x:x.get('date',''))[-1].get('url',''))")
+          echo "URL=$U"; curl -sSL "$U" -o hr.zip -w "%{http_code} %{size_download}\n"; unzip -l hr.zip | head -40
+          unzip -q -o hr.zip -d hr; for f in $(find hr -name '*.csv' | grep -i konzum | head -4); do echo "== $f $(wc -l <"$f")"; head -3 "$f"; done
+          find hr -maxdepth 2 | head -40
       - name: HU arfigyelo
         continue-on-error: true
         run: |
           set +e
-          curl -sSL https://arfigyelo.gvh.hu/ -o hu.html; wc -c hu.html; grep -oE '(src|href)="[^"]+"' hu.html | head -20
-          for j in $(grep -oE 'src="[^"]+\.js"' hu.html | cut -d'"' -f2 | head -8); do u=$j; case $u in http*) ;; *) u="https://arfigyelo.gvh.hu/${u#/}";; esac; echo "## $u"; curl -sSL "$u" | grep -oE '"[^"]{0,40}api[^"]{0,80}"' | sort -u | head -30; done
+          curl -sSL https://arfigyelo.gvh.hu/assets/index-5baaf084.js -o hu.js
+          grep -oE '.{300}Napi termékadatok letöltése.{300}' hu.js | head -3
+          grep -oE '.{120}"/api".{200}' hu.js | head -3
+          grep -oE '`[^`]{0,30}/(api|download|export)[^`]{0,80}`|"[^"]{0,30}/(api|download|export)/[^"]{0,80}"' hu.js | sort -u | head -40
