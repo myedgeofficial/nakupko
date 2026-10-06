@@ -5,24 +5,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: HR cijene.dev
+        continue-on-error: true
         run: |
-          curl -sSL https://cijene.dev/archive -o a.html; grep -oE 'href="[^"]+\.zip"' a.html | head -5
-          Z=$(grep -oE 'https?://[^"]+\.zip' a.html | head -1); [ -z "$Z" ] && Z="https://cijene.dev$(grep -oE 'href="/[^"]+\.zip"' a.html | head -1 | cut -d'"' -f2)"
-          echo "ZIP=$Z"; curl -sSL "$Z" -o hr.zip; ls -la hr.zip; unzip -l hr.zip | head -30
-          unzip -q -o hr.zip -d hr; for f in $(find hr -name '*.csv' | head -6); do echo "== $f $(wc -l <"$f")"; head -3 "$f"; done
-          F=$(find hr -path '*konzum*' -name 'prices.csv' | head -1); echo "konzum prices: $F"; grep -i "mlijeko" $(dirname $F)/products.csv 2>/dev/null | head -5
+          set +e
+          curl -sSL https://cijene.dev/archive -o a.html; wc -c a.html; grep -oE '(href|src)="[^"]+"' a.html | head -40
+          grep -oiE '[a-z0-9/_.:-]*(zip|archive|v0|v1)[a-z0-9/_.?=-]*' a.html | sort -u | head -40
+          for p in /v0/archive/ /v1/archive/ /archive/list /archive.json /v0/list; do echo "$p $(curl -s -o /dev/null -w '%{http_code}' https://api.cijene.dev$p)"; done
       - name: AT heisse-preise
+        continue-on-error: true
         run: |
-          curl -sSL -o at.json https://heisse-preise.io/data/latest-canonical.json; ls -la at.json
-          python3 -c "
-          import json;d=json.load(open('at.json'));print(type(d),len(d))
+          set +e
+          curl -sSL -o at.json -w "%{http_code} %{size_download}\n" https://heisse-preise.io/data/latest-canonical.json
+          python3 - <<'PY'
+          import json
+          d=json.load(open('at.json'));print(type(d),len(d))
           from collections import Counter;print(Counter(x.get('store') for x in d))
-          print(json.dumps(d[0])[:600])
-          import itertools
+          print(json.dumps(d[0])[:700])
           print(max(x['priceHistory'][0]['date'] for x in d if x.get('priceHistory')))
-          print([ (x['store'],x['name'],x['price'],x.get('unit'),x.get('quantity')) for x in d if 'milch' in x['name'].lower()][:8])"
+          print([(x['store'],x['name'],x['price'],x.get('unit'),x.get('quantity')) for x in d if 'milch' in x['name'].lower()][:10])
+          PY
       - name: HU arfigyelo
+        continue-on-error: true
         run: |
-          curl -sSL https://arfigyelo.gvh.hu/ -o hu.html; grep -oE 'src="[^"]+\.js"' hu.html | head
-          for j in $(grep -oE 'src="[^"]+\.js"' hu.html | cut -d'"' -f2 | head -5); do u=$j; case $u in http*) ;; *) u="https://arfigyelo.gvh.hu$u";; esac; curl -sSL "$u" | grep -oE '"/?api/[^"]{0,80}"|https://[a-z.]*gvh[^"]{0,80}' | sort -u | head -30; done
-          curl -sS -o /dev/null -w "%{http_code}\n" "https://arfigyelo.gvh.hu/api/search?q=tej"
+          set +e
+          curl -sSL https://arfigyelo.gvh.hu/ -o hu.html; wc -c hu.html; grep -oE '(src|href)="[^"]+"' hu.html | head -20
+          for j in $(grep -oE 'src="[^"]+\.js"' hu.html | cut -d'"' -f2 | head -8); do u=$j; case $u in http*) ;; *) u="https://arfigyelo.gvh.hu/${u#/}";; esac; echo "## $u"; curl -sSL "$u" | grep -oE '"[^"]{0,40}api[^"]{0,80}"' | sort -u | head -30; done
