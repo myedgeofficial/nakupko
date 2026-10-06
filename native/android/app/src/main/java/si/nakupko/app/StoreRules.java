@@ -149,18 +149,4 @@ final class StoreRules {
     }
 
     static Boolean isOpen(String hours, String chain) { return isOpen(hours, chain, Calendar.getInstance()); }
-
-    // Delovni čas v OpenStreetMap je pogosto zastarel (npr. Spar do 20h, v resnici do 21h):
-    // trgovino štejemo za zaprto šele uro po zapiranju in pol ure pred odprtjem (enako kot na iPhonu).
-    static boolean mayBeOpen(String hours, String chain, Calendar now) {
-        if (!Boolean.FALSE.equals(isOpen(hours, chain, now))) return true;
-        Calendar before = (Calendar) now.clone();
-        before.add(Calendar.MINUTE, -60);
-        if (Boolean.TRUE.equals(isOpen(hours, chain, before))) return true;
-        Calendar after = (Calendar) now.clone();
-        after.add(Calendar.MINUTE, 30);
-        return Boolean.TRUE.equals(isOpen(hours, chain, after));
-    }
-
-    static boolean mayBeOpen(String hours, String chain) { return mayBeOpen(hours, chain, Calendar.getInstance()); }
 }
