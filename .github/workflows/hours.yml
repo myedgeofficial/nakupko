@@ -1,0 +1,43 @@
+name: Odpiralni časi trgovin
+
+# Uradni odpiralni časi (Spar, Lidl, Hofer, Mercator, Tuš, Eurospin, Jager) → hours.json.
+# Zažene ga nočna osvežitev cen (prices.yml) in ročno; aplikacija hours.json prenese sama.
+on:
+  workflow_dispatch:
+  push:
+    branches: [odpiralni-casi]
+    paths: [scripts/update-hours.mjs, .github/workflows/hours.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hours
+  cancel-in-progress: false
+
+jobs:
+  hours:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Poberi odpiralne čase
+        run: node scripts/update-hours.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hours
+          path: hours.json
+      - name: Shrani, če se je kaj spremenilo
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git add -N hours.json 2>/dev/null || true
+          if git diff --quiet -- hours.json; then echo "Ni sprememb."; exit 0; fi
+          git config user.name "nakupko-cene"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add hours.json
+          git commit -m "Odpiralni časi $(TZ=Europe/Ljubljana date +%Y-%m-%d)"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
+          exit 1
