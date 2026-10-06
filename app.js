@@ -211,8 +211,49 @@
   }
   // Če trgovina urnika nima vpisanega: verige so ob nedeljah in praznikih zaprte, sicer predpostavimo, da je odprto.
   var CHAIN_DEFAULT_HOURS = "Mo-Sa 07:00-21:00; Su off; PH off";
+  // Uradni odpiralni časi trgovin (hours.json, osveženo vsako noč s strani trgovin); OSM je pogosto zastarel.
+  var OFFICIAL = [], OFFICIAL_DATE = "", officialMemo = {};
+  function useOfficial(d) {
+    if (!d || !d.trgovine) return;
+    OFFICIAL = d.trgovine; OFFICIAL_DATE = d.datum || ""; officialMemo = {};
+  }
+  try { useOfficial(JSON.parse(localStorage.getItem("nakupko-hours") || "null")); } catch (e) { /* nič */ }
+  function officialHours(s) {
+    if (!s || !s.chain || !OFFICIAL.length || s.lat == null) return null;
+    var k = s.chain + "|" + s.lat + "|" + s.lon;
+    if (officialMemo.hasOwnProperty(k)) return officialMemo[k];
+    var best = null, bd = 1e9;
+    OFFICIAL.forEach(function (t) {
+      if (t.v !== s.chain) return;
+      var dLat = (t.lat - s.lat) * 111320, dLon = (t.lon - s.lon) * 111320 * Math.cos(s.lat * Math.PI / 180);
+      var d = Math.sqrt(dLat * dLat + dLon * dLon);
+      // koordinate iz naslova so manj natančne
+      if (d < bd && d <= (t.g ? 400 : 250)) { bd = d; best = t; }
+    });
+    return (officialMemo[k] = best ? best.h : null);
+  }
+  function applyOfficial(list) {
+    (list || []).forEach(function (s) { var h = officialHours(s); if (h) { s.hours = h; s.official = true; } });
+  }
+  function refreshOfficial() {
+    if (!window.fetch) return;
+    fetch("https://myedgeofficial.github.io/nakupko/hours.json?d=" + new Date().toISOString().slice(0, 10), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || !d.trgovine || !d.trgovine.length) return;
+        var raw = JSON.stringify(d), prev = null;
+        try { prev = localStorage.getItem("nakupko-hours"); } catch (e) { /* nič */ }
+        if (raw === prev) return;
+        try { localStorage.setItem("nakupko-hours", raw); } catch (e) { /* poln */ }
+        useOfficial(d);
+        applyOfficial(stores);
+        if (state.storesCache) { state.storesCache.list = stores; save(); }
+        renderAll();
+      })
+      .catch(function () { /* brez povezave */ });
+  }
   function spansFor(s, dt) {
-    var h = parseHours(s.hours || (s.chain ? CHAIN_DEFAULT_HOURS : ""));
+    var h = parseHours(officialHours(s) || s.hours || (s.chain ? CHAIN_DEFAULT_HOURS : ""));
     if (h && h.always) return [[0, 1440]];
     var hol = isHoliday(dt), dow = dt.getDay();
     if (h) {
@@ -227,7 +268,7 @@
   function openState(s, now) {
     var r = openState0(s, now);
     // Za verige brez vpisanega urnika uporabimo običajni delovni čas.
-    if (s.chain && !s.hours && r.open !== null) r.text += " (okvirno)";
+    if (s.chain && !s.hours && !officialHours(s) && r.open !== null) r.text += " (okvirno)";
     return r;
   }
   function openState0(s, now) {
@@ -841,6 +882,7 @@
       return allowedStore(s);
     });
     lastFetchPos = state.storesCache.pos;
+    applyOfficial(stores);
   }
 
   function currentStore() { return activeStore; }
@@ -917,6 +959,7 @@
             var addr = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
             return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || defHours || "" };
           }).filter(Boolean);
+          applyOfficial(stores);
           lastFetchPos = { lat: p.lat, lon: p.lon };
           state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now() };
           save();
@@ -1689,6 +1732,7 @@
   renderAll();
   renderStores();
   refreshPrices();
+  refreshOfficial();
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshPrices(); });
   setInterval(checkRemote, 10000);
   checkRemote();
