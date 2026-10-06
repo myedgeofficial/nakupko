@@ -66,6 +66,8 @@ CHAINS = {
         "dm": ("hu_dm", "dm", "^dm\\b", "#2A4B9B"),
     },
 }
+DRUGSTORES = {"dm", "bipa", "mueller", "muller", "rossmann"}
+DRUG_CATS = re.compile(r"^(Higiena|Gospodinjstvo|Otroci|Zdravje|Ljubljenčki)$")
 CURRENCY = {"AT": "EUR", "HR": "EUR", "HU": "HUF"}
 LANG_IDX = {"AT": 1, "HR": 2, "HU": 3}
 
@@ -260,10 +262,14 @@ def build(country, products, tr):
         kws = [norm(k) for k in t[li].split("|") if norm(k)]
         if not kws:
             continue
-        pats = [re.compile(r"(?:^| )" + re.escape(k)) for k in kws]
+        # beseda ali beseda z do dvema črkama končnice (Banane/Bananen), ne sestavljenke (Bananenchips)
+        pats = [re.compile(r"(?:^| )" + re.escape(k) + r"[a-z]{0,2}(?![a-z])") for k in kws]
+        drug_ok = bool(DRUG_CATS.match(cat or ""))
         kind, amount = pack(unit)
         cene = {}
         for ch, lst in by_chain.items():
+            if ch in DRUGSTORES and not drug_ok:
+                continue  # drogerije: samo higiena, gospodinjstvo ... (ne »mleko« v kremi za telo)
             vals = []
             for (_, nm, catn, price, ok, oa) in lst:
                 if not any(pt.search(nm) or (catn and pt.search(catn)) for pt in pats):
@@ -285,6 +291,10 @@ def build(country, products, tr):
                 v = quantile(vals, 0.3)
                 if v and v > 0:
                     cene[chains[ch][0]] = round(v) if CURRENCY[country] == "HUF" else round(v, 2)
+        # izločimo cene, ki močno odstopajo od drugih verig (napačno prepoznan izdelek, cena na kos ...)
+        if len(cene) >= 3:
+            med = quantile(list(cene.values()), 0.5)
+            cene = {k: v for k, v in cene.items() if 0.45 * med <= v <= 2.2 * med}
         if cene:
             items.append({"ime": name, "cene": cene})
     if len(items) < 50:
