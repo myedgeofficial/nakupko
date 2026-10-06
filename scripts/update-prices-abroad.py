@@ -9,7 +9,7 @@ Italija nima brezplačnega vira, zato tam cen ni.
 
 Za vsak izdelek iz kataloga, ki ima v products-i18n.js iskalne izraze za državo, poišče ponudbe
 po verigah. Cena za verigo = redna cena na kg/l (spodnja tretjina zadetkov) × pakiranje iz kataloga,
-kot pri slovenskih cenah. Zapiše prices-AT.json, prices-HR.json, prices-HU.json.
+kot pri slovenskih cenah. Zapiše prices-at.json, prices-hr.json, prices-hu.json.
 Če vir ne deluje, ostane stara datoteka (nič se ne pokvari).
 """
 import csv, io, json, os, re, statistics, sys, unicodedata, urllib.request, zipfile, datetime
@@ -309,7 +309,7 @@ def main():
     for c in COUNTRIES:
         try:
             d = build(c, products, tr)
-            path = os.path.join(ROOT, f"prices-{c}.json")
+            path = os.path.join(ROOT, f"prices-{c.lower()}.json")
             json.dump(d, open(path, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
             print(f"{c}: {len(d['izdelki'])} izdelkov, verige {sorted(d['verige'])}", flush=True)
         except Exception as e:  # noqa: BLE001 – en vir ne sme podreti ostalih
