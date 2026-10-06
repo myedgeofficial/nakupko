@@ -54,14 +54,20 @@ jobs:
         env:
           PRICES_API: ${{ inputs.preizkus_alarma && 'https://www.polnakosarica.si/api/ni-tega' || '' }}
         run: node scripts/update-prices.mjs
+      - name: Cene v Avstriji, na Hrvaškem in Madžarskem
+        if: steps.when.outputs.run == 'yes'
+        continue-on-error: true
+        run: |
+          pip install -q openpyxl
+          python3 scripts/update-prices-abroad.py
       - name: Shrani, če se je kaj spremenilo
         if: steps.when.outputs.run == 'yes' && github.ref == 'refs/heads/main'
         run: |
-          git add -N prices.json 2>/dev/null || true
-          if git diff --quiet -- prices.js prices.json; then echo "Ni sprememb."; exit 0; fi
+          git add -N prices.json prices-*.json 2>/dev/null || true
+          if git diff --quiet -- prices.js prices.json 'prices-*.json'; then echo "Ni sprememb."; exit 0; fi
           git config user.name "nakupko-cene"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add prices.js prices.json
+          git add prices.js prices.json prices-*.json 2>/dev/null || git add prices.js prices.json
           git commit -m "Cene $(TZ=Europe/Ljubljana date +%Y-%m-%d)"
           for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
           exit 1
@@ -72,7 +78,7 @@ jobs:
         run: gh workflow run hours.yml --ref main || true
       - name: Predogled sprememb (testna veja)
         if: steps.when.outputs.run == 'yes' && github.ref != 'refs/heads/main'
-        run: git diff --stat; git diff prices.js | head -c 3000 || true
+        run: git diff --stat; git diff prices.js | head -c 3000; ls -la prices-*.json || true
       - name: Obvesti lastnika, če vir cen ne deluje (GitHub issue = e-mail)
         if: failure() && steps.fetch.outcome == 'failure' && github.ref == 'refs/heads/main'
         env:

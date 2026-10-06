@@ -83,6 +83,13 @@
   });
   var CATALOG_BY_KEY = {};
   CATALOG.forEach(function (p) { CATALOG_BY_KEY[norm(p.name)] = p; });
+  // Angleška imena izdelkov (products-i18n.js): iskanje deluje v obeh jezikih.
+  var I18N = window.NAKUPKO_I18N || {};
+  CATALOG.forEach(function (p) { p.en = I18N[p.name] ? norm(I18N[p.name][0]) : ""; });
+  function catalogFind(name) {
+    var k = norm(name);
+    return CATALOG_BY_KEY[k] || CATALOG.filter(function (p) { return p.en && p.en === k; })[0] || null;
+  }
 
   var DEFAULT_QUICK = ["Mleko", "Kruh beli", "Jajca", "Banane", "Jogurt navadni", "Maslo", "Voda", "Toaletni papir", "Kava mleta", "Paradižnik"];
   var DAY = 86400000;
@@ -143,7 +150,11 @@
     return e;
   }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-  function eur(v) { return v == null || isNaN(v) ? "–" : v.toFixed(2).replace(".", ",") + " €"; }
+  function eur(v) {
+    if (v == null || isNaN(v)) return "–";
+    if (moneyScale() > 1) return String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " Ft";
+    return v.toFixed(2).replace(".", ",") + " €";
+  }
   function capital(s) { s = String(s).trim(); return s.charAt(0).toUpperCase() + s.slice(1); }
   function parseQty(s) {
     var n = parseFloat(String(s || "1").replace(",", "."));
@@ -360,6 +371,57 @@
       })
       .catch(function () { /* brez povezave */ });
   }
+  // ---------- Cene v sosednjih državah ----------
+  // Avstrija, Hrvaška in Madžarska objavljajo cene zastonj; nočna osvežitev jih shrani v prices-xx.json.
+  // Drugje v tujini cen ne pišemo, samo seznam in zaznavanje trgovin.
+  var FOREIGN_LANDS = { AT: 1, HR: 1, HU: 1 };
+  var FOREIGN = null;
+  function useForeign(d) {
+    if (!d || !d.izdelki || !d.verige || !d.drzava) return false;
+    var keys = Object.keys(d.verige);
+    keys.forEach(function (k) {
+      var v = d.verige[k], re;
+      try { re = new RegExp(v.vzorec, "i"); } catch (e) { re = NEVER; }
+      var c = CHAIN_BY_KEY[k];
+      if (!c) { c = { key: k, name: v.ime, factor: 1.0, color: v.barva || "#8A3FFC", match: NEVER }; CHAINS.push(c); CHAIN_BY_KEY[k] = c; }
+      c.tuj = re;
+    });
+    var cene = {};
+    d.izdelki.forEach(function (e) { if (e.ime && e.cene) cene[norm(e.ime)] = e.cene; });
+    FOREIGN = { drzava: d.drzava, valuta: d.valuta || "EUR", datum: d.datum || "", chains: keys, cene: cene };
+    return true;
+  }
+  function foreignOn() { return abroad() && !!FOREIGN && FOREIGN.drzava === state.storesCache.country; }
+  function moneyScale() { return foreignOn() && FOREIGN.valuta === "HUF" ? 400 : 1; }
+  function foreignKey(c) { return "nakupko-prices-" + c.toLowerCase(); }
+  // Trgovina v tujini dobi verigo (npr. Billa, Konzum, Tesco), če jo poznamo iz cen.
+  function foreignChainOf(s) {
+    if (!FOREIGN || s.gk !== "trgovina") return null;
+    for (var i = 0; i < FOREIGN.chains.length; i++) {
+      var c = CHAIN_BY_KEY[FOREIGN.chains[i]];
+      if (c && c.tuj && c.tuj.test(s.bt || "")) return c.key;
+    }
+    return null;
+  }
+  function remapForeign(list) { (list || []).forEach(function (s) { if (s.tuj && s.gk) s.chain = foreignChainOf(s) || s.gk; }); }
+  function loadForeign(ctry) {
+    if (!FOREIGN_LANDS[ctry]) return;
+    if (!FOREIGN || FOREIGN.drzava !== ctry) {
+      try { useForeign(JSON.parse(localStorage.getItem(foreignKey(ctry)) || "null")); } catch (e) { /* nič */ }
+    }
+    if (!window.fetch) return;
+    fetch("https://myedgeofficial.github.io/nakupko/prices-" + ctry.toLowerCase() + ".json?d=" + new Date().toISOString().slice(0, 13), { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || d.drzava !== ctry || (FOREIGN && FOREIGN.drzava === ctry && (d.datum || "") <= FOREIGN.datum)) return;
+        try { localStorage.setItem(foreignKey(ctry), JSON.stringify(d)); } catch (e) { /* poln */ }
+        if (!useForeign(d)) return;
+        remapForeign(stores);
+        if (state.storesCache) remapForeign(state.storesCache.list);
+        renderAll();
+      })
+      .catch(function () { /* brez povezave */ });
+  }
   // Izdelek z znamko (Red Bull) ima svojo ceno, če jo poznamo; brez znamke velja glavna znamka, sicer cena izdelka na splošno.
   function brandPriceKey(it) {
     var key = norm(it.name), p = CATALOG_BY_KEY[key], b = norm(it.brand);
@@ -374,6 +436,10 @@
     return k && BASE_PRICES[k] ? k : null;
   }
   function priceFor(name, chain) {
+    if (abroad()) {
+      var fp = foreignOn() && FOREIGN.cene[norm(name && typeof name === "object" ? name.name : name)];
+      return { price: fp && typeof fp[chain] === "number" ? fp[chain] : null, est: false };
+    }
     var bk = name && typeof name === "object" ? brandPriceKey(name) : null;
     if (name && typeof name === "object") name = name.name;
     var key = norm(name);
@@ -408,6 +474,8 @@
   function addItem(name, brand, qty, opts) {
     name = capital(name || "");
     if (!name) return;
+    var hitName = catalogFind(name);
+    if (hitName) name = hitName.name; // angleško ime → izdelek iz kataloga
     var key = norm(name);
     var existing = state.items.find(function (i) { return norm(i.name) === key && !i.done && (i.brand || "") === (brand || ""); });
     if (existing) {
@@ -474,11 +542,14 @@
     all: { label: "Kjerkoli je najceneje", short: "najceneje", chains: null },
     none: { label: "Cene me ne zanimajo", short: "", chains: null }
   };
-  function pref() { return PREFS[state.settings.pricePref] || PREFS.all; }
-  // Cene imamo samo za slovenske trgovine: v tujini jih ne pišemo.
+  function pref() {
+    if (abroad() && state.settings.pricePref !== "none") return PREFS.all; // v tujini: kjerkoli je najceneje
+    return PREFS[state.settings.pricePref] || PREFS.all;
+  }
+  // V tujini pišemo cene samo, kjer jih imamo (Avstrija, Hrvaška, Madžarska).
   function abroad() { var c = state.storesCache && state.storesCache.country; return !!c && c !== "SI"; }
-  function pricesOff() { return state.settings.pricePref === "none" || abroad(); }
-  function pref2() { var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
+  function pricesOff() { return state.settings.pricePref === "none" || (abroad() && !foreignOn()); }
+  function pref2() { if (abroad()) return null; var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
   // trgovine, ki jih uporabnik sploh obiskuje (prva + druga izbira); null = vse
   function myChains() {
     if (!pref().chains) return null;
@@ -487,6 +558,7 @@
     return l;
   }
   function compareChains() {
+    if (abroad()) return foreignOn() ? FOREIGN.chains.slice() : [];
     var list = COMPARE_CHAINS.slice();
     (myChains() || []).forEach(function (c) { if (list.indexOf(c) < 0) list.push(c); });
     return list;
@@ -640,10 +712,11 @@
     if (!nq) return [];
     var starts = [], contains = [];
     CATALOG.forEach(function (p) {
-      var n = norm(p.name);
+      var n = norm(p.name), en = p.en;
       var b = p.brands.map(norm).join(" ");
-      if (n.indexOf(nq) === 0 || n.split(" ").some(function (w) { return w.indexOf(nq) === 0; })) starts.push(p);
-      else if (n.indexOf(nq) >= 0 || b.indexOf(nq) >= 0 || norm(p.cat).indexOf(nq) === 0) contains.push(p);
+      var wordStart = function (x) { return x.indexOf(nq) === 0 || x.split(" ").some(function (w) { return w.indexOf(nq) === 0; }); };
+      if (wordStart(n) || (en && wordStart(en))) starts.push(p);
+      else if (n.indexOf(nq) >= 0 || (en && en.indexOf(nq) >= 0) || b.indexOf(nq) >= 0 || norm(p.cat).indexOf(nq) === 0) contains.push(p);
     });
     // izdelki, ki jih pogosto kupuješ, najprej
     var byUse = function (a, b) { return (state.usage[norm(b.name)] || 0) - (state.usage[norm(a.name)] || 0); };
@@ -976,6 +1049,7 @@
           els.forEach(function (e) { if (e.type === "area" && e.tags && e.tags["ISO3166-1"]) ctry = e.tags["ISO3166-1"].toUpperCase(); });
           if (!ctry) ctry = inSlovenia(p.lat, p.lon) ? "SI" : "XX";
           var tuj = ctry !== "SI", wasAbroad = abroad();
+          if (tuj) loadForeign(ctry);
           stores = els.map(function (e) {
             var t = e.tags || {};
             var lat = e.lat != null ? e.lat : (e.center && e.center.lat);
@@ -987,7 +1061,9 @@
               var gk = t.amenity === "fuel" ? "bencinska" : ABROAD_SHOP[t.shop];
               if (!gk) return null;
               var ad = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
-              return { id: e.type + "/" + e.id, name: nm + (ad ? ", " + ad : ""), short: nm, chain: gk, duty: false, tuj: true, lat: lat, lon: lon, hours: t.opening_hours || "" };
+              var fs = { id: e.type + "/" + e.id, name: nm + (ad ? ", " + ad : ""), short: nm, chain: gk, gk: gk, bt: [t.brand, t.name, t.operator].filter(Boolean).join(" "), duty: false, tuj: true, lat: lat, lon: lon, hours: t.opening_hours || "" };
+              fs.chain = foreignChainOf(fs) || gk;
+              return fs;
             }
             var kind = storeKind([t.brand, t.name, t.operator].join(" "), t.opening_hours);
             if (!kind && t.amenity === "fuel") kind = "bencinska";
@@ -1208,7 +1284,7 @@
         else { sum += p.price * (it.qty || 1); if (p.est) est++; }
       });
       return { c: c, sum: sum, est: est, missing: missing };
-    }).sort(function (a, b) { return a.sum - b.sum; });
+    }).sort(function (a, b) { return (abroad() ? a.missing - b.missing : 0) || a.sum - b.sum; });
   }
   function renderHero() {
     var open = state.items.filter(function (i) { return !i.done; });
@@ -1237,10 +1313,13 @@
       return;
     }
     var rows = compareRows(open);
+    if (!rows.length) return;
+    // prihranek samo med trgovinami, ki imajo cene za enako izdelkov
+    var same = rows.filter(function (r) { return r.missing === rows[0].missing; });
     $("heroTotal").textContent = "≈ " + eur(rows[0].sum);
     $("heroBest").innerHTML = "";
     $("heroBest").appendChild(chainDot(rows[0].c));
-    $("heroBest").appendChild(document.createTextNode("najceneje v " + CHAIN_BY_KEY[rows[0].c].name + (rows.length > 1 ? " · prihranek " + eur(rows[rows.length - 1].sum - rows[0].sum) : "")));
+    $("heroBest").appendChild(document.createTextNode("najceneje v " + CHAIN_BY_KEY[rows[0].c].name + (same.length > 1 ? " · prihranek " + eur(same[same.length - 1].sum - rows[0].sum) : "")));
   }
   function renderCompare() {
     var ul = $("compare");
@@ -1248,7 +1327,8 @@
     var open = state.items.filter(function (i) { return !i.done; });
     if (!open.length) { ul.appendChild(el("li", { class: "muted" }, ["Dodaj izdelke na seznam za primerjavo."])); return; }
     var rows = compareRows(open);
-    var max = rows[rows.length - 1].sum || 1;
+    if (!rows.length) return;
+    var max = Math.max.apply(null, rows.map(function (r) { return r.sum; })) || 1;
     rows.forEach(function (r, i) {
       var note = r.missing ? r.missing + " brez cene" : "";
       ul.appendChild(el("li", { class: i === 0 ? "best" : "" }, [
@@ -1448,7 +1528,8 @@
     var ref = lastPos || lastFetchPos;
     if (!ref || !stores.length) return null;
     var allowed = myChains();
-    var cand = stores.filter(function (s) { return s.chain && CHAIN_BY_KEY[s.chain] && !CHAIN_BY_KEY[s.chain].only && !/^test\//.test(s.id) && (!allowed || allowed.indexOf(s.chain) >= 0); })
+    var mine = abroad() ? compareChains() : allowed;
+    var cand = stores.filter(function (s) { return s.chain && CHAIN_BY_KEY[s.chain] && !CHAIN_BY_KEY[s.chain].only && !/^test\//.test(s.id) && (!mine || mine.indexOf(s.chain) >= 0); })
       .map(function (s) { return { s: s, d: distM(ref, s) }; })
       .filter(function (x) { return x.d <= TRIP_MAX; })
       .sort(function (a, b) { return a.d - b.d; }).slice(0, 60);
@@ -1460,11 +1541,17 @@
       price[c] = open.map(function (it) { var p = priceFor(it, c); return p.price == null ? null : p.price * (it.qty || 1); });
       cost[c] = price[c].reduce(function (a, v) { return a + (v || 0); }, 0);
     });
+    // V tujini cene niso popolne: manjkajočo ceno štejemo kot najdražjo znano, da trgovina brez podatkov ni »najcenejša«.
+    if (abroad()) {
+      var mx = open.map(function (it, k) { return Object.keys(price).reduce(function (m, c) { return Math.max(m, price[c][k] || 0); }, 0); });
+      Object.keys(price).forEach(function (c) { cost[c] = price[c].reduce(function (a, v, k) { return a + (v == null ? mx[k] : v); }, 0); });
+    }
     // ena trgovina: najbližja, razen če je druga občutno cenejša
     var nearest = cand[0];
     var cheapest = cand.slice().sort(function (a, b) { return cost[a.s.chain] - cost[b.s.chain] || a.d - b.d; })[0];
     var diff = cost[nearest.s.chain] - cost[cheapest.s.chain];
-    var single = diff >= Math.max(1.5, cost[nearest.s.chain] * 0.05) ? cheapest : nearest;
+    var M = moneyScale();
+    var single = diff >= Math.max(1.5 * M, cost[nearest.s.chain] * 0.05) ? cheapest : nearest;
     var singleCost = cost[single.s.chain];
     // dve trgovini, ki sta skupaj
     var pairCost = {}, best = null;
@@ -1487,7 +1574,7 @@
     if (best) {
       var saving = singleCost - best.cost;
       plan.pair = best; plan.saving = saving;
-      plan.split = saving >= Math.max(2, singleCost * 0.08);
+      plan.split = saving >= Math.max(2 * M, singleCost * 0.08);
       if (plan.split) {
         var pa2 = price[best.a.s.chain], pb2 = price[best.b.s.chain];
         plan.listA = []; plan.listB = [];
@@ -1623,7 +1710,7 @@
     if (!v) return;
     var res = searchAll(v);
     if (selIdx >= 0 && res[selIdx]) { chooseResult(res[selIdx]); return; }
-    var exact = CATALOG_BY_KEY[norm(v)];
+    var exact = catalogFind(v);
     if (exact) return pickProduct(exact.name);
     // »redbull« → Energijska pijača (Red Bull), če se ime izdelka ne ujema.
     var b = res.filter(function (r) { return r.group; })[0];
@@ -1641,10 +1728,11 @@
     e.preventDefault();
     var v = $("smInput").value.trim();
     if (!v) return;
-    var exact = CATALOG_BY_KEY[norm(v)] || searchCatalog(v)[0];
-    var bm = !(exact && norm(exact.name).indexOf(norm(v)) === 0) && searchBrands(v)[0];
+    var exact = catalogFind(v) || searchCatalog(v)[0];
+    var lead = exact && (norm(exact.name).indexOf(norm(v)) === 0 || exact.en.indexOf(norm(v)) === 0);
+    var bm = !lead && searchBrands(v)[0];
     if (bm) addItem(bm.p.name, bm.brand || bm.group.name, 1);
-    else addItem(exact && norm(exact.name).indexOf(norm(v)) === 0 ? exact.name : v, "", 1);
+    else addItem(lead ? exact.name : v, "", 1);
     $("smInput").value = "";
   });
 
@@ -1767,12 +1855,21 @@
   // ---------- Zagon ----------
   applySize();
   renderSizeChoices($("sizeBox"), setSize);
+  (function () {
+    var box = $("langBox"), cur = window.NK_LANG || "sl";
+    if (!box) return;
+    [["sl", "Slovenščina"], ["en", "English"]].forEach(function (l) {
+      box.appendChild(el("button", { class: "pref-opt" + (cur === l[0] ? " on" : ""), type: "button",
+        onclick: function () { if (l[0] !== cur && window.NK_SET_LANG) window.NK_SET_LANG(l[0]); } }, [el("div", { class: "pref-text" }, [el("b", { text: l[1] })])]));
+    });
+  })();
   renderPrefs();
   maybeOnboard();
   priceKeysClean();
   renderAll();
   renderStores();
   refreshPrices();
+  if (abroad()) { loadForeign(state.storesCache.country); renderAll(); }
   refreshOfficial();
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refreshPrices(); });
   setInterval(checkRemote, 10000);
