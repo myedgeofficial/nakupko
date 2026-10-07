@@ -153,7 +153,7 @@ public class NakupkoGeoPlugin extends Plugin {
     public void shopping(PluginCall call) {
         JSONArray groups = call.getArray("groups", new JSArray());
         geo.shopping(Boolean.TRUE.equals(call.getBoolean("active", false)), call.getString("store", "Nakupovanje"),
-            groups, call.getInt("done", 0), call.getInt("total", 0));
+            groups, call.getInt("done", 0), call.getInt("total", 0), Boolean.TRUE.equals(call.getBoolean("updateOnly", false)));
         call.resolve();
     }
 
