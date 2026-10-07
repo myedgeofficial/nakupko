@@ -356,7 +356,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         guard !fetching else { return }
         fetching = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "nakupko.stores")
-        let q = "[out:json][timeout:20];(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
+        // Najprej država (is_in): zunaj Slovenije spremljamo vse trgovine z živili, ne le slovenskih verig.
+        let q = "[out:json][timeout:20];is_in(\(loc.coordinate.latitude),\(loc.coordinate.longitude))->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
         var req = URLRequest(url: URL(string: "https://overpass-api.de/api/interpreter")!)
         req.httpMethod = "POST"
         req.timeoutInterval = 25
@@ -370,6 +371,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let elements = json["elements"] as? [[String: Any]] else { return }
+                let country = elements.lazy.compactMap { ($0["tags"] as? [String: Any])?["ISO3166-1"] as? String }.first?.uppercased() ?? "SI"
                 let list: [GeoStore] = elements.compactMap { e in
                     let tags = e["tags"] as? [String: Any] ?? [:]
                     let center = e["center"] as? [String: Any]
@@ -378,6 +380,13 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                     let name = (tags["name"] as? String) ?? (tags["brand"] as? String) ?? (tags["operator"] as? String) ?? "Trgovina"
                     let hours = (tags["opening_hours"] as? String) ?? ""
                     let text = [tags["brand"], tags["name"], tags["operator"]].compactMap { $0 as? String }.joined(separator: " ")
+                    // V tujini vse trgovine z živili (brez verige, brez slovenskih urnikov).
+                    if country != "SI" {
+                        let shop = (tags["shop"] as? String) ?? ""
+                        guard ["supermarket", "convenience", "grocery", "discount"].contains(shop) else { return nil }
+                        return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
+                                        chain: nil, duty: false, hours: hours)
+                    }
                     // Samo verige in dežurne trgovine, kot v aplikaciji.
                     guard let kind = StoreRules.kind(text: text, hours: hours) else { return nil }
                     return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,

@@ -11,6 +11,7 @@ enum StoreRules {
         ("hofer", "hofer|aldi"),
         ("eurospin", "eurospin"),
         ("jager", "jager"),
+        ("leclerc", "leclerc"),
         // Drogerije: v obvestilu samo izdelki zanje (kot only v app.js).
         ("dm", "^dm\\b|dm[ -]drogerie|dm drogerija"),
         ("muller", "m[uü]ller")

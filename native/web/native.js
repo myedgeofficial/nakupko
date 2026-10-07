@@ -197,7 +197,8 @@
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
       cfg.stores = list.filter(function (x) { return !/^test\//.test(x.id) && (x.chain || x.duty); }).map(function (x) {
-        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: x.chain || null, duty: !!x.duty, hours: x.hours || "",
+        // V tujini brez verige: iPhone/Android tam ne ugibata urnika in ne primerjata cen.
+        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: (!x.tuj && x.chain) || null, duty: !!x.duty, hours: x.hours || "",
           only: x.chain && api.chainOnly ? api.chainOnly(x.chain) : "" };
       });
       cfg.groups = groupsOf((s.items || []).filter(function (i) { return !i.done; }));
