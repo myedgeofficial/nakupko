@@ -53,6 +53,7 @@ jobs:
       - name: Posnemi
         env:
           PYTHONUNBUFFERED: "1"
+          JEZIK: en
         run: python3 reklama/drive.py
 
       - uses: actions/upload-artifact@v4

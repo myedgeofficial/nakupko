@@ -361,7 +361,9 @@ def main():
     a = Phone("A")
     sh(["xcrun", "simctl", "boot", a.udid])
     sh(["xcrun", "simctl", "bootstatus", a.udid, "-b"], quiet=True)
-    for k, v in (("AppleLanguages", ["-array", "sl-SI"]), ("AppleLocale", ["-string", "sl_SI"])):
+    L = os.environ.get("JEZIK", "sl")
+    loc = {"sl": ("sl-SI", "sl_SI"), "en": ("en-US", "en_US")}[L]
+    for k, v in (("AppleLanguages", ["-array", loc[0]]), ("AppleLocale", ["-string", loc[1]])):
         sh(["xcrun", "simctl", "spawn", a.udid, "defaults", "write", "Apple Global Domain", k] + v)
     sh(["xcrun", "simctl", "shutdown", a.udid])
     sh(["xcrun", "simctl", "boot", a.udid])
@@ -373,32 +375,43 @@ def main():
     wait(5)
     first_run(a, bid)
     allow_alerts(a, 2)
-    for n in ("Mleko", "Kruh beli", "Jajca", "Banane", "Jogurt navadni"):
+    chips = ("Mleko", "Kruh beli", "Jajca", "Banane", "Jogurt navadni")
+    if L == "en":
+        # jezik aplikacije: Nastavitve → Jezik → English (stran se naloži znova)
+        a.tap_text(r"^Nastavitve$", timeout=5, required=False); wait(2)
+        scroll_to(a, r"Jezik / Language")
+        a.tap_text(r"Jezik / Language", timeout=3, required=False); wait(1.5)
+        scroll_to(a, r"^English$")
+        a.tap_text(r"^English$", timeout=4, required=False); wait(5)
+        a.tap_text(r"^List$", timeout=5, required=False); wait(2)
+        chips = ("Milk", "White bread", "Eggs", "Bananas", "Plain yoghurt")
+    a.shot("jezik")
+    for n in chips:
         a.tap_text("^" + n + "$", timeout=8, required=False)
         wait(2.5)
     a.shot("seznam")
     # prihod v Spar: aplikacija sama odpre »V trgovini« (in seznam na zaklenjenem zaslonu)
     a.location(*SPAR_REAL)
-    if not a.find_text(r"v ko.arici", timeout=90):
-        a.tap_text(r"^Odpri$", timeout=3, required=False) or a.tap_text(r"V trgovini", timeout=3, required=False)
+    if not a.find_text(r"v ko.arici|in basket", timeout=90):
+        a.tap_text(r"^(Odpri|Open)$", timeout=3, required=False) or a.tap_text(r"V trgovini|In store", timeout=3, required=False)
     wait(4)
     a.shot("v-trgovini")
-    a.tap_text(r"^Jajca$", timeout=4, required=False, dy=0)
+    a.tap_text(r"^(Jajca|Eggs)$", timeout=4, required=False, dy=0)
     # zaklenemo in prižgemo zaslon, dovolimo aktivnosti v živo
     a.button("lock")
     wait(4)
     for i in range(3):
-        if a.tap_text(r"^Dovoli$", timeout=6, required=False):
+        if a.tap_text(r"^(Dovoli|Allow)$", timeout=6, required=False):
             wait(4)
     clear_old_notifications(a)
     a.shot("zaklenjen-1")
     # če seznama še ni: odklenemo, odpremo aplikacijo, znova zaklenemo
-    if not a.find_text(r"Spar|Odpri seznam|Naprej", timeout=3):
+    if not a.find_text(r"Spar|Odpri seznam|Open list|Naprej|Next", timeout=3):
         a.launch(bid)
         wait(6)
         a.button("lock")
         wait(5)
-        a.tap_text(r"^Dovoli$", timeout=5, required=False)
+        a.tap_text(r"^(Dovoli|Allow)$", timeout=5, required=False)
         wait(3)
         clear_old_notifications(a)
         a.shot("zaklenjen-2")
@@ -409,9 +422,7 @@ def main():
     wait(2)
     a.button("lock")
     wait(4)
-    for n in ("Kruh beli", "Mleko"):
-        a.tap_text(n, timeout=4, required=False)
-        wait(3)
+    wait(3)
     a.shot("zaklenjen-kljukanje")
     wait(3)
     a.record_stop()
