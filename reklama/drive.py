@@ -239,7 +239,7 @@ def first_run(p, bid):
     wait(3)
     p.shot("po-izbiri-1")
     # morebitno drugo vprasanje
-    if p.find_text(r"?$", timeout=2):
+    if p.find_text(r"\?\s*$", timeout=2):
         p.shot("drugo-vprasanje")
 
 
