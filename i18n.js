@@ -12,7 +12,7 @@
   // Jeziki s prevodom (ime v izbiri jezika).
   var PACKS = { sl: "Slovenščina", en: "English", de: "Deutsch", hr: "Hrvatski", it: "Italiano", hu: "Magyar", fr: "Français", es: "Español" };
   // Jeziki, ki imajo imena izdelkov v svojem jeziku (i18n/products-xx.js); drugje angleška imena.
-  var PRODUCT_PACKS = { de: 1, hr: 1 };
+  var PRODUCT_PACKS = { de: 1, hr: 1, it: 1, hu: 1, fr: 1, es: 1 };
   // Sorodni jeziki, dokler nimajo svojega prevoda.
   var ALIAS = { bs: "hr", sr: "hr", cnr: "hr" };
   function supported(l) {
