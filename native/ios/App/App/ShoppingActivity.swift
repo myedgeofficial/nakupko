@@ -15,6 +15,7 @@ struct LiveItem: Codable, Hashable {
     var label: String
     var icon: String
     var cat: String? = nil   // samo za izbiro izdelkov po trgovini; na zaklenjeni zaslon ne gre
+    var shop: String? = nil  // trgovina, ki ji je izdelek dodeljen (veriga, npr. »dm«); na zaklenjeni zaslon ne gre
 }
 
 struct ShoppingAttributes: ActivityAttributes {

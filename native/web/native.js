@@ -124,7 +124,7 @@
     return items.slice().sort(function (a, b) { return ci(a) - ci(b) || a.name.localeCompare(b.name, "sl"); })
       .map(function (i) {
         var api = window.__nakupko, e = api && api.emojiFor ? api.emojiFor(i) : "";
-        return { id: i.id, label: itemLabel(i), icon: e || CATS[ci(i)][1], cat: i.cat || "Drugo" };
+        return { id: i.id, label: itemLabel(i), icon: e || CATS[ci(i)][1], cat: i.cat || "Drugo", shop: i.store || "" };
       });
   }
 
@@ -192,7 +192,7 @@
     var s = api.state();
     // Brez naročnine Nakupko Plus (če jo ta način zahteva) iPhone trgovin v ozadju ne spremlja.
     var on = !!(s.settings && s.settings.locOn) && !(window.__nakupkoPlus && window.__nakupkoPlus.locked("background"));
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 75, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn() };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 30, dwell: (s.settings && s.settings.delay) || 15, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn() };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
@@ -236,7 +236,13 @@
       if (!shopStartedAt) shopStartedAt = Date.now();
       var done = items.filter(function (i) { return i.done && i.doneAt && i.doneAt >= shopStartedAt; }).length;
       var title = (document.getElementById("smTitle") || {}).textContent || "Nakupovanje";
-      msg = { active: true, store: title.split(",")[0], items: liveItemsOf(open), groups: groupsOf(open), done: done, total: open.length + done };
+      // iPhone dobi trgovino: na zaklenjenem zaslonu le njeni izdelki, odhod iz nje spremlja sam.
+      var st = api.activeStore ? api.activeStore() : null;
+      msg = { active: true, store: st ? (st.short || st.name) : title.split(",")[0], items: liveItemsOf(open), groups: groupsOf(open), done: done, total: open.length + done };
+      if (st && st.lat != null && !/^test\//.test(st.id)) {
+        msg.storeId = st.id; msg.lat = st.lat; msg.lon = st.lon;
+        msg.chain = (!st.tuj && st.chain) || ""; msg.only = st.chain && api.chainOnly ? api.chainOnly(st.chain) : "";
+      }
     } else {
       shopStartedAt = 0;
       // Zapustil si trgovino (aplikacija je to zaznala): seznam z zaklenjenega zaslona umaknemo.
@@ -251,6 +257,17 @@
     Geo.shopping(msg).catch(function () { lastShop = ""; });
   }
   setInterval(syncShopping, 1500);
+
+  // iPhone je zaznal prihod/odhod (tudi v ozadju): aplikacija odpre/zapre »V trgovini«.
+  Geo.addListener("storeLeft", function (d) {
+    var api = window.__nakupko;
+    window.__nakupkoLeftAt = Date.now();
+    if (api && api.leftStore && d && d.storeId) api.leftStore(d.storeId);
+  });
+  Geo.addListener("storeArrived", function (d) {
+    var api = window.__nakupko;
+    if (api && api.openStoreById && d && d.storeId) api.openStoreById(d.storeId);
+  });
 
   // Tap na obvestilo »Si v trgovini«: nakupovanje odpremo takoj, brez odštevanja.
   function openFromNotification() {

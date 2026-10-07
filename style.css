@@ -420,3 +420,13 @@ details.card[open] > summary { margin-bottom: 12px; }
 .list li.item > .price { grid-column: 3; grid-row: 2; justify-self: start; align-self: start; font-size: 13px; padding: 3px 9px; }
 .list li.item > .del { grid-column: 4; grid-row: 1 / span 2; }
 .list li.item:not(:has(> .price)) > .ibody { grid-row: 1 / span 2; align-self: center; }
+
+/* ---------- Izdelek za določeno trgovino ---------- */
+.list li.item > .ibody[role="button"] { cursor: pointer; }
+.store-tag { display: inline-flex; align-items: center; gap: 5px; font-weight: 700; color: var(--ink); }
+.store-tag .dot { width: 9px; height: 9px; }
+.list li.item > .store-pick { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 0 2px; }
+.store-pick .chip { display: inline-flex; align-items: center; gap: 6px; }
+.store-pick .chip.on { border-color: var(--brand); }
+.list li.cat.store-head { font-weight: 800; }
+.list li.cat.store-head .dot { width: 12px; height: 12px; }
