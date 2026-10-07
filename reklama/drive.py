@@ -246,6 +246,20 @@ def prepare_locale(udid):
     sh(["defaults", "write", pref, "AppleLocale", "-string", "sl_SI"])
 
 
+def tap_until_gone(p, pattern, tries=4, timeout=15):
+    for i in range(tries):
+        if not p.tap_text(pattern, timeout=timeout if i == 0 else 4, required=False):
+            return i > 0
+        wait(4)
+        if not p.find_text(pattern, timeout=1):
+            return True
+    return False
+
+
+HOME = (46.0545, 14.4950)     # park Tivoli: ni trgovine v bližini
+SPAR = (46.0569, 14.5058)     # Spar, Slovenska cesta 54
+
+
 def first_run(p, bid):
     p.launch(bid)
     wait(8)
@@ -254,12 +268,12 @@ def first_run(p, bid):
         if p.tap_text(r"^(Dovoli|Allow)$", timeout=6, required=False):
             wait(2)
     p.shot("po-dovoljenjih")
-    p.tap_text(r"Tus, Spar in Mercator", timeout=20)
-    wait(3)
+    tap_until_gone(p, r"Tus, Spar in Mercator", timeout=30)
     p.shot("po-izbiri-1")
-    # morebitno drugo vprasanje
-    if p.find_text(r"\?\s*$", timeout=2):
-        p.shot("drugo-vprasanje")
+    # drugo vprasanje »Pa druga izbira?«
+    if p.find_text(r"druga izbira|Ni druge izbire", timeout=20):
+        tap_until_gone(p, r"Ni druge izbire")
+    p.shot("po-izbiri-2")
 
 
 def scroll_to(p, pattern, tries=5):
@@ -311,7 +325,7 @@ def main():
         p.status_bar()
         p.install()
         p.grant(bid)
-        p.location(46.0569, 14.5058)
+        p.location(*HOME)
     wait(10)
     a.record_start("raziskava-A")
     b.record_start("raziskava-B")
@@ -358,11 +372,16 @@ def main():
     # A v trgovini
     a.tap_text(r"^Seznam$", timeout=5, required=False)
     wait(2)
-    a.tap_text(r"V trgovini", timeout=5, required=False)
-    wait(4)
+    # A pride v Spar: aplikacija sama odpre »V trgovini« (odštevanje), nato zaklene telefon
+    a.location(*SPAR)
+    if not a.find_text(r"V TRGOVINI|od \d+ v ko", timeout=60):
+        a.tap_text(r"Odpri|V trgovini", timeout=5, required=False)
+    wait(3)
     a.shot("v-trgovini")
     a.button("lock")
     wait(5)
+    if a.tap_text(r"^Dovoli$", timeout=8, required=False):
+        wait(4)
     a.shot("zaklenjen-A")
 
     # partner dobi obvestilo
@@ -376,6 +395,8 @@ def main():
     b.shot("po-obvestilu-B")
     add_item(b, "jaj", r"^Jajca")
     wait(10)
+    a.tap_text(r"^Dovoli$", timeout=3, required=False)
+    wait(3)
     a.shot("zaklenjen-A-po-dodajanju")
     a.record_stop()
     b.record_stop()
