@@ -341,109 +341,80 @@ def add_item(p, typed, pick):
     p.shot("dodano-" + typed)
 
 
+def clear_old_notifications(p):
+    # Sistemsko obvestilo »Ready for Apple Intelligence« pobrišemo (poteg levo → Počisti).
+    for i in range(2):
+        b = p.find_text(r"Apple Intelligence|Ready for", timeout=3)
+        if not b:
+            return
+        y = (b["y"] + b["h"] / 2) / SCALE
+        sh(["axe", "swipe", "--start-x", "330", "--start-y", str(int(y)), "--end-x", "60", "--end-y", str(int(y)), "--udid", p.udid], check=False)
+        wait(1.5)
+        p.tap_text(r"^(Počisti|Pocisti|Clear)$", timeout=3, required=False)
+        wait(1.5)
+
+
 def main():
     sh(["xcrun", "swiftc", "-O", "reklama/ocr.swift", "-o", OCR])
     bid = bundle_id()
-    a, b = Phone("A"), Phone("B")
-    for p in (a, b):
-        sh(["xcrun", "simctl", "boot", p.udid])
-    for p in (a, b):
-        sh(["xcrun", "simctl", "bootstatus", p.udid, "-b"], quiet=True)
-        for k, v in (("AppleLanguages", ["-array", "sl-SI"]), ("AppleLocale", ["-string", "sl_SI"])):
-            sh(["xcrun", "simctl", "spawn", p.udid, "defaults", "write", "Apple Global Domain", k] + v)
-        sh(["xcrun", "simctl", "shutdown", p.udid])
-    for p in (a, b):
-        sh(["xcrun", "simctl", "boot", p.udid])
-    for p in (a, b):
-        sh(["xcrun", "simctl", "bootstatus", p.udid, "-b"], quiet=True)
-        p.status_bar()
-        p.install()
-        p.grant(bid)
-        p.location(*HOME)
-    wait(10)
-    a.record_start("raziskava-A")
-    b.record_start("raziskava-B")
-
+    SPAR_REAL = (46.0562421, 14.5057270)   # Spar, Slovenska cesta 54 (OSM)
+    a = Phone("A")
+    sh(["xcrun", "simctl", "boot", a.udid])
+    sh(["xcrun", "simctl", "bootstatus", a.udid, "-b"], quiet=True)
+    for k, v in (("AppleLanguages", ["-array", "sl-SI"]), ("AppleLocale", ["-string", "sl_SI"])):
+        sh(["xcrun", "simctl", "spawn", a.udid, "defaults", "write", "Apple Global Domain", k] + v)
+    sh(["xcrun", "simctl", "shutdown", a.udid])
+    sh(["xcrun", "simctl", "boot", a.udid])
+    sh(["xcrun", "simctl", "bootstatus", a.udid, "-b"], quiet=True)
+    a.status_bar()
+    a.install()
+    a.grant(bid)
+    a.location(46.0590, 14.5030)
+    wait(5)
     first_run(a, bid)
-    a.shot("glavni")
-    # Izdelki s hitrimi gumbi »Pogosto kupuješ« (tako jih doda tudi pravi uporabnik)
-    for n in ("Mleko", "Kruh beli", "Jajca", "Banane"):
+    allow_alerts(a, 2)
+    for n in ("Mleko", "Kruh beli", "Jajca", "Banane", "Jogurt navadni"):
         a.tap_text("^" + n + "$", timeout=8, required=False)
         wait(2.5)
-    a.shot("dodani-izdelki")
-
-    # skupen seznam: A ustvari
-    a.tap_text(r"^Nastavitve$", timeout=5, required=False)
-    wait(3)
-    a.shot("nastavitve")
-    scroll_to(a, r"Ustvari skupen seznam")
-    a.tap_text(r"Ustvari skupen seznam", timeout=3, required=False)
-    answer_prompt(a, "Maja")
-    a.shot("deli")
-    sh(["axe", "swipe", "--start-x", "200", "--start-y", "450", "--end-x", "200", "--end-y", "860", "--udid", a.udid], check=False)
-    wait(2)
-    kb = scroll_to(a, r"Koda:")
-    a.shot("koda")
-    code = ""
-    for x in a.ocr():
-        m = re.search(r"([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{2})", x["t"].replace(" ", ""))
-        if m:
-            code = "".join(m.groups())
-    log("KODA", code)
-
-    # B se pridruzi
-    first_run(b, bid)
-    b.tap_text(r"^Nastavitve$", timeout=5, required=False)
-    wait(3)
-    scroll_to(b, r"Vpisi kodo")
-    b.tap_text(r"Vpisi kodo", timeout=3, required=False)
-    wait(1)
-    sh(["axe", "type", code, "--udid", b.udid], check=False)
-    b.tap_text(r"Pridruzi se", timeout=3, required=False)
-    answer_prompt(b, "Luka")
-    b.shot("pridruzen")
-    b.tap_text(r"^Seznam$", timeout=5, required=False)
+    a.shot("seznam")
+    # prihod v Spar: aplikacija sama odpre »V trgovini« (in seznam na zaklenjenem zaslonu)
+    a.location(*SPAR_REAL)
+    if not a.find_text(r"v ko.arici", timeout=90):
+        a.tap_text(r"^Odpri$", timeout=3, required=False) or a.tap_text(r"V trgovini", timeout=3, required=False)
     wait(4)
-    b.shot("seznam-B")
-
-    # A v trgovini
-    a.tap_text(r"^Seznam$", timeout=5, required=False)
-    wait(2)
-    # A pride v Spar: aplikacija sama odpre »V trgovini« (odštevanje), nato zaklene telefon
-    a.location(*nearest_store())
-    if not a.find_text(r"\d+ od \d+ v ko|v ko.arici", timeout=75):
-        # rezerva: v Nastavitvah tapnemo »Sem tu« pri najbližji trgovini
-        a.tap_text(r"^Odpri$", timeout=3, required=False)
-        if not a.find_text(r"v ko.arici", timeout=5):
-            a.tap_text(r"^Nastavitve$", timeout=5, required=False)
-            wait(2)
-            scroll_to(a, r"^Sem tu$")
-            a.tap_text(r"^Sem tu$", timeout=5, required=False)
-    wait(3)
     a.shot("v-trgovini")
+    a.tap_text(r"^Jajca$", timeout=4, required=False, dy=0)
+    # zaklenemo in prižgemo zaslon, dovolimo aktivnosti v živo
     a.button("lock")
-    wait(5)
-    if a.tap_text(r"^Dovoli$", timeout=8, required=False):
-        wait(4)
-    a.shot("zaklenjen-A")
-
-    # partner dobi obvestilo
-    b.button("lock")
-    wait(3)
-    allow_alerts(b, 2)
-    b.push(bid, {"aps": {"alert": {"title": "🛒 Maja je v trgovini Spar", "body": "Rabiš še kaj? Dodaj na skupen seznam."}, "sound": "default"}})
     wait(4)
-    b.shot("obvestilo-B")
-    b.tap_text(r"Maja je v trgovini", timeout=5, required=False)
+    for i in range(3):
+        if a.tap_text(r"^Dovoli$", timeout=6, required=False):
+            wait(4)
+    clear_old_notifications(a)
+    a.shot("zaklenjen-1")
+    # če seznama še ni: odklenemo, odpremo aplikacijo, znova zaklenemo
+    if not a.find_text(r"Spar|Odpri seznam|Naprej", timeout=3):
+        a.launch(bid)
+        wait(6)
+        a.button("lock")
+        wait(5)
+        a.tap_text(r"^Dovoli$", timeout=5, required=False)
+        wait(3)
+        clear_old_notifications(a)
+        a.shot("zaklenjen-2")
+    # čist posnetek zaklenjenega zaslona: ugasnemo in prižgemo zaslon, nato kljukamo na zaklenjenem zaslonu
+    a.record_start("zaklenjen")
+    wait(2)
+    a.button("lock")
+    wait(2)
+    a.button("lock")
     wait(4)
-    b.shot("po-obvestilu-B")
-    add_item(b, "jaj", r"^Jajca")
-    wait(10)
-    a.tap_text(r"^Dovoli$", timeout=3, required=False)
+    for n in ("Kruh beli", "Mleko"):
+        a.tap_text(n, timeout=4, required=False)
+        wait(3)
+    a.shot("zaklenjen-kljukanje")
     wait(3)
-    a.shot("zaklenjen-A-po-dodajanju")
     a.record_stop()
-    b.record_stop()
 
 
 if __name__ == "__main__":
