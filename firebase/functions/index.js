@@ -143,3 +143,5 @@ exports.storeVisit = onValueCreated({
   await event.data.ref.update({ notified: true, sent: ios.length + android.length });
   console.log("obisk", code, visit.store, "apns", JSON.stringify(apns), "fcm", JSON.stringify(fcm));
 });
+
+Object.assign(exports, require("./nadzor"));

@@ -89,9 +89,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         set { defaults.set(newValue, forKey: "geo.chainCost") }
     }
     // Druga stopnja: po obvestilu »blizu si« spremljamo natančno lokacijo, dokler ne obstaneš pri trgovini.
-    private struct Arrival { let store: GeoStore; let open: [ItemGroup]; let items: [LiveItem]; let count: Int; let started: Date; var stillSince: Date? }
+    private struct Arrival { let store: GeoStore; let open: [ItemGroup]; let items: [LiveItem]; let count: Int; let started: Date; var stillSince: Date?; var wantNear = false }
     private var arrival: Arrival?
     private let arrivalRadius: CLLocationDistance = 60
+    // Obvestilo »blizu« šele, ko si res pri trgovini (ne že na robu 250-metrskega območja ali v mimovožnji).
+    private let nearRadius: CLLocationDistance = 120
+    private let nearMaxSpeed: CLLocationSpeed = 7   // ~25 km/h
     private let arrivalDwell: TimeInterval = 12
     private let arrivalTimeout: TimeInterval = 8 * 60
     // Žeton, s katerim strežnik zažene seznam na zaklenjenem zaslonu (iOS 17.2+).
@@ -353,7 +356,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         guard !fetching else { return }
         fetching = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "nakupko.stores")
-        let q = "[out:json][timeout:20];(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
+        let q = "[out:json][timeout:20];(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
         var req = URLRequest(url: URL(string: "https://overpass-api.de/api/interpreter")!)
         req.httpMethod = "POST"
         req.timeoutInterval = 25
@@ -378,7 +381,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                     // Samo verige in dežurne trgovine, kot v aplikaciji.
                     guard let kind = StoreRules.kind(text: text, hours: hours) else { return nil }
                     return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
-                                    chain: kind.chain, duty: kind.duty, hours: hours)
+                                    chain: kind.chain, duty: kind.duty, hours: hours, only: kind.chain.flatMap { StoreRules.only[$0] })
                 }
                 guard !list.isEmpty else { return }
                 self.stores = list
@@ -506,13 +509,15 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         sent[id] = now
         notified = sent
 
-        // 1. stopnja: »blizu si« (+ namig, če je bližnja trgovina občutno cenejša).
+        // 1. stopnja: »blizu si« (+ namig, če je bližnja trgovina občutno cenejša) – pošlje checkArrival,
+        // ko si do ~120 m od trgovine in ne voziš hitro.
         let lastNear = defaults.double(forKey: "geo.lastNear")
+        var wantNear = false
         if defaults.object(forKey: "geo.nearNotify") as? Bool == false { log("  brez obvestila »blizu« (izklopljeno)") }
         else if now - lastNear < nearEvery { log("  brez obvestila »blizu« (zadnje pred \(Int((now - lastNear) / 60)) min)") }
-        else { defaults.set(now, forKey: "geo.lastNear"); postNearNotification(id: id, store: store, count: count) }
+        else { wantNear = true }
         // 2. stopnja: ko obstaneš pri trgovini, se seznam odpre na zaklenjenem zaslonu.
-        startArrivalWatch(Arrival(store: store, open: open, items: items, count: count, started: Date(), stillSince: nil))
+        startArrivalWatch(Arrival(store: store, open: open, items: items, count: count, started: Date(), stillSince: nil, wantNear: wantNear))
     }
 
     // Delovni čas v OpenStreetMap je pogosto zastarel (npr. Spar do 20h, v resnici do 21h):
@@ -584,6 +589,15 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let d = loc.distance(from: CLLocation(latitude: a.store.lat, longitude: a.store.lon))
         let near = d <= arrivalRadius + min(max(loc.horizontalAccuracy, 0), 40)
         let slow = loc.speed < 0 || loc.speed < 2.0
+        if a.wantNear && d <= nearRadius + min(max(loc.horizontalAccuracy, 0), 30) && (loc.speed < 0 || loc.speed < nearMaxSpeed) {
+            a.wantNear = false
+            arrival = a
+            let now = Date().timeIntervalSince1970
+            if now - defaults.double(forKey: "geo.lastNear") >= nearEvery {
+                defaults.set(now, forKey: "geo.lastNear")
+                postNearNotification(id: a.store.id, store: a.store, count: a.count)
+            }
+        }
         if near && slow {
             if a.stillSince == nil { a.stillSince = Date() }
             arrival = a
