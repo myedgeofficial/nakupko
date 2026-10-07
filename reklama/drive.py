@@ -18,7 +18,13 @@ def log(*a):
 
 
 def sh(cmd, check=True, quiet=False):
-    r = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True)
+    try:
+        r = subprocess.run(cmd, shell=isinstance(cmd, str), capture_output=True, text=True)
+    except FileNotFoundError as e:
+        log("ni programa:", e)
+        if check:
+            raise
+        return ""
     if not quiet:
         log("$", cmd if isinstance(cmd, str) else " ".join(cmd), "->", r.returncode, (r.stdout + r.stderr).strip()[:400])
     if check and r.returncode != 0:
