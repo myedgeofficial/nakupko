@@ -80,6 +80,8 @@ class Phone:
         step_no[0] += 1
         base = os.path.join(OUT, f"{step_no[0]:02d}-{self.name}-{label}")
         sh(["xcrun", "simctl", "io", self.udid, "screenshot", base + ".png"], check=False, quiet=True)
+        r = subprocess.run([OCR, base + ".png"], capture_output=True, text=True)
+        open(base + ".txt", "w", encoding="utf-8").write(r.stdout + r.stderr)
         log("posnetek zaslona", base)
         return base + ".png"
 
@@ -232,7 +234,7 @@ def first_run(p, bid):
     wait(8)
     p.shot("zagon")
     for i in range(3):
-        if p.tap(r"^(Dovoli|Allow)$", timeout=4, required=False):
+        if p.tap_text(r"^(Dovoli|Allow)$", timeout=6, required=False):
             wait(2)
     p.shot("po-dovoljenjih")
     p.tap_text(r"Tus, Spar in Mercator", timeout=20)
@@ -248,7 +250,12 @@ def main():
     bid = bundle_id()
     a, b = Phone("A"), Phone("B")
     for p in (a, b):
-        prepare_locale(p.udid)
+        sh(["xcrun", "simctl", "boot", p.udid])
+    for p in (a, b):
+        sh(["xcrun", "simctl", "bootstatus", p.udid, "-b"], quiet=True)
+        for k, v in (("AppleLanguages", ["-array", "sl-SI"]), ("AppleLocale", ["-string", "sl_SI"])):
+            sh(["xcrun", "simctl", "spawn", p.udid, "defaults", "write", "Apple Global Domain", k] + v)
+        sh(["xcrun", "simctl", "shutdown", p.udid])
     for p in (a, b):
         sh(["xcrun", "simctl", "boot", p.udid])
     for p in (a, b):
