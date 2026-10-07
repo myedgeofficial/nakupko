@@ -46,6 +46,8 @@ jobs:
           xcrun swiftc ios/App/App/StoreRules.swift ios/App/App/StoreDetector.swift tests/main.swift -o "$RUNNER_TEMP/storerules"
           "$RUNNER_TEMP/storerules"
           node tests/store-detect.test.js
+          node tests/drzave.test.js
+          node tests/i18n.test.js
 
       - name: Pripravi spletni del in Capacitor
         env:

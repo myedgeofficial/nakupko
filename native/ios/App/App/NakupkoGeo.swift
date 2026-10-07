@@ -210,6 +210,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     // Enako kot liveItemsOf() v native.js: odprti izdelki v vrstnem redu oddelkov.
     static func liveItemsOf(items: [[String: Any]], known: [LiveItem] = []) -> [LiveItem] {
         let iconById = Dictionary(known.map { ($0.id, $0.icon) }, uniquingKeysWith: { a, _ in a })
+        // Ime izdelka v jeziku aplikacije (prevedla ga je aplikacija), če ga poznamo.
+        let labelById = Dictionary(known.map { ($0.id, $0.label) }, uniquingKeysWith: { a, _ in a })
         let open = items.filter { ($0["done"] as? Bool) != true && !((($0["name"] as? String) ?? "").isEmpty) && $0["id"] is String }
         func catIndex(_ i: [String: Any]) -> Int {
             let c = (i["cat"] as? String) ?? "Drugo"
@@ -224,7 +226,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             let brand = (i["brand"] as? String) ?? ""
             let label = (qty > 1 ? "\(qty)× " : "") + ((i["name"] as? String) ?? "") + (brand.isEmpty ? "" : " (\(brand))")
             let id = i["id"] as! String
-            return LiveItem(id: id, label: label, icon: iconById[id] ?? categories[catIndex(i)].1, cat: categories[catIndex(i)].0)
+            return LiveItem(id: id, label: labelById[id] ?? label, icon: iconById[id] ?? categories[catIndex(i)].1, cat: categories[catIndex(i)].0, shop: i["store"] as? String)
         }
     }
 
@@ -349,7 +351,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             manager.requestWhenInUseAuthorization()
             return
         } else if manager.authorizationStatus == .denied || manager.authorizationStatus == .restricted {
-            onError?(["code": 1, "message": "Dostop do lokacije je zavrnjen."])
+            onError?(["code": 1, "message": L10n.t("denied")])
         }
         manager.startUpdatingLocation()
     }
@@ -479,12 +481,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     // Strežniku sporoči žeton tega telefona, da lahko dobi obvestilo »partner je v trgovini«.
     private func registerMember() {
         guard let hh = household, !hh.member.isEmpty, let token = pushToken else { return }
-        let key = "\(hh.code)/\(hh.member)/\(token)/\(hh.name)"
+        let key = "\(hh.code)/\(hh.member)/\(token)/\(hh.name)/\(L10n.lang)"
         if pushTokenSentFor == key { return }
         guard let url = URL(string: "\(hh.url)/h/\(hh.code)/members/\(hh.member).json") else { return }
         var req = URLRequest(url: url)
         req.httpMethod = "PATCH"
-        req.httpBody = try? JSONSerialization.data(withJSONObject: ["ios": token, "name": hh.name, "platform": "ios"])
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["ios": token, "name": hh.name, "platform": "ios", "lang": L10n.lang])
         URLSession.shared.dataTask(with: req) { [weak self] _, resp, _ in
             if (resp as? HTTPURLResponse)?.statusCode == 200 { DispatchQueue.main.async { self?.pushTokenSentFor = key } }
         }.resume()
@@ -600,8 +602,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let here = CLLocation(latitude: store.lat, longitude: store.lon)
         let dist = manager.location.map { Int(($0.distance(from: here) / 10).rounded() * 10) }
         let content = UNMutableNotificationContent()
-        content.title = "🛒 \(store.name) je blizu" + (dist.map { " (\($0) m)" } ?? "")
-        var body = "Na seznamu imaš \(count) \(count == 1 ? "izdelek" : count == 2 ? "izdelka" : count < 5 ? "izdelke" : "izdelkov"). Se ustaviš?"
+        content.title = L10n.t("near", [store.name]) + (dist.map { " (\($0) m)" } ?? "")
+        var body = L10n.t("nearBody", [L10n.items(count, accusative: true)])
         if let tip = cheaperNearby(than: store) { body += "\n💡 " + tip }
         content.body = body
         content.sound = .default
@@ -628,7 +630,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         guard let b = best else { return nil }
         let km = b.2 < 1000 ? "\(Int((b.2 / 10).rounded() * 10)) m" : String(format: "%.1f km", b.2 / 1000).replacingOccurrences(of: ".", with: ",")
         let eur = String(format: "%.2f", b.1).replacingOccurrences(of: ".", with: ",")
-        return "\(b.0.name) (\(km) od tu) je za tvoj seznam ≈ \(eur) € cenejši."
+        return L10n.t("cheaper", [b.0.name, km, eur + " €"])
     }
 
     private func startArrivalWatch(_ a: Arrival) {
@@ -762,7 +764,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     private func postStoreNotification(id: String, store: GeoStore, open: [ItemGroup], count: Int) {
         let content = UNMutableNotificationContent()
-        content.title = "🛒 \(store.name) · \(count) \(count == 1 ? "izdelek" : count == 2 ? "izdelka" : count < 5 ? "izdelki" : "izdelkov")"
+        content.title = "🛒 \(store.name) · " + L10n.items(count)
         // Ena vrstica na oddelek; ves seznam se vidi, ko obvestilo razpreš.
         content.body = open.map { "\($0.icon) \($0.items.joined(separator: ", "))" }.joined(separator: "\n")
         // Tiho: brez zvoka; ko greš mimo trgovine, obvestilo samo izgine (didExitRegion).
@@ -784,12 +786,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let list = LiveList.fit(items)
         let state: [String: Any] = [
             "items": list.map { ["id": $0.id, "label": $0.label, "icon": $0.icon] },
-            "done": 0, "total": list.count
+            "done": 0, "total": list.count, "lang": L10n.lang
         ]
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.timeoutInterval = 6
-        req.httpBody = try? JSONSerialization.data(withJSONObject: ["token": token, "store": store, "state": state, "at": [".sv": "timestamp"]])
+        req.httpBody = try? JSONSerialization.data(withJSONObject: ["token": token, "store": store, "state": state, "lang": L10n.lang, "at": [".sv": "timestamp"]])
         let app = UIApplication.shared
         var task: UIBackgroundTaskIdentifier = .invalid
         task = app.beginBackgroundTask { app.endBackgroundTask(task) }
@@ -831,7 +833,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 let prev = a.content.state
                 // Kar je izginilo s seznama, je kupljeno; novi izdelki povečajo skupno število.
                 let d = prev.done + max(0, (prev.total - prev.done) - list.count)
-                let st = ShoppingAttributes.ContentState(items: fitted, done: d, total: d + list.count, page: LiveList.clampPage(prev.page, count: fitted.count))
+                let st = ShoppingAttributes.ContentState(items: fitted, done: d, total: d + list.count, page: LiveList.clampPage(prev.page, count: fitted.count), lang: L10n.lang)
                 Task { await a.update(ActivityContent(state: st, staleDate: Date().addingTimeInterval(4 * 3600))) }
             }
             return
@@ -841,7 +843,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let title = session?.store.name ?? store
         let doneHere = list.count == all.count ? done : 0
         let keepPage = current.first(where: { $0.attributes.store == title })?.content.state.page
-        let state = ShoppingAttributes.ContentState(items: fitted, done: doneHere, total: doneHere + list.count, page: LiveList.clampPage(keepPage, count: fitted.count))
+        let state = ShoppingAttributes.ContentState(items: fitted, done: doneHere, total: doneHere + list.count, page: LiveList.clampPage(keepPage, count: fitted.count), lang: L10n.lang)
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(4 * 3600))
         if let a = current.first(where: { $0.attributes.store == title }) {
             Task { await a.update(content) }
@@ -879,7 +881,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let s = manager.authorizationStatus
         if s == .authorizedWhenInUse && enabled { manager.requestAlwaysAuthorization() }
-        if (s == .denied || s == .restricted) && watching { onError?(["code": 1, "message": "Dostop do lokacije je zavrnjen."]) }
+        if (s == .denied || s == .restricted) && watching { onError?(["code": 1, "message": L10n.t("denied")]) }
         if (s == .authorizedWhenInUse || s == .authorizedAlways) && watching { manager.startUpdatingLocation() }
         if s == .authorizedAlways && enabled { startBackgroundMonitoring() }
     }
@@ -989,6 +991,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let items = Self.parseItems(call)
         let dbUrl = call.getString("dbUrl")
         let nearNotify = call.getBool("nearNotify") ?? true
+        let lang = call.getString("lang")
         var costs: [String: Double] = [:]
         if let c = call.getObject("chainCost") { for (k, v) in c { if let n = v as? NSNumber { costs[k] = n.doubleValue } } }
         let stores: [GeoStore] = (call.getArray("stores", JSObject.self) ?? []).compactMap { s in
@@ -1006,6 +1009,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
             if let u = dbUrl, !u.isEmpty { UserDefaults.standard.set(u, forKey: "geo.dbUrl") }
             UserDefaults.standard.set(costs, forKey: "geo.chainCost")
             UserDefaults.standard.set(nearNotify, forKey: "geo.nearNotify")
+            if let l = lang, !l.isEmpty { UserDefaults.standard.set(l, forKey: "geo.lang") }
             GeoManager.shared.configure(enabled: on, radius: radius, dwell: dwell, stores: stores, groups: groups, items: items, household: hh)
             call.resolve()
         }

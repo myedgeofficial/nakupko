@@ -24,6 +24,7 @@ struct ShoppingAttributes: ActivityAttributes {
         var done: Int
         var total: Int
         var page: Int? = nil   // stran izdelkov (gumb »Naprej ›«)
+        var lang: String? = nil  // jezik besedil na zaklenjenem zaslonu (iz aplikacije)
     }
     var store: String
 }
@@ -125,5 +126,50 @@ struct CheckItemIntent: LiveActivityIntent {
     func perform() async throws -> some IntentResult {
         await LiveList.markDone(itemId)
         return .result()
+    }
+}
+
+// Besedila, ki jih pokaže iPhone sam (obvestila, seznam na zaklenjenem zaslonu), v jeziku aplikacije.
+// Jezik pošlje aplikacija (native.js → setConfig, geo.lang); na zaklenjenem zaslonu ga nosi ContentState.lang.
+enum L10n {
+    static var lang: String { UserDefaults.standard.string(forKey: "geo.lang") ?? "sl" }
+
+    private static let table: [String: [String: String]] = [
+        "near": ["sl": "🛒 %@ je blizu", "en": "🛒 %@ is nearby", "de": "🛒 %@ ist in der Nähe", "hr": "🛒 %@ je blizu", "it": "🛒 %@ è vicino", "hu": "🛒 %@ a közelben", "fr": "🛒 %@ est tout près", "es": "🛒 %@ está cerca"],
+        "nearBody": ["sl": "Na seznamu imaš %@. Se ustaviš?", "en": "You have %@ on your list. Stopping by?", "de": "Du hast %@ auf der Liste. Kurz vorbeischauen?", "hr": "Na popisu imaš %@. Svratit ćeš?", "it": "Hai %@ nella lista. Ti fermi?", "hu": "%@ van a listádon. Beugrasz?", "fr": "Tu as %@ sur ta liste. Tu t'arrêtes ?", "es": "Tienes %@ en tu lista. ¿Pasas?"],
+        "cheaper": ["sl": "%@ (%@ od tu) je za tvoj seznam ≈ %@ cenejši.", "en": "%@ (%@ from here) is ≈ %@ cheaper for your list.", "de": "%@ (%@ entfernt) ist für deine Liste ≈ %@ günstiger.", "hr": "%@ (%@ odavde) je za tvoj popis ≈ %@ jeftiniji.", "it": "%@ (a %@ da qui) costa ≈ %@ in meno per la tua lista.", "hu": "%@ (%@ innen) ≈ %@-val olcsóbb a listádra.", "fr": "%@ (à %@ d'ici) est ≈ %@ moins cher pour ta liste.", "es": "%@ (a %@ de aquí) es ≈ %@ más barato para tu lista."],
+        "denied": ["sl": "Dostop do lokacije je zavrnjen.", "en": "Location access denied.", "de": "Standortzugriff verweigert.", "hr": "Pristup lokaciji je odbijen.", "it": "Accesso alla posizione negato.", "hu": "Helyhozzáférés megtagadva.", "fr": "Accès à la position refusé.", "es": "Acceso a la ubicación denegado."],
+        "allDone": ["sl": "Vse v košarici ✓", "en": "All in the basket ✓", "de": "Alles im Korb ✓", "hr": "Sve u košarici ✓", "it": "Tutto nel carrello ✓", "hu": "Minden a kosárban ✓", "fr": "Tout est dans le panier ✓", "es": "Todo en la cesta ✓"],
+        "openList": ["sl": "Odpri seznam", "en": "Open list", "de": "Liste öffnen", "hr": "Otvori popis", "it": "Apri lista", "hu": "Lista megnyitása", "fr": "Ouvrir la liste", "es": "Abrir lista"],
+        "next": ["sl": "Naprej ›", "en": "Next ›", "de": "Weiter ›", "hr": "Dalje ›", "it": "Avanti ›", "hu": "Tovább ›", "fr": "Suite ›", "es": "Siguiente ›"],
+        "restart": ["sl": "Na začetek ↺", "en": "Back to start ↺", "de": "Zum Anfang ↺", "hr": "Na početak ↺", "it": "All'inizio ↺", "hu": "Az elejére ↺", "fr": "Au début ↺", "es": "Al inicio ↺"],
+        "range": ["sl": "%@–%@ od %@", "en": "%@–%@ of %@", "de": "%@–%@ von %@", "hr": "%@–%@ od %@", "it": "%@–%@ di %@", "hu": "%@–%@ / %@", "fr": "%@–%@ sur %@", "es": "%@–%@ de %@"],
+        "more": ["sl": "in še %@ …", "en": "and %@ more …", "de": "und %@ weitere …", "hr": "i još %@ …", "it": "e altri %@ …", "hu": "és még %@ …", "fr": "et %@ de plus …", "es": "y %@ más …"],
+        "liveBody": ["sl": "%@ na seznamu. Kljukaj kar na zaklenjenem zaslonu.", "en": "%@ on your list. Tick them off right on the lock screen.", "de": "%@ auf der Liste. Hake sie direkt auf dem Sperrbildschirm ab.", "hr": "%@ na popisu. Označavaj ih na zaključanom zaslonu.", "it": "%@ nella lista. Spuntali dalla schermata di blocco.", "hu": "%@ a listán. Pipáld ki a zárolási képernyőn.", "fr": "%@ sur ta liste. Coche-les sur l'écran verrouillé.", "es": "%@ en tu lista. Márcalos en la pantalla bloqueada."]
+    ]
+
+    static func t(_ key: String, _ args: [String] = [], lang l: String? = nil) -> String {
+        let row = table[key] ?? [:]
+        let fmt = row[l ?? lang] ?? row["en"] ?? key
+        var out = fmt
+        for a in args {
+            guard let r = out.range(of: "%@") else { break }
+            out.replaceSubrange(r, with: a)
+        }
+        return out
+    }
+
+    // »3 izdelki«, »3 items« … (sklon za »imaš N izdelkov« v slovenščini).
+    static func items(_ n: Int, lang l: String? = nil, accusative: Bool = false) -> String {
+        switch l ?? lang {
+        case "sl": return "\(n) " + (n % 100 == 1 ? "izdelek" : n % 100 == 2 ? "izdelka" : (n % 100 == 3 || n % 100 == 4) ? (accusative ? "izdelke" : "izdelki") : "izdelkov")
+        case "hr": return "\(n) " + (n % 10 == 1 && n % 100 != 11 ? "proizvod" : "proizvoda")
+        case "de": return "\(n) Artikel"
+        case "it": return "\(n) " + (n == 1 ? "prodotto" : "prodotti")
+        case "hu": return "\(n) termék"
+        case "fr": return "\(n) " + (n == 1 ? "article" : "articles")
+        case "es": return "\(n) " + (n == 1 ? "producto" : "productos")
+        default: return "\(n) " + (n == 1 ? "item" : "items")
+        }
     }
 }

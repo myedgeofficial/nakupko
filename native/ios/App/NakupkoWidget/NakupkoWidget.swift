@@ -31,7 +31,7 @@ struct ShoppingLiveActivity: Widget {
                     Text("\(context.state.done)/\(context.state.total)").font(.headline).foregroundColor(orange)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ItemGrid(items: context.state.items, page: 0, shown: 4, dark: true, big: false)
+                    ItemGrid(items: context.state.items, page: 0, shown: 4, dark: true, big: false, lang: context.state.lang)
                 }
             } compactLeading: {
                 Image(systemName: "cart.fill").foregroundColor(orange)
@@ -54,10 +54,10 @@ struct LockScreenList: View {
             HStack {
                 Label(store, systemImage: "cart.fill").font(.headline).foregroundColor(.black).lineLimit(1)
                 Spacer()
-                Text(state.items.isEmpty ? "Vse v košarici ✓" : "\(state.done)/\(state.total)")
+                Text(state.items.isEmpty ? L10n.t("allDone", lang: state.lang) : "\(state.done)/\(state.total)")
                     .font(.headline).foregroundColor(orange)
             }
-            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: false, big: true)
+            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: false, big: true, lang: state.lang)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -71,6 +71,7 @@ struct ItemGrid: View {
     let shown: Int
     let dark: Bool
     let big: Bool
+    var lang: String? = nil
 
     var body: some View {
         let start = page * shown < items.count ? page * shown : 0
@@ -104,7 +105,7 @@ struct ItemGrid: View {
             if big {
                 HStack(spacing: 8) {
                     Link(destination: URL(string: "nakupko://seznam")!) {
-                        Label("Odpri seznam", systemImage: "list.bullet")
+                        Label(L10n.t("openList", lang: lang), systemImage: "list.bullet")
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(orange)
                             .padding(.horizontal, 12)
@@ -113,9 +114,9 @@ struct ItemGrid: View {
                     }
                     Spacer()
                     if hidden > 0 {
-                        Text("\(start + 1)–\(start + list.count) od \(items.count)").font(.caption).foregroundColor(.gray)
+                        Text(L10n.t("range", ["\(start + 1)", "\(start + list.count)", "\(items.count)"], lang: lang)).font(.caption).foregroundColor(.gray)
                         Button(intent: NextPageIntent()) {
-                            Text(start + list.count >= items.count ? "Na začetek ↺" : "Naprej ›")
+                            Text(start + list.count >= items.count ? L10n.t("restart", lang: lang) : L10n.t("next", lang: lang))
                                 .font(.footnote.weight(.semibold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 14)
@@ -127,7 +128,7 @@ struct ItemGrid: View {
                     }
                 }
             } else if hidden > 0 {
-                Text("in še \(hidden) …").font(.caption).foregroundColor(.gray)
+                Text(L10n.t("more", ["\(hidden)"], lang: lang)).font(.caption).foregroundColor(.gray)
             }
         }
     }

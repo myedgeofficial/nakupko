@@ -102,7 +102,8 @@
     ["Otroci", "🍼"], ["Gospodinjstvo", "🧽"], ["Higiena", "🧴"], ["Zdravje", "💊"], ["Športna prehrana", "💪"], ["Tobak", "🚬"],
     ["Ljubljenčki", "🐾"], ["Dom in vrt", "🔨"], ["Drugo", "🛒"]
   ];
-  function itemLabel(i) { return (i.qty > 1 ? i.qty + "× " : "") + i.name + (i.brand ? " (" + i.brand + ")" : ""); }
+  // Ime izdelka v jeziku aplikacije (i18n.js), da je tudi na zaklenjenem zaslonu in v obvestilih prevedeno.
+  function itemLabel(i) { var n = window.NK_T ? window.NK_T(i.name) : i.name; return (i.qty > 1 ? i.qty + "× " : "") + n + (i.brand ? " (" + i.brand + ")" : ""); }
   function groupsOf(items) {
     var by = {};
     items.forEach(function (i) {
@@ -192,7 +193,7 @@
     var s = api.state();
     // Brez naročnine Nakupko Plus (če jo ta način zahteva) iPhone trgovin v ozadju ne spremlja.
     var on = !!(s.settings && s.settings.locOn) && !(window.__nakupkoPlus && window.__nakupkoPlus.locked("background"));
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 30, dwell: (s.settings && s.settings.delay) || 15, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn() };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 30, dwell: (s.settings && s.settings.delay) || 15, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn(), lang: window.NK_LANG || "sl" };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
