@@ -30,6 +30,15 @@ def wait(s):
     time.sleep(s)
 
 
+SCALE = 3.0
+OCR = os.path.join(OUT, "..", "ocr-bin")
+
+
+def fold(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", t) if unicodedata.category(c) != "Mn")
+
+
 # ---------- naprave ----------
 def device_type(name):
     d = json.loads(sh("xcrun simctl list devicetypes -j", quiet=True))["devicetypes"]
@@ -71,10 +80,39 @@ class Phone:
         step_no[0] += 1
         base = os.path.join(OUT, f"{step_no[0]:02d}-{self.name}-{label}")
         sh(["xcrun", "simctl", "io", self.udid, "screenshot", base + ".png"], check=False, quiet=True)
-        ui = sh(["axe", "describe-ui", "--udid", self.udid], check=False, quiet=True)
-        open(base + ".json", "w", encoding="utf-8").write(ui)
         log("posnetek zaslona", base)
-        return ui
+        return base + ".png"
+
+    # ----- besedilo na zaslonu (Apple Vision OCR) -----
+    def ocr(self):
+        p = os.path.join(OUT, f"_ocr-{self.name}.png")
+        sh(["xcrun", "simctl", "io", self.udid, "screenshot", p], check=False, quiet=True)
+        try:
+            return json.loads(sh([OCR, p], check=False, quiet=True) or "[]")
+        except Exception:
+            return []
+
+    def find_text(self, pattern, timeout=10):
+        rx = re.compile(pattern, re.I)
+        end = time.time() + timeout
+        while True:
+            for b in self.ocr():
+                if rx.search(fold(b["t"])):
+                    return b
+            if time.time() > end:
+                return None
+            wait(1)
+
+    def tap_text(self, pattern, timeout=10, required=True, dy=0):
+        b = self.find_text(pattern, timeout)
+        if not b:
+            log("NI BESEDILA:", pattern)
+            if required:
+                self.shot("manjka")
+            return None
+        self.tap_xy((b["x"] + b["w"] / 2) / SCALE, (b["y"] + b["h"] / 2) / SCALE + dy)
+        log("tapnil", repr(b["t"]))
+        return b
 
     # ----- dostopnostno drevo -----
     def elements(self):
@@ -181,46 +219,77 @@ def bundle_id():
     return sh(["/usr/libexec/PlistBuddy", "-c", "Print CFBundleIdentifier", os.path.join(APP, "Info.plist")]).strip()
 
 
+def prepare_locale(udid):
+    # Slovenščina pred prvim zagonom (brez ponovnega zagona naprave).
+    pref = os.path.expanduser(f"~/Library/Developer/CoreSimulator/Devices/{udid}/data/Library/Preferences/.GlobalPreferences.plist")
+    os.makedirs(os.path.dirname(pref), exist_ok=True)
+    sh(["defaults", "write", pref, "AppleLanguages", "-array", "sl-SI"])
+    sh(["defaults", "write", pref, "AppleLocale", "-string", "sl_SI"])
+
+
+def first_run(p, bid):
+    p.launch(bid)
+    wait(8)
+    p.shot("zagon")
+    for i in range(3):
+        if p.tap(r"^(Dovoli|Allow)$", timeout=4, required=False):
+            wait(2)
+    p.shot("po-dovoljenjih")
+    p.tap_text(r"Tus, Spar in Mercator", timeout=20)
+    wait(3)
+    p.shot("po-izbiri-1")
+    # morebitno drugo vprasanje
+    if p.find_text(r"?$", timeout=2):
+        p.shot("drugo-vprasanje")
+
+
 def main():
-    mac_clock()
+    sh(["xcrun", "swiftc", "-O", "reklama/ocr.swift", "-o", OCR])
     bid = bundle_id()
-    log("bundle", bid)
-    a = Phone("A")
-    a.setup_locale()
-    a.status_bar()
-    a.install()
-    a.grant(bid)
-    a.location(46.0569, 14.5058)
+    a, b = Phone("A"), Phone("B")
+    for p in (a, b):
+        prepare_locale(p.udid)
+    for p in (a, b):
+        sh(["xcrun", "simctl", "boot", p.udid])
+    for p in (a, b):
+        sh(["xcrun", "simctl", "bootstatus", p.udid, "-b"], quiet=True)
+        p.status_bar()
+        p.install()
+        p.grant(bid)
+        p.location(46.0569, 14.5058)
+    wait(20)
     a.shot("domaci-zaslon")
     a.record_start("raziskava-A")
-    a.launch(bid)
-    wait(6)
-    a.shot("zagon")
-    for i in range(4):
-        if a.tap(r"^(Dovoli|Allow|Dovoli med uporabo aplikacije|Vedno dovoli|Allow While Using App|Change to Always Allow|Spremeni v Vedno dovoli)", timeout=3, required=False):
-            wait(2)
-            a.shot(f"dovoljenje-{i}")
-    a.shot("po-dovoljenjih")
-    a.tap(r"Spar", timeout=5, required=False)
-    wait(2)
-    a.shot("po-izbiri-1")
-    a.tap(r"Mercator", timeout=5, required=False)
-    wait(2)
-    a.shot("po-izbiri-2")
-    a.tap(r"Kaj moraš kupiti", timeout=5, required=False)
-    wait(2)
+    b.record_start("raziskava-B")
+
+    first_run(a, bid)
+    a.shot("glavni")
+    a.tap_text(r"Kaj moras kupiti", timeout=10)
+    wait(3)
     a.shot("tipkovnica")
-    a.type_keys("mle")
-    wait(2)
-    a.shot("predlogi")
+    sh(["axe", "type", "mle", "--udid", a.udid])
+    wait(3)
+    a.shot("predlogi-axe-type")
+
+    # nastavitve / skupen seznam
+    a.tap_text(r"^Nastavitve$|Trgovine", timeout=5, required=False)
+    wait(3)
+    a.shot("nastavitve")
+    for i in range(4):
+        if a.find_text(r"Ustvari skupen seznam", timeout=2):
+            break
+        sh(["axe", "swipe", "--start-x", "200", "--start-y", "700", "--end-x", "200", "--end-y", "250", "--udid", a.udid], check=False)
+        wait(2)
+    a.shot("skupen")
+    a.tap_text(r"Ustvari skupen seznam", timeout=5)
+    wait(3)
+    a.shot("ime-vprasanje")
+
     a.button("lock")
-    wait(3)
+    wait(4)
     a.shot("zaklenjen")
-    a.push(bid, {"aps": {"alert": {"title": "🛒 Maja je v trgovini Spar", "body": "Rabiš še kaj? Dodaj na skupen seznam."}, "sound": "default"}})
-    wait(3)
-    a.shot("obvestilo")
     a.record_stop()
-    sh("ffprobe -v error -show_entries stream=width,height,codec_name,avg_frame_rate,bit_rate -of compact out/raziskava-A.mov", check=False)
+    b.record_stop()
 
 
 if __name__ == "__main__":
