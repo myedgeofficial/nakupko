@@ -4,22 +4,12 @@ import SwiftUI
 import WidgetKit
 
 // Seznam na zaklenjenem zaslonu med nakupovanjem, urejen po oddelkih trgovine.
-// Od iOS 18 tudi v majhni obliki (.small): Apple Watch in, od iOS 26, zaslon avta v CarPlay.
+// Tudi v majhni obliki (.small): Apple Watch in, od iOS 26, zaslon avta v CarPlay.
+// Razširitev zato zahteva iOS 18 (aplikacija sama deluje od iOS 17).
 @main
 struct NakupkoWidgets: WidgetBundle {
     var body: some Widget {
-        if #available(iOS 18.0, *) {
-            ShoppingLiveActivityCar()
-        } else {
-            ShoppingLiveActivity()
-        }
-    }
-}
-
-@available(iOS 18.0, *)
-struct ShoppingLiveActivityCar: Widget {
-    var body: some WidgetConfiguration {
-        ShoppingLiveActivity().body.supplementalActivityFamilies([.small])
+        ShoppingLiveActivity()
     }
 }
 
@@ -53,6 +43,7 @@ struct ShoppingLiveActivity: Widget {
                 Text("\(left)").foregroundColor(orange)
             }
         }
+        .supplementalActivityFamilies([.small])
     }
 }
 
