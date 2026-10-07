@@ -256,6 +256,37 @@ def first_run(p, bid):
         p.shot("drugo-vprasanje")
 
 
+def scroll_to(p, pattern, tries=5):
+    for i in range(tries):
+        b = p.find_text(pattern, timeout=1)
+        if b and b["y"] / SCALE < 760:
+            return b
+        sh(["axe", "swipe", "--start-x", "200", "--start-y", "650", "--end-x", "200", "--end-y", "300", "--udid", p.udid], check=False)
+        wait(2)
+    return p.find_text(pattern, timeout=1)
+
+
+def answer_prompt(p, name):
+    # JS prompt() = iOS okno z vnosnim poljem
+    wait(2)
+    p.shot("prompt")
+    sh(["axe", "type", name, "--udid", p.udid], check=False)
+    wait(1)
+    p.tap_text(r"^(V redu|OK)$", timeout=5, required=False)
+    wait(2)
+
+
+def add_item(p, typed, pick):
+    p.tap_text(r"Kaj moras kupiti", timeout=6, required=False)
+    wait(1.5)
+    sh(["axe", "type", typed, "--udid", p.udid], check=False)
+    wait(2)
+    p.shot("predlogi-" + typed)
+    p.tap_text(pick, timeout=5, required=False)
+    wait(2)
+    p.shot("dodano-" + typed)
+
+
 def main():
     sh(["xcrun", "swiftc", "-O", "reklama/ocr.swift", "-o", OCR])
     bid = bundle_id()
@@ -275,37 +306,71 @@ def main():
         p.install()
         p.grant(bid)
         p.location(46.0569, 14.5058)
-    wait(20)
-    a.shot("domaci-zaslon")
+    wait(10)
     a.record_start("raziskava-A")
     b.record_start("raziskava-B")
 
     first_run(a, bid)
     a.shot("glavni")
-    a.tap_text(r"Kaj moras kupiti", timeout=10)
-    wait(3)
-    a.shot("tipkovnica")
-    sh(["axe", "type", "mle", "--udid", a.udid])
-    wait(3)
-    a.shot("predlogi-axe-type")
+    add_item(a, "mle", r"^Mleko")
+    add_item(a, "ban", r"^Banane")
 
-    # nastavitve / skupen seznam
-    a.tap_text(r"^Nastavitve$|Trgovine", timeout=5, required=False)
+    # skupen seznam: A ustvari
+    a.tap_text(r"^Nastavitve$", timeout=5, required=False)
     wait(3)
     a.shot("nastavitve")
-    for i in range(4):
-        if a.find_text(r"Ustvari skupen seznam", timeout=2):
-            break
-        sh(["axe", "swipe", "--start-x", "200", "--start-y", "700", "--end-x", "200", "--end-y", "250", "--udid", a.udid], check=False)
-        wait(2)
-    a.shot("skupen")
-    a.tap_text(r"Ustvari skupen seznam", timeout=5)
-    wait(3)
-    a.shot("ime-vprasanje")
+    scroll_to(a, r"Ustvari skupen seznam")
+    a.tap_text(r"Ustvari skupen seznam", timeout=3, required=False)
+    answer_prompt(a, "Maja")
+    a.shot("deli")
+    sh(["axe", "swipe", "--start-x", "200", "--start-y", "450", "--end-x", "200", "--end-y", "860", "--udid", a.udid], check=False)
+    wait(2)
+    kb = scroll_to(a, r"Koda:")
+    a.shot("koda")
+    code = ""
+    for x in a.ocr():
+        m = re.search(r"([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{2})", x["t"].replace(" ", ""))
+        if m:
+            code = "".join(m.groups())
+    log("KODA", code)
 
-    a.button("lock")
+    # B se pridruzi
+    first_run(b, bid)
+    b.tap_text(r"^Nastavitve$", timeout=5, required=False)
+    wait(3)
+    scroll_to(b, r"Vpisi kodo")
+    b.tap_text(r"Vpisi kodo", timeout=3, required=False)
+    wait(1)
+    sh(["axe", "type", code, "--udid", b.udid], check=False)
+    b.tap_text(r"Pridruzi se", timeout=3, required=False)
+    answer_prompt(b, "Luka")
+    b.shot("pridruzen")
+    b.tap_text(r"^Seznam$", timeout=5, required=False)
     wait(4)
-    a.shot("zaklenjen")
+    b.shot("seznam-B")
+
+    # A v trgovini
+    a.tap_text(r"^Seznam$", timeout=5, required=False)
+    wait(2)
+    a.tap_text(r"V trgovini", timeout=5, required=False)
+    wait(4)
+    a.shot("v-trgovini")
+    a.button("lock")
+    wait(5)
+    a.shot("zaklenjen-A")
+
+    # partner dobi obvestilo
+    b.button("lock")
+    wait(3)
+    b.push(bid, {"aps": {"alert": {"title": "🛒 Maja je v trgovini Spar", "body": "Rabiš še kaj? Dodaj na skupen seznam."}, "sound": "default"}})
+    wait(4)
+    b.shot("obvestilo-B")
+    b.tap_text(r"Maja je v trgovini", timeout=5, required=False)
+    wait(4)
+    b.shot("po-obvestilu-B")
+    add_item(b, "jaj", r"^Jajca")
+    wait(10)
+    a.shot("zaklenjen-A-po-dodajanju")
     a.record_stop()
     b.record_stop()
 
