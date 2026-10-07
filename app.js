@@ -970,12 +970,14 @@
   function checkLeftStore() {
     if (!activeStore || activeStore.lat == null || !lastPos || testMode) { leftSince = 0; return; }
     var limit = Math.max(150, state.settings.radius * 2.5) + Math.min(lastPos.acc || 0, 60);
-    var d = distM(lastPos, activeStore);
+    // V stavbi je GPS nenatančen: za odhod štejemo le razdaljo, ki je gotovo daljša od meje.
+    var d = distM(lastPos, activeStore) - Math.min(lastPos.acc || 0, 150);
     if (d <= limit) { leftSince = 0; return; }
     if (!leftSince && d < 1000) { leftSince = Date.now(); setTimeout(checkLeftStore, 20500); return; }
     if (d >= 1000 || Date.now() - leftSince >= 20000) {
       leftSince = 0;
       var name = activeStore.short || activeStore.name;
+      window.__nakupkoLeftAt = Date.now();  // iPhone: umakni seznam z zaklenjenega zaslona
       closeStoreMode();
       toast("Zapustil si " + name + ". Nakupovanje zaprto.");
     }

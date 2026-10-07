@@ -224,28 +224,26 @@
 
   // ---------- Seznam na zaklenjenem zaslonu med nakupovanjem ----------
   // Ko je odprt način »V trgovini«, iPhone pokaže preostale izdelke na zaklenjenem zaslonu.
-  var lastShop = "", shopStartedAt = 0, shopWasActive = false;
+  var lastShop = "", shopStartedAt = 0;
   function syncShopping() {
     var api = window.__nakupko, sm = document.getElementById("storeMode");
     if (!api || !api.state || !sm) return;
     var active = !sm.classList.contains("hidden");
-    var msg = { active: active };
+    var items = api.state().items || [];
+    var open = items.filter(function (i) { return !i.done; });
+    var msg;
     if (active) {
       if (!shopStartedAt) shopStartedAt = Date.now();
-      var items = api.state().items || [];
-      var open = items.filter(function (i) { return !i.done; });
       var done = items.filter(function (i) { return i.done && i.doneAt && i.doneAt >= shopStartedAt; }).length;
       var title = (document.getElementById("smTitle") || {}).textContent || "Nakupovanje";
-      msg.store = title.split(",")[0];
-      msg.items = liveItemsOf(open);
-      msg.done = done;
-      msg.total = open.length + done;
-      shopWasActive = true;
+      msg = { active: true, store: title.split(",")[0], items: liveItemsOf(open), groups: groupsOf(open), done: done, total: open.length + done };
     } else {
       shopStartedAt = 0;
-      // Seznam, ki ga je ob prihodu odprl iPhone sam, pustimo pri miru, dokler ne zapustiš trgovine.
-      if (!shopWasActive) return;
-      shopWasActive = false;
+      // Zapustil si trgovino (aplikacija je to zaznala): seznam z zaklenjenega zaslona umaknemo.
+      var left = window.__nakupkoLeftAt && Date.now() - window.__nakupkoLeftAt < 60000;
+      // Sicer seznam na zaklenjenem zaslonu ostane (tudi če zapreš »V trgovini« ali odpreš aplikacijo),
+      // le osvežimo ga; iPhone ga umakne sam, ko odideš iz trgovine.
+      msg = left ? { active: false } : { active: true, updateOnly: true, store: "", items: liveItemsOf(open), groups: groupsOf(open), done: 0, total: open.length };
     }
     var key = JSON.stringify(msg);
     if (key === lastShop) return;
