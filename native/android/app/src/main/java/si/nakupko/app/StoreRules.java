@@ -21,8 +21,23 @@ final class StoreRules {
         {"lidl", "lidl"},
         {"hofer", "hofer|aldi"},
         {"eurospin", "eurospin"},
-        {"jager", "jager"}
+        {"jager", "jager"},
+        // Drogerije: v obvestilu samo izdelki zanje (kot only v app.js).
+        {"dm", "^dm\\b|dm[ -]drogerie|dm drogerija"},
+        {"muller", "m[uü]ller"}
     };
+    // Specializirane trgovine prodajo samo te izdelke (enak regex kot only v app.js).
+    static final Map<String, String> ONLY = new HashMap<>();
+    static {
+        ONLY.put("dm", "^(higiena|gospodinjstvo|otroci|zdravje|brez glutena|ljubljenčki) |protein|pralni|detergent|mehčal");
+        ONLY.put("muller", "^(higiena|gospodinjstvo|otroci|zdravje) |pralni|detergent|mehčal");
+    }
+
+    // Ali trgovina prodaja izdelek (enako kot sells() v app.js): specializirane samo svoje, ostale vse razen orodja in vrta.
+    static boolean sells(String only, String text) {
+        if (only != null && !only.isEmpty()) return matches(text, only);
+        return !text.toLowerCase(java.util.Locale.ROOT).startsWith("dom in vrt ");
+    }
     private static final String DUTY = "koren[cč]ek|betka|ekspres|de[zž]urn|non ?-?stop";
     private static final String CHAIN_DEFAULT_HOURS = "Mo-Sa 07:00-21:00; Su off; PH off";
     private static final List<String> DAYS = Arrays.asList("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa");

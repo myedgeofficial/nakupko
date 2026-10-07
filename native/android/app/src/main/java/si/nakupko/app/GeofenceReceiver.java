@@ -20,7 +20,8 @@ public class GeofenceReceiver extends BroadcastReceiver {
         }
         GeofencingEvent event = GeofencingEvent.fromIntent(intent);
         if (event == null || event.hasError() || event.getTriggeringGeofences() == null) return;
-        if (event.getGeofenceTransition() == Geofence.GEOFENCE_TRANSITION_ENTER) {
+        int tr = event.getGeofenceTransition();
+        if (tr == Geofence.GEOFENCE_TRANSITION_DWELL || tr == Geofence.GEOFENCE_TRANSITION_ENTER) {
             // Skupen seznam preberemo s strežnika, zato počakamo, da je obvestilo poslano.
             PendingResult pending = goAsync();
             java.util.List<Geofence> list = event.getTriggeringGeofences();

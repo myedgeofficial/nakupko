@@ -24,6 +24,10 @@ public class StoreRulesTest {
     @Test public void kinds() {
         assertEquals("spar", StoreRules.kind("Spar Spar", "").chain);
         assertEquals("tus", StoreRules.kind("Tuš market", "").chain);
+        assertEquals("dm", StoreRules.kind("dm dm drogerie markt", "").chain);
+        assertEquals(null, StoreRules.kind("Admiral", ""));
+        assertEquals(true, StoreRules.sells(StoreRules.ONLY.get("dm"), "Higiena Šampon"));
+        assertEquals(false, StoreRules.sells(StoreRules.ONLY.get("dm"), "Mlečni izdelki Mleko"));
         assertEquals(true, StoreRules.kind("Korenček", "").duty);
         assertEquals(true, StoreRules.kind("Market", "24/7").duty);
         assertNull(StoreRules.kind("Indijska trgovina", ""));
