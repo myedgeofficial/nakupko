@@ -701,7 +701,10 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     // ---------- Seznam na zaklenjenem zaslonu (Live Activity) ----------
-    func shopping(active: Bool, store: String, items list: [LiveItem], done: Int, total: Int) {
+    // updateOnly: aplikacija ni v načinu »V trgovini« (npr. zaprl si ga ali pa je seznam odprl iPhone sam) –
+    // obstoječi seznam na zaklenjenem zaslonu samo osvežimo, nikoli ga ne zapremo ali na novo odpremo.
+    // Seznam se zapre šele, ko res odideš iz trgovine.
+    func shopping(active: Bool, store: String, items list: [LiveItem], done: Int, total: Int, updateOnly: Bool = false) {
         guard #available(iOS 16.2, *) else { return }
         let current = Activity<ShoppingAttributes>.activities
         guard active else {
@@ -709,7 +712,18 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             for a in current { Task { await a.end(nil, dismissalPolicy: .immediate) } }
             return
         }
-        if shoppingFrom == nil { shoppingFrom = manager.location }
+        if updateOnly {
+            let fitted = LiveList.fit(list)
+            for a in current where a.activityState == .active {
+                let prev = a.content.state
+                // Kar je izginilo s seznama, je kupljeno; novi izdelki povečajo skupno število.
+                let d = prev.done + max(0, (prev.total - prev.done) - list.count)
+                let st = ShoppingAttributes.ContentState(items: fitted, done: d, total: d + list.count, page: LiveList.clampPage(prev.page, count: fitted.count))
+                Task { await a.update(ActivityContent(state: st, staleDate: Date().addingTimeInterval(4 * 3600))) }
+            }
+            return
+        }
+        if shoppingFrom == nil { shoppingFrom = freshLocation() }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let fitted = LiveList.fit(list)
         let keepPage = current.first(where: { $0.attributes.store == store })?.content.state.page
@@ -727,6 +741,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 _ = startLive(store: store, items: list, completion: { _ in })
             }
         }
+    }
+
+    // Za »odšel si iz trgovine« (800 m) uporabimo le svežo in natančno lokacijo, ne zastarele od doma.
+    private func freshLocation() -> CLLocation? {
+        guard let l = manager.location, -l.timestamp.timeIntervalSinceNow < 120, l.horizontalAccuracy >= 0, l.horizontalAccuracy < 150 else { return nil }
+        return l
     }
 
     // Live Activity sprejme največ 4 KB podatkov: dolge sezname skrajšamo.
@@ -768,7 +788,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         checkArrival(loc)
         // Ko odideš iz trgovine, seznam z zaklenjenega zaslona umaknemo.
-        if let from = shoppingFrom, loc.distance(from: from) > 800 { shopping(active: false, store: "", items: [], done: 0, total: 0) }
+        if #available(iOS 16.2, *), shoppingFrom == nil, !Activity<ShoppingAttributes>.activities.isEmpty,
+           -loc.timestamp.timeIntervalSinceNow < 60, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy < 100 { shoppingFrom = loc }
+        if let from = shoppingFrom, loc.distance(from: from) > 800, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy < 200 { shopping(active: false, store: "", items: [], done: 0, total: 0) }
         guard enabled else { return }
         let home = manager.monitoredRegions.first { $0.identifier == homeId } as? CLCircularRegion
         if home == nil || loc.distance(from: CLLocation(latitude: home!.center.latitude, longitude: home!.center.longitude)) > homeRadius * 0.6 {
@@ -908,8 +930,9 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let items = Self.parseItems(call)
         let done = call.getInt("done") ?? 0
         let total = call.getInt("total") ?? 0
+        let updateOnly = call.getBool("updateOnly") ?? false
         DispatchQueue.main.async {
-            GeoManager.shared.shopping(active: active, store: store, items: items, done: done, total: total)
+            GeoManager.shared.shopping(active: active, store: store, items: items, done: done, total: total, updateOnly: updateOnly)
             call.resolve()
         }
     }
