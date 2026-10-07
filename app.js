@@ -125,9 +125,11 @@
   // Angleška imena izdelkov (products-i18n.js): iskanje deluje v obeh jezikih.
   var I18N = window.NAKUPKO_I18N || {};
   CATALOG.forEach(function (p) { p.en = I18N[p.name] ? norm(I18N[p.name][0]) : ""; });
+  // Ime v jeziku aplikacije (i18n.js, npr. »Milch« v Avstriji): iskanje deluje tudi v jeziku države.
+  CATALOG.forEach(function (p) { var t = window.NK_T ? norm(window.NK_T(p.name)) : ""; p.loc = t && t !== norm(p.name) && t !== p.en ? t : ""; });
   function catalogFind(name) {
     var k = norm(name);
-    return CATALOG_BY_KEY[k] || CATALOG.filter(function (p) { return p.en && p.en === k; })[0] || null;
+    return CATALOG_BY_KEY[k] || CATALOG.filter(function (p) { return (p.en && p.en === k) || (p.loc && p.loc === k); })[0] || null;
   }
 
   var DEFAULT_QUICK = ["Mleko", "Kruh beli", "Jajca", "Banane", "Jogurt navadni", "Maslo", "Voda", "Toaletni papir", "Kava mleta", "Paradižnik"];
@@ -829,11 +831,11 @@
     if (!nq) return [];
     var starts = [], contains = [];
     CATALOG.forEach(function (p) {
-      var n = norm(p.name), en = p.en;
+      var n = norm(p.name), en = p.en, loc = p.loc;
       var b = p.brands.map(norm).join(" ");
       var wordStart = function (x) { return x.indexOf(nq) === 0 || x.split(" ").some(function (w) { return w.indexOf(nq) === 0; }); };
-      if (wordStart(n) || (en && wordStart(en))) starts.push(p);
-      else if (n.indexOf(nq) >= 0 || (en && en.indexOf(nq) >= 0) || b.indexOf(nq) >= 0 || norm(p.cat).indexOf(nq) === 0) contains.push(p);
+      if (wordStart(n) || (en && wordStart(en)) || (loc && wordStart(loc))) starts.push(p);
+      else if (n.indexOf(nq) >= 0 || (en && en.indexOf(nq) >= 0) || (loc && loc.indexOf(nq) >= 0) || b.indexOf(nq) >= 0 || norm(p.cat).indexOf(nq) === 0) contains.push(p);
     });
     // izdelki, ki jih pogosto kupuješ, najprej
     var byUse = function (a, b) { return (state.usage[norm(b.name)] || 0) - (state.usage[norm(a.name)] || 0); };

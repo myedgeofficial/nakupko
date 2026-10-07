@@ -11,6 +11,8 @@
   var KEY = "nakupko-lang", CKEY = "nakupko-country";
   // Jeziki s prevodom (ime v izbiri jezika).
   var PACKS = { sl: "Slovenščina", en: "English", de: "Deutsch", hr: "Hrvatski", it: "Italiano", hu: "Magyar", fr: "Français", es: "Español" };
+  // Jeziki, ki imajo imena izdelkov v svojem jeziku (i18n/products-xx.js); drugje angleška imena.
+  var PRODUCT_PACKS = { de: 1, hr: 1 };
   // Sorodni jeziki, dokler nimajo svojega prevoda.
   var ALIAS = { bs: "hr", sr: "hr", cnr: "hr" };
   function supported(l) {
@@ -91,11 +93,17 @@
     // Izdelki: products-i18n.js ima angleška imena; paket vrne ime v svojem jeziku.
     var I18N = window.NAKUPKO_I18N || {};
     Object.keys(I18N).forEach(function (k) { var v = p.prod ? p.prod(k, I18N[k]) : null; if (v) PROD[k] = v; });
-    started = false;
+    if (!PRODUCT_PACKS[LANG]) { if (document.body) start(); else document.addEventListener("DOMContentLoaded", start); }
+  };
+  // Imena izdelkov v jeziku države (i18n/products-xx.js) imajo prednost pred angleškimi.
+  window.NK_PRODUCTS = function (lang, map) {
+    if (lang !== LANG) return;
+    Object.keys(map || {}).forEach(function (k) { PROD[k] = map[k]; });
     if (document.body) start(); else document.addEventListener("DOMContentLoaded", start);
   };
   // Paket naložimo takoj (pred app.js), da se stran ne pokaže najprej v slovenščini.
   document.write('<script src="i18n/' + LANG + '.js"><\/script>');
+  if (PRODUCT_PACKS[LANG]) document.write('<script src="i18n/products-' + LANG + '.js"><\/script>');
 
   var ATTRS = ["placeholder", "aria-label", "title"];
   var busy = false;
