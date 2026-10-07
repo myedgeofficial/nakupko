@@ -157,6 +157,8 @@ NK_PACK("en", function (h) {
     "Kje kupiš?": "Where do you buy it?",
     "Kjerkoli": "Anywhere",
     "Kiosk": "Kiosk",
+    "Apple Zemljevidi": "Apple Maps",
+    "Google Zemljevidi": "Google Maps",
     "Samodejno (po lokaciji)": "Automatic (by location)",
     "Jezik / Language": "Language",
     // household.js
@@ -284,6 +286,7 @@ NK_PACK("en", function (h) {
     [/^Lokacije trenutno ne dobim \((.+)\)\. Poskušam znova …$/, "Can't get location right now ($1). Trying again …"],
     [/^Iz druge trgovine rabiš še \((\d+)\)$/, "You still need from another store ($1)"],
     [/^(.+): v katerikoli trgovini$/, function (m) { return word(m[1]) + ": at any store"; }],
+    [/^≈ (\d+) min peš · (\d+|–) min z avtom$/, "≈ $1 min walk · $2 min by car"],
     [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }]
   ];
   return { exact: EXACT, rules: RULES, prod: function (k, v) { return v[0]; } };

@@ -156,6 +156,8 @@ NK_PACK("de", function (h) {
     "Kje kupiš?": "Wo kaufst du es?",
     "Kjerkoli": "Überall",
     "Kiosk": "Kiosk",
+    "Apple Zemljevidi": "Apple Karten",
+    "Google Zemljevidi": "Google Maps",
     "Samodejno (po lokaciji)": "Automatisch (nach Standort)",
     "Jezik / Language": "Sprache",
     // household.js
@@ -282,6 +284,7 @@ NK_PACK("de", function (h) {
     [/^Lokacije trenutno ne dobim \((.+)\)\. Poskušam znova …$/, "Standort gerade nicht verfügbar ($1). Versuche es erneut …"],
     [/^Iz druge trgovine rabiš še \((\d+)\)$/, "Aus einem anderen Geschäft brauchst du noch ($1)"],
     [/^(.+): v katerikoli trgovini$/, function (m) { return word(m[1]) + ": in jedem Geschäft"; }],
+    [/^≈ (\d+) min peš · (\d+|–) min z avtom$/, "≈ $1 Min. zu Fuß · $2 Min. mit dem Auto"],
     [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }]
   ];
   // Produktnamen: vorerst Englisch (deutsche Namen folgen).

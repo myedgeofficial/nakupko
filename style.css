@@ -430,3 +430,11 @@ details.card[open] > summary { margin-bottom: 12px; }
 .store-pick .chip.on { border-color: var(--brand); }
 .list li.cat.store-head { font-weight: 800; }
 .list li.cat.store-head .dot { width: 12px; height: 12px; }
+
+/* ---------- Pot do trgovine ---------- */
+.trip-route { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.trip-route .trip-go { margin-top: 0; }
+.route-sheet { position: fixed; inset: 0; z-index: 60; background: rgba(18, 24, 38, .45); display: flex; align-items: flex-end; }
+.route-box { width: 100%; background: var(--surface); border-radius: 24px 24px 0 0; padding: 22px 18px calc(18px + env(safe-area-inset-bottom)); display: grid; gap: 10px; }
+.route-box h2 { margin: 0; font-size: 22px; }
+.route-box a { text-align: center; text-decoration: none; }

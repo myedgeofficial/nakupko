@@ -21,7 +21,7 @@
     var api = {
       addListener: function (event, cb) { return Cap.addListener("NakupkoGeo", event, cb); }
     };
-    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways"].forEach(function (m) {
+    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways", "routeInfo", "showRoute"].forEach(function (m) {
       api[m] = function (opts) { return Cap.nativePromise("NakupkoGeo", m, opts || {}); };
     });
     return api;
@@ -258,6 +258,10 @@
     Geo.shopping(msg).catch(function () { lastShop = ""; });
   }
   setInterval(syncShopping, 1500);
+
+  // Pot do trgovine: zemljevid s potjo (Apple Zemljevidi) in pravi čas poti.
+  window.__nakupkoShowRoute = function (st) { Geo.showRoute({ lat: st.lat, lon: st.lon, name: st.short || st.name || "" }).catch(function () {}); };
+  window.__nakupkoRouteInfo = function (st) { return Geo.routeInfo({ lat: st.lat, lon: st.lon }); };
 
   // iPhone je zaznal prihod/odhod (tudi v ozadju): aplikacija odpre/zapre »V trgovini«.
   Geo.addListener("storeLeft", function (d) {

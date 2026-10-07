@@ -4,6 +4,7 @@ import CoreLocation
 import UserNotifications
 import Capacitor
 import ActivityKit
+import MapKit
 
 // Nakupko: zaznavanje trgovin tudi, ko je aplikacija zaprta.
 //
@@ -964,7 +965,9 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "takeDone", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setZoom", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "routeInfo", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "showRoute", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -1092,12 +1095,171 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async { GeoManager.shared.requestAlways(); call.resolve() }
     }
 
+    // Čas poti do trgovine (Apple Zemljevidi): z avtom in peš, v minutah.
+    @objc func routeInfo(_ call: CAPPluginCall) {
+        guard let lat = call.getDouble("lat"), let lon = call.getDouble("lon") else { return call.reject("ni koordinat") }
+        let dest = MKMapItem(placemark: MKPlacemark(coordinate: CLLocationCoordinate2D(latitude: lat, longitude: lon)))
+        var out: [String: Any] = [:]
+        let group = DispatchGroup()
+        for (key, type) in [("drive", MKDirectionsTransportType.automobile), ("walk", MKDirectionsTransportType.walking)] {
+            let req = MKDirections.Request()
+            req.source = .forCurrentLocation()
+            req.destination = dest
+            req.transportType = type
+            group.enter()
+            MKDirections(request: req).calculateETA { res, _ in
+                DispatchQueue.main.async {
+                    if let r = res {
+                        out[key + "Min"] = Int((r.expectedTravelTime / 60).rounded(.up))
+                        out[key + "M"] = Int(r.distance)
+                    }
+                    group.leave()
+                }
+            }
+        }
+        group.notify(queue: .main) { call.resolve(out) }
+    }
+
+    // Zemljevid s potjo do trgovine in gumbi za navigacijo (Apple Zemljevidi, Google Zemljevidi, Waze).
+    @objc func showRoute(_ call: CAPPluginCall) {
+        guard let lat = call.getDouble("lat"), let lon = call.getDouble("lon") else { return call.reject("ni koordinat") }
+        let name = call.getString("name") ?? ""
+        DispatchQueue.main.async { [weak self] in
+            guard let vc = self?.bridge?.viewController else { return call.reject("ni zaslona") }
+            let r = RouteViewController(dest: CLLocationCoordinate2D(latitude: lat, longitude: lon), name: name)
+            r.modalPresentationStyle = .pageSheet
+            if let sheet = r.sheetPresentationController {
+                sheet.detents = [.large()]
+                sheet.prefersGrabberVisible = true
+            }
+            vc.present(r, animated: true)
+            call.resolve()
+        }
+    }
+
     // Odpre Nastavitve → Nakupko (lokacija »Vedno«, obvestila).
     @objc func openSettings(_ call: CAPPluginCall) {
         DispatchQueue.main.async {
             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
             call.resolve()
         }
+    }
+}
+
+// Pot do trgovine na zemljevidu (MapKit): z avtom ali peš, čas in razdalja, en dotik do navigacije.
+final class RouteViewController: UIViewController, MKMapViewDelegate {
+    private let dest: CLLocationCoordinate2D
+    private let name: String
+    private let map = MKMapView()
+    private let mode = UISegmentedControl(items: [L10n.t("routeCar"), L10n.t("routeWalk")])
+    private let eta = UILabel()
+    private let purple = UIColor(red: 0.54, green: 0.25, blue: 0.99, alpha: 1)
+
+    init(dest: CLLocationCoordinate2D, name: String) {
+        self.dest = dest
+        self.name = name
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) { fatalError("init(coder:) ni podprt") }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .systemBackground
+        map.delegate = self
+        map.showsUserLocation = true
+        map.translatesAutoresizingMaskIntoConstraints = false
+        let pin = MKPointAnnotation()
+        pin.coordinate = dest
+        pin.title = name
+        map.addAnnotation(pin)
+        view.addSubview(map)
+
+        let title = UILabel()
+        title.text = name
+        title.font = .systemFont(ofSize: 24, weight: .heavy)
+        title.numberOfLines = 2
+        eta.font = .systemFont(ofSize: 17, weight: .semibold)
+        eta.textColor = .secondaryLabel
+        mode.selectedSegmentIndex = 0
+        mode.addTarget(self, action: #selector(route), for: .valueChanged)
+        let lat = dest.latitude, lon = dest.longitude
+        let go = button(L10n.t("routeGo"), filled: true) { [weak self] in self?.openAppleMaps() }
+        let google = button("Google Maps", filled: false) { [weak self] in
+            let m = self?.mode.selectedSegmentIndex == 1 ? "walking" : "driving"
+            self?.open("https://www.google.com/maps/dir/?api=1&destination=\(lat),\(lon)&travelmode=\(m)")
+        }
+        let waze = button("Waze", filled: false) { [weak self] in self?.open("https://waze.com/ul?ll=\(lat),\(lon)&navigate=yes") }
+        let close = button(L10n.t("routeClose"), filled: false) { [weak self] in self?.dismiss(animated: true) }
+        let row = UIStackView(arrangedSubviews: [google, waze])
+        row.distribution = .fillEqually
+        row.spacing = 10
+        let stack = UIStackView(arrangedSubviews: [title, eta, mode, go, row, close])
+        stack.axis = .vertical
+        stack.spacing = 12
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+        NSLayoutConstraint.activate([
+            map.topAnchor.constraint(equalTo: view.topAnchor),
+            map.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            map.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            map.bottomAnchor.constraint(equalTo: stack.topAnchor, constant: -16),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            stack.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -12)
+        ])
+        route()
+    }
+
+    private func button(_ text: String, filled: Bool, action: @escaping () -> Void) -> UIButton {
+        var c: UIButton.Configuration = filled ? .filled() : .tinted()
+        c.title = text
+        c.cornerStyle = .capsule
+        c.baseBackgroundColor = filled ? purple : purple.withAlphaComponent(0.15)
+        c.baseForegroundColor = filled ? .white : purple
+        c.buttonSize = .large
+        return UIButton(configuration: c, primaryAction: UIAction { _ in action() })
+    }
+
+    @objc private func route() {
+        let req = MKDirections.Request()
+        req.source = .forCurrentLocation()
+        req.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+        req.transportType = mode.selectedSegmentIndex == 1 ? .walking : .automobile
+        eta.text = "…"
+        MKDirections(request: req).calculate { [weak self] res, _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.map.removeOverlays(self.map.overlays)
+                guard let r = res?.routes.first else {
+                    self.eta.text = L10n.t("routeNone")
+                    self.map.setRegion(MKCoordinateRegion(center: self.dest, latitudinalMeters: 1200, longitudinalMeters: 1200), animated: false)
+                    return
+                }
+                let dist = r.distance < 1000 ? "\(Int((r.distance / 10).rounded() * 10)) m" : String(format: "%.1f km", r.distance / 1000)
+                self.eta.text = L10n.t("routeEta", ["\(Int((r.expectedTravelTime / 60).rounded(.up)))", dist])
+                self.map.addOverlay(r.polyline)
+                self.map.setVisibleMapRect(r.polyline.boundingMapRect, edgePadding: UIEdgeInsets(top: 60, left: 40, bottom: 40, right: 40), animated: true)
+            }
+        }
+    }
+
+    func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+        let r = MKPolylineRenderer(overlay: overlay)
+        r.strokeColor = purple
+        r.lineWidth = 6
+        return r
+    }
+
+    private func openAppleMaps() {
+        let item = MKMapItem(placemark: MKPlacemark(coordinate: dest))
+        item.name = name
+        let m = mode.selectedSegmentIndex == 1 ? MKLaunchOptionsDirectionsModeWalking : MKLaunchOptionsDirectionsModeDriving
+        item.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: m])
+    }
+
+    private func open(_ s: String) {
+        if let u = URL(string: s) { UIApplication.shared.open(u) }
     }
 }
 

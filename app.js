@@ -1729,6 +1729,49 @@
     return plan;
   }
   function mapsLink(s) { return "https://www.google.com/maps/dir/?api=1&destination=" + s.lat + "," + s.lon; }
+  // ---------- Pot do trgovine ----------
+  // iPhone: zemljevid s potjo (Apple Zemljevidi) in en dotik do navigacije; drugje izbira aplikacije za navigacijo.
+  function openRoute(s) {
+    if (!s || s.lat == null) return;
+    if (window.__nakupkoShowRoute) { window.__nakupkoShowRoute(s); return; }
+    var sheet = el("div", { class: "route-sheet", role: "dialog", "aria-modal": "true" });
+    var close = function () { sheet.remove(); };
+    var ll = s.lat + "," + s.lon;
+    sheet.appendChild(el("div", { class: "route-box" }, [
+      el("h2", { text: s.short || s.name }),
+      el("p", { class: "muted small", text: routeEtaText(s) }),
+      el("a", { class: "primary full", href: "https://maps.apple.com/?daddr=" + ll + "&dirflg=d", target: "_blank", rel: "noopener" }, ["Apple Zemljevidi"]),
+      el("a", { class: "ghost full", href: mapsLink(s), target: "_blank", rel: "noopener" }, ["Google Zemljevidi"]),
+      el("a", { class: "ghost full", href: "https://waze.com/ul?ll=" + ll + "&navigate=yes", target: "_blank", rel: "noopener" }, ["Waze"]),
+      el("button", { class: "link", type: "button", onclick: close }, ["Zapri"])
+    ]));
+    sheet.addEventListener("click", function (e) { if (e.target === sheet) close(); });
+    document.body.appendChild(sheet);
+  }
+  // Okviren čas poti iz razdalje (ceste so ~1,3× daljše od zračne črte); iPhone ga nadomesti s pravim (Apple Zemljevidi).
+  var routeEta = {};
+  function routeEtaText(s) {
+    var r = routeEta[s.id];
+    if (r && r.walkMin != null) return "≈ " + r.walkMin + " min peš · " + (r.driveMin != null ? r.driveMin : "–") + " min z avtom";
+    var ref = lastPos || lastFetchPos;
+    if (!ref) return "";
+    var d = distM(ref, s) * 1.3;
+    return "≈ " + Math.max(1, Math.round(d / 80)) + " min peš · " + Math.max(1, Math.round(d / 450 + 1)) + " min z avtom";
+  }
+  function routeButton(s) {
+    var wrap = el("div", { class: "trip-route" }, [
+      el("span", { class: "muted small trip-eta", text: routeEtaText(s) }),
+      el("button", { class: "mini trip-go", type: "button", onclick: function () { openRoute(s); } }, ["Pokaži pot"])
+    ]);
+    // pravi čas poti z iPhona (Apple Zemljevidi), ko je na voljo
+    if (window.__nakupkoRouteInfo && !routeEta[s.id]) {
+      routeEta[s.id] = {};
+      window.__nakupkoRouteInfo(s).then(function (r) {
+        if (r && r.walkMin != null) { routeEta[s.id] = r; var e = wrap.querySelector(".trip-eta"); if (e) e.textContent = routeEtaText(s); }
+      }).catch(function () { delete routeEta[s.id]; });
+    }
+    return wrap;
+  }
   function storeLabel(x) { return el("span", { class: "trip-store" }, [chainDot(x.s.chain), CHAIN_BY_KEY[x.s.chain].name, el("small", { text: " " + fmtDist(x.d) })]); }
   // Samo tobak na seznamu: najbližja trafika in bencinski servis namesto supermarketa.
   function tobaccoPlan() {
@@ -1763,7 +1806,7 @@
       el("div", { class: "trip-stores" }, tp.list.map(function (y) { return el("span", { class: "trip-store" }, [chainDot(y.s.chain), y.s.short || CHAIN_BY_KEY[y.s.chain].name, el("small", { text: " " + fmtDist(y.d) })]); })),
       el("div", { class: "trip-sub", text: (tp.sunday ? "Danes so trgovine zaprte. " : "Hitreje kot v supermarketu: ") + (x.s.short || CHAIN_BY_KEY[x.s.chain].name) + " je " + fmtDist(x.d) + " stran. " + openState(x.s).text + "." })
     ]));
-    box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(x.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
+    box.appendChild(routeButton(x.s));
   }
   function renderTripInto(box) {
     var tp = tobaccoPlan();
@@ -1786,7 +1829,7 @@
         el("div", null, [el("b", { text: CHAIN_BY_KEY[p.b.s.chain].name + ": " }), plan.listB.join(", ") || "–"])
       ]);
       box.appendChild(lists);
-      box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(p.a.d <= p.b.d ? p.a.s : p.b.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
+      box.appendChild(routeButton(p.a.d <= p.b.d ? p.a.s : p.b.s));
       return;
     }
     var s = plan.single;
@@ -1799,7 +1842,7 @@
       el("div", { class: "trip-stores" }, [storeLabel(s)]),
       el("div", { class: "trip-sub", text: sub })
     ]));
-    box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(s.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
+    box.appendChild(routeButton(s.s));
   }
   var tripPos = null;
   function renderTrip(force) {

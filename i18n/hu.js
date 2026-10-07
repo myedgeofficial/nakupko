@@ -156,6 +156,8 @@ NK_PACK("hu", function (h) {
     "Kje kupiš?": "Hol veszed?",
     "Kjerkoli": "Bárhol",
     "Kiosk": "Trafik",
+    "Apple Zemljevidi": "Apple Térképek",
+    "Google Zemljevidi": "Google Térkép",
     "Samodejno (po lokaciji)": "Automatikus (hely alapján)",
     "Jezik / Language": "Nyelv",
     // household.js
@@ -282,6 +284,7 @@ NK_PACK("hu", function (h) {
     [/^Lokacije trenutno ne dobim \((.+)\)\. Poskušam znova …$/, "A helyzet most nem érhető el ($1). Újrapróbálom …"],
     [/^Iz druge trgovine rabiš še \((\d+)\)$/, "Másik üzletből még kell ($1)"],
     [/^(.+): v katerikoli trgovini$/, function (m) { return word(m[1]) + ": bármelyik üzletben"; }],
+    [/^≈ (\d+) min peš · (\d+|–) min z avtom$/, "≈ $1 perc gyalog · $2 perc autóval"],
     [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }]
   ];
   // Terméknevek: egyelőre angolul (a magyar nevek később jönnek).

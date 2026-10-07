@@ -4,10 +4,22 @@ import SwiftUI
 import WidgetKit
 
 // Seznam na zaklenjenem zaslonu med nakupovanjem, urejen po oddelkih trgovine.
+// Od iOS 18 tudi v majhni obliki (.small): Apple Watch in, od iOS 26, zaslon avta v CarPlay.
 @main
 struct NakupkoWidgets: WidgetBundle {
     var body: some Widget {
-        ShoppingLiveActivity()
+        if #available(iOS 18.0, *) {
+            ShoppingLiveActivityCar()
+        } else {
+            ShoppingLiveActivity()
+        }
+    }
+}
+
+@available(iOS 18.0, *)
+struct ShoppingLiveActivityCar: Widget {
+    var body: some WidgetConfiguration {
+        ShoppingLiveActivity().body.supplementalActivityFamilies([.small])
     }
 }
 
@@ -17,7 +29,7 @@ private let maxShown = LiveList.perPage
 struct ShoppingLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ShoppingAttributes.self) { context in
-            LockScreenList(store: context.attributes.store, state: context.state)
+            LiveRoot(store: context.attributes.store, state: context.state)
                 .widgetURL(URL(string: "nakupko://seznam"))
                 .activityBackgroundTint(Color.white)
                 .activitySystemActionForegroundColor(orange)
@@ -41,6 +53,63 @@ struct ShoppingLiveActivity: Widget {
                 Text("\(left)").foregroundColor(orange)
             }
         }
+    }
+}
+
+// Zaklenjen zaslon ali majhna oblika (CarPlay, Apple Watch).
+struct LiveRoot: View {
+    let store: String
+    let state: ShoppingAttributes.ContentState
+
+    var body: some View {
+        if #available(iOS 18.0, *) {
+            FamilyAwareList(store: store, state: state)
+        } else {
+            LockScreenList(store: store, state: state)
+        }
+    }
+}
+
+@available(iOS 18.0, *)
+struct FamilyAwareList: View {
+    @Environment(\.activityFamily) private var family
+    let store: String
+    let state: ShoppingAttributes.ContentState
+
+    var body: some View {
+        if family == .small {
+            SmallList(store: store, state: state)
+        } else {
+            LockScreenList(store: store, state: state)
+        }
+    }
+}
+
+// Majhna oblika za zaslon avta (CarPlay) in uro: trgovina, napredek in prvi izdelki, brez gumbov.
+struct SmallList: View {
+    let store: String
+    let state: ShoppingAttributes.ContentState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "cart.fill").foregroundColor(orange)
+                Text(store).font(.headline).lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(state.done)/\(state.total)").font(.headline).foregroundColor(orange)
+            }
+            if state.items.isEmpty {
+                Text(L10n.t("allDone", lang: state.lang)).font(.subheadline)
+            } else {
+                ForEach(state.items.prefix(3), id: \.self) { item in
+                    Text(item.icon + " " + item.label).font(.subheadline).lineLimit(1)
+                }
+                if state.items.count > 3 {
+                    Text(L10n.t("more", ["\(state.items.count - 3)"], lang: state.lang)).font(.caption).foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(10)
     }
 }
 

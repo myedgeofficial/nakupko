@@ -145,6 +145,12 @@ enum L10n {
         "restart": ["sl": "Na začetek ↺", "en": "Back to start ↺", "de": "Zum Anfang ↺", "hr": "Na početak ↺", "it": "All'inizio ↺", "hu": "Az elejére ↺", "fr": "Au début ↺", "es": "Al inicio ↺"],
         "range": ["sl": "%@–%@ od %@", "en": "%@–%@ of %@", "de": "%@–%@ von %@", "hr": "%@–%@ od %@", "it": "%@–%@ di %@", "hu": "%@–%@ / %@", "fr": "%@–%@ sur %@", "es": "%@–%@ de %@"],
         "more": ["sl": "in še %@ …", "en": "and %@ more …", "de": "und %@ weitere …", "hr": "i još %@ …", "it": "e altri %@ …", "hu": "és még %@ …", "fr": "et %@ de plus …", "es": "y %@ más …"],
+        "routeGo": ["sl": "Začni navigacijo", "en": "Start navigation", "de": "Navigation starten", "hr": "Pokreni navigaciju", "it": "Avvia navigazione", "hu": "Navigáció indítása", "fr": "Démarrer la navigation", "es": "Iniciar navegación"],
+        "routeCar": ["sl": "Z avtom", "en": "By car", "de": "Mit dem Auto", "hr": "Autom", "it": "In auto", "hu": "Autóval", "fr": "En voiture", "es": "En coche"],
+        "routeWalk": ["sl": "Peš", "en": "Walking", "de": "Zu Fuß", "hr": "Pješice", "it": "A piedi", "hu": "Gyalog", "fr": "À pied", "es": "A pie"],
+        "routeClose": ["sl": "Zapri", "en": "Close", "de": "Schließen", "hr": "Zatvori", "it": "Chiudi", "hu": "Bezárás", "fr": "Fermer", "es": "Cerrar"],
+        "routeEta": ["sl": "%@ min · %@", "en": "%@ min · %@", "de": "%@ Min. · %@", "hr": "%@ min · %@", "it": "%@ min · %@", "hu": "%@ perc · %@", "fr": "%@ min · %@", "es": "%@ min · %@"],
+        "routeNone": ["sl": "Poti ni mogoče izračunati.", "en": "Can’t calculate a route.", "de": "Route kann nicht berechnet werden.", "hr": "Rutu nije moguće izračunati.", "it": "Impossibile calcolare il percorso.", "hu": "Az útvonal nem számítható ki.", "fr": "Impossible de calculer l’itinéraire.", "es": "No se puede calcular la ruta."],
         "liveBody": ["sl": "%@ na seznamu. Kljukaj kar na zaklenjenem zaslonu.", "en": "%@ on your list. Tick them off right on the lock screen.", "de": "%@ auf der Liste. Hake sie direkt auf dem Sperrbildschirm ab.", "hr": "%@ na popisu. Označavaj ih na zaključanom zaslonu.", "it": "%@ nella lista. Spuntali dalla schermata di blocco.", "hu": "%@ a listán. Pipáld ki a zárolási képernyőn.", "fr": "%@ sur ta liste. Coche-les sur l'écran verrouillé.", "es": "%@ en tu lista. Márcalos en la pantalla bloqueada."]
     ]
 

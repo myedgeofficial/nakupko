@@ -157,6 +157,8 @@ NK_PACK("hr", function (h) {
     "Kje kupiš?": "Gdje kupuješ?",
     "Kjerkoli": "Bilo gdje",
     "Kiosk": "Kiosk",
+    "Apple Zemljevidi": "Apple Karte",
+    "Google Zemljevidi": "Google Karte",
     "Samodejno (po lokaciji)": "Automatski (prema lokaciji)",
     "Jezik / Language": "Jezik",
     // household.js
@@ -283,6 +285,7 @@ NK_PACK("hr", function (h) {
     [/^Lokacije trenutno ne dobim \((.+)\)\. Poskušam znova …$/, "Trenutno nemam lokaciju ($1). Pokušavam ponovno …"],
     [/^Iz druge trgovine rabiš še \((\d+)\)$/, "Iz druge trgovine trebaš još ($1)"],
     [/^(.+): v katerikoli trgovini$/, function (m) { return word(m[1]) + ": u bilo kojoj trgovini"; }],
+    [/^≈ (\d+) min peš · (\d+|–) min z avtom$/, "≈ $1 min pješice · $2 min autom"],
     [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }]
   ];
   // Nazivi proizvoda: zasad engleski (hrvatski nazivi slijede).
