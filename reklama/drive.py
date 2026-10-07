@@ -257,13 +257,37 @@ def tap_until_gone(p, pattern, tries=4, timeout=15):
 
 
 HOME = (46.0545, 14.4950)     # park Tivoli: ni trgovine v bližini
-SPAR = (46.0569, 14.5058)     # Spar, Slovenska cesta 54
+SPAR = (46.0569, 14.5058)     # zamenja ga najbližja prava trgovina iz OpenStreetMap (nearest_store)
+
+
+def nearest_store():
+    # Prava trgovina (Spar/Mercator/Tuš) blizu HOME, da jo aplikacija pozna in sama zazna prihod.
+    import urllib.request, urllib.parse
+    q = '[out:json][timeout:25];nwr["shop"="supermarket"]["name"~"Spar|Mercator|Tuš",i](around:1500,%f,%f);out center 20;' % HOME
+    for url in ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"):
+        try:
+            data = json.loads(urllib.request.urlopen(url, urllib.parse.urlencode({"data": q}).encode(), timeout=40).read())
+            best = None
+            for e in data.get("elements", []):
+                lat = e.get("lat") or (e.get("center") or {}).get("lat")
+                lon = e.get("lon") or (e.get("center") or {}).get("lon")
+                if lat is None:
+                    continue
+                d = (lat - HOME[0]) ** 2 + (lon - HOME[1]) ** 2
+                if best is None or d < best[0]:
+                    best = (d, lat, lon, (e.get("tags") or {}).get("name"))
+            if best:
+                log("trgovina za prizor:", best[3], best[1], best[2])
+                return (best[1], best[2])
+        except Exception as ex:
+            log("overpass", url, ex)
+    return SPAR
 
 
 def allow_alerts(p, rounds=4):
     # Sistemsko okno »Dovoli«: najprej prek dostopnosti (AXe), nato prek branja zaslona; preverimo, da je izginilo.
     for i in range(rounds):
-        if not p.find_text(r"^(Dovoli|Allow)$", timeout=6 if i == 0 else 3):
+        if not p.find_text(r"^(Dovoli|Allow)$", timeout=25 if i == 0 else 4):
             return
         if not p.tap(r"^(Dovoli|Allow)$", timeout=2, required=False):
             p.tap_text(r"^(Dovoli|Allow)$", timeout=2, required=False)
@@ -276,6 +300,7 @@ def first_run(p, bid):
     p.shot("zagon")
     allow_alerts(p)
     p.shot("po-dovoljenjih")
+    allow_alerts(p, 2)
     tap_until_gone(p, r"Tus, Spar in Mercator", timeout=30)
     p.shot("po-izbiri-1")
     # drugo vprasanje »Pa druga izbira?«
@@ -300,7 +325,8 @@ def answer_prompt(p, name):
     p.shot("prompt")
     sh(["axe", "type", name, "--udid", p.udid], check=False)
     wait(1)
-    p.tap_text(r"^(V redu|OK)$", timeout=5, required=False)
+    # gumb »Ok« v oknu JS prompt (ne »V redu« iz kartice bližnjic za njim)
+    p.tap_text(r"^OK$", timeout=5, required=False) or p.tap_text(r"^V redu$", timeout=2, required=False)
     wait(2)
 
 
@@ -384,7 +410,7 @@ def main():
     a.tap_text(r"^Seznam$", timeout=5, required=False)
     wait(2)
     # A pride v Spar: aplikacija sama odpre »V trgovini« (odštevanje), nato zaklene telefon
-    a.location(*SPAR)
+    a.location(*nearest_store())
     if not a.find_text(r"\d+ od \d+ v ko|v ko.arici", timeout=75):
         # rezerva: v Nastavitvah tapnemo »Sem tu« pri najbližji trgovini
         a.tap_text(r"^Odpri$", timeout=3, required=False)
