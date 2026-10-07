@@ -260,13 +260,21 @@ HOME = (46.0545, 14.4950)     # park Tivoli: ni trgovine v bližini
 SPAR = (46.0569, 14.5058)     # Spar, Slovenska cesta 54
 
 
+def allow_alerts(p, rounds=4):
+    # Sistemsko okno »Dovoli«: najprej prek dostopnosti (AXe), nato prek branja zaslona; preverimo, da je izginilo.
+    for i in range(rounds):
+        if not p.find_text(r"^(Dovoli|Allow)$", timeout=6 if i == 0 else 3):
+            return
+        if not p.tap(r"^(Dovoli|Allow)$", timeout=2, required=False):
+            p.tap_text(r"^(Dovoli|Allow)$", timeout=2, required=False)
+        wait(3)
+
+
 def first_run(p, bid):
     p.launch(bid)
     wait(8)
     p.shot("zagon")
-    for i in range(3):
-        if p.tap_text(r"^(Dovoli|Allow)$", timeout=6, required=False):
-            wait(2)
+    allow_alerts(p)
     p.shot("po-dovoljenjih")
     tap_until_gone(p, r"Tus, Spar in Mercator", timeout=30)
     p.shot("po-izbiri-1")
@@ -332,8 +340,11 @@ def main():
 
     first_run(a, bid)
     a.shot("glavni")
-    add_item(a, "mle", r"^Mleko")
-    add_item(a, "ban", r"^Banane")
+    # Izdelki s hitrimi gumbi »Pogosto kupuješ« (tako jih doda tudi pravi uporabnik)
+    for n in ("Mleko", "Kruh beli", "Jajca", "Banane"):
+        a.tap_text("^" + n + "$", timeout=8, required=False)
+        wait(2.5)
+    a.shot("dodani-izdelki")
 
     # skupen seznam: A ustvari
     a.tap_text(r"^Nastavitve$", timeout=5, required=False)
@@ -374,8 +385,14 @@ def main():
     wait(2)
     # A pride v Spar: aplikacija sama odpre »V trgovini« (odštevanje), nato zaklene telefon
     a.location(*SPAR)
-    if not a.find_text(r"V TRGOVINI|od \d+ v ko", timeout=60):
-        a.tap_text(r"Odpri|V trgovini", timeout=5, required=False)
+    if not a.find_text(r"\d+ od \d+ v ko|v ko.arici", timeout=75):
+        # rezerva: v Nastavitvah tapnemo »Sem tu« pri najbližji trgovini
+        a.tap_text(r"^Odpri$", timeout=3, required=False)
+        if not a.find_text(r"v ko.arici", timeout=5):
+            a.tap_text(r"^Nastavitve$", timeout=5, required=False)
+            wait(2)
+            scroll_to(a, r"^Sem tu$")
+            a.tap_text(r"^Sem tu$", timeout=5, required=False)
     wait(3)
     a.shot("v-trgovini")
     a.button("lock")
@@ -387,6 +404,7 @@ def main():
     # partner dobi obvestilo
     b.button("lock")
     wait(3)
+    allow_alerts(b, 2)
     b.push(bid, {"aps": {"alert": {"title": "🛒 Maja je v trgovini Spar", "body": "Rabiš še kaj? Dodaj na skupen seznam."}, "sound": "default"}})
     wait(4)
     b.shot("obvestilo-B")
