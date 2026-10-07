@@ -147,7 +147,17 @@ class Phone:
         return None
 
     def tap_xy(self, x, y):
-        sh(["axe", "tap", "-x", str(int(x)), "-y", str(int(y)), "--udid", self.udid])
+        for i in range(4):
+            r = subprocess.run(["axe", "tap", "-x", str(int(x)), "-y", str(int(y)), "--udid", self.udid], capture_output=True, text=True)
+            log("tap", int(x), int(y), "->", r.returncode, (r.stdout + r.stderr).strip()[:120])
+            if r.returncode == 0:
+                return True
+            r = subprocess.run(["axe", "touch", "-x", str(int(x)), "-y", str(int(y)), "--down", "--up", "--udid", self.udid], capture_output=True, text=True)
+            log("touch", int(x), int(y), "->", r.returncode, (r.stdout + r.stderr).strip()[:120])
+            if r.returncode == 0:
+                return True
+            wait(1.5)
+        return False
 
     def tap(self, pattern, role=None, timeout=10, required=True):
         end = time.time() + timeout
@@ -181,6 +191,7 @@ class Phone:
         sh(["xcrun", "simctl", "launch", self.udid, bundle], check=False)
 
     def grant(self, bundle):
+        sh(["applesimutils", "--byId", self.udid, "--bundle", bundle, "--setPermissions", "notifications=YES,location=always"], check=False)
         for s in ("location-always", "photos"):
             sh(["xcrun", "simctl", "privacy", self.udid, "grant", s, bundle], check=False)
 

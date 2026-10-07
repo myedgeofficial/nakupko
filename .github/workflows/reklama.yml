@@ -33,6 +33,7 @@ jobs:
         run: |
           brew tap cameroncooke/axe >/dev/null
           brew install cameroncooke/axe/axe ffmpeg >/dev/null
+          brew tap wix/brew >/dev/null && brew install applesimutils >/dev/null || true
           axe --version || true
 
       - name: Zgradi aplikacijo za simulator
