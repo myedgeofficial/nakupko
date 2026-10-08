@@ -610,3 +610,30 @@
   });
   window.addEventListener("load", function () { setTimeout(applyLiveDone, 300); setTimeout(sync, 500); setTimeout(openFromNotification, 800); });
 })();
+
+// Testna gradnja: Nakupko je v App Store, testerje povabimo, da ga naložijo od tam (seznam ostane).
+(function () {
+  if (window.NAKUPKO_RELEASE === true) return;
+  var KEY = "nakupko-selitev", URL = "https://apps.apple.com/si/app/nakupko/id6818745132";
+  function show() {
+    var later = 0;
+    try { later = +localStorage.getItem(KEY) || 0; } catch (e) {}
+    if (Date.now() < later || document.getElementById("selitev")) return;
+    var d = document.createElement("div");
+    d.id = "selitev";
+    d.style.cssText = "position:fixed;inset:0;z-index:99999;background:rgba(18,24,38,.45);display:flex;align-items:center;justify-content:center;padding:24px";
+    d.innerHTML = '<div style="background:#fff;border-radius:20px;padding:24px;max-width:360px;font:inherit;color:#121826;text-align:center">' +
+      '<div style="font-size:22px;font-weight:800;margin-bottom:8px">Nakupko je v App Store</div>' +
+      '<div style="font-size:17px;line-height:1.45;color:#6B7385;margin-bottom:20px">To je testna verzija in se ne bo več posodabljala. Naloži Nakupko iz App Store. Tvoj seznam ostane.</div>' +
+      '<button id="selitevGo" style="width:100%;padding:15px;border:0;border-radius:14px;background:#8A3FFC;color:#fff;font:inherit;font-size:17px;font-weight:700">Odpri App Store</button>' +
+      '<button id="selitevLater" style="width:100%;padding:12px;margin-top:8px;border:0;background:none;color:#6B7385;font:inherit;font-size:16px">Kasneje</button></div>';
+    document.body.appendChild(d);
+    document.getElementById("selitevGo").onclick = function () { location.href = URL; };
+    document.getElementById("selitevLater").onclick = function () {
+      try { localStorage.setItem(KEY, String(Date.now() + 24 * 3600 * 1000)); } catch (e) {}
+      d.remove();
+    };
+  }
+  window.addEventListener("load", function () { setTimeout(show, 1500); });
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") setTimeout(show, 800); });
+})();
