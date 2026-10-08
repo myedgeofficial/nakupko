@@ -1,4 +1,4 @@
-name: App Store v angleščini
+name: App Store jeziki
 
 # Push na vejo asc-angl: slovenska stran verzije v App Store dobi angleška besedila, ime in podnaslov.
 on:
@@ -20,4 +20,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           python3 -m pip install --quiet pyjwt cryptography
-          python3 scripts/asc-anglescina.py
+          python3 scripts/asc-slovenscina.py
