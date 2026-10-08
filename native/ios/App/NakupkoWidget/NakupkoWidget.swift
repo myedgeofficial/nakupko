@@ -13,7 +13,15 @@ struct NakupkoWidgets: WidgetBundle {
     }
 }
 
-private let orange = Color(red: 0.95, green: 0.42, blue: 0.11)
+// Izgled »temno steklo«: prosojna temna ploščica, vijolični poudarki (barve Nakupka).
+private let glass = Color(red: 0.086, green: 0.063, blue: 0.188)
+private let lilac = Color(red: 0.72, green: 0.61, blue: 1.0)
+private let lilacText = Color(red: 0.79, green: 0.72, blue: 1.0)
+private let brandBlue = Color(red: 0.28, green: 0.22, blue: 0.98)
+private let brandGradient = LinearGradient(
+    colors: [Color(red: 0.6, green: 0.14, blue: 0.99), brandBlue, Color(red: 0.08, green: 0.51, blue: 0.99)],
+    startPoint: .leading, endPoint: .trailing)
+private let orange = lilac
 private let maxShown = LiveList.perPage
 
 struct ShoppingLiveActivity: Widget {
@@ -21,8 +29,8 @@ struct ShoppingLiveActivity: Widget {
         ActivityConfiguration(for: ShoppingAttributes.self) { context in
             LiveRoot(store: context.attributes.store, state: context.state)
                 .widgetURL(URL(string: "nakupko://seznam"))
-                .activityBackgroundTint(Color.white)
-                .activitySystemActionForegroundColor(orange)
+                .activityBackgroundTint(glass.opacity(0.62))
+                .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { context in
             let left = context.state.items.count
             return DynamicIsland {
@@ -84,7 +92,7 @@ struct SmallList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
-                Image(systemName: "cart.fill").foregroundColor(orange)
+                Image(systemName: "basket.fill").foregroundColor(orange)
                 Text(store).font(.headline).lineLimit(1)
                 Spacer(minLength: 4)
                 Text("\(state.done)/\(state.total)").font(.headline).foregroundColor(orange)
@@ -96,10 +104,11 @@ struct SmallList: View {
                     Text(item.icon + " " + item.label).font(.subheadline).lineLimit(1)
                 }
                 if state.items.count > 3 {
-                    Text(L10n.t("more", ["\(state.items.count - 3)"], lang: state.lang)).font(.caption).foregroundColor(.secondary)
+                    Text(L10n.t("more", ["\(state.items.count - 3)"], lang: state.lang)).font(.caption).foregroundColor(.white.opacity(0.6))
                 }
             }
         }
+        .foregroundColor(.white)
         .padding(10)
     }
 }
@@ -109,18 +118,36 @@ struct LockScreenList: View {
     let state: ShoppingAttributes.ContentState
 
     var body: some View {
-        // iOS dovoli Live Activity visoko največ ~160 pt: brez vrstice napredka, da izdelki dobijo več prostora.
-        VStack(alignment: .leading, spacing: 6) {
+        // iOS dovoli Live Activity visoko največ ~160 pt: tanka črta napredka, ostalo izdelki.
+        VStack(alignment: .leading, spacing: 5) {
             HStack {
-                Label(store, systemImage: "cart.fill").font(.headline).foregroundColor(.black).lineLimit(1)
+                Label(store, systemImage: "basket.fill").font(.headline).foregroundColor(.white).lineLimit(1)
                 Spacer()
                 Text(state.items.isEmpty ? L10n.t("allDone", lang: state.lang) : "\(state.done)/\(state.total)")
-                    .font(.headline).foregroundColor(orange)
+                    .font(.headline).foregroundColor(lilacText)
             }
-            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: false, big: true, lang: state.lang)
+            ProgressLine(done: state.done, total: state.total)
+            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: true, big: true, lang: state.lang)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 9)
+    }
+}
+
+// Tanka črta napredka v prelivu Nakupka.
+struct ProgressLine: View {
+    let done: Int
+    let total: Int
+
+    var body: some View {
+        GeometryReader { g in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.15))
+                Capsule().fill(brandGradient)
+                    .frame(width: total > 0 ? max(4, g.size.width * CGFloat(done) / CGFloat(total)) : 0)
+            }
+        }
+        .frame(height: 4)
     }
 }
 
@@ -155,7 +182,7 @@ struct ItemGrid: View {
                             .padding(.vertical, big ? 7 : 5)
                             .padding(.horizontal, big ? 9 : 7)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(RoundedRectangle(cornerRadius: 9).fill(dark ? Color.white.opacity(0.12) : orange.opacity(0.08)))
+                            .background(RoundedRectangle(cornerRadius: 9).fill(dark ? Color.white.opacity(0.09) : orange.opacity(0.08)))
                         }
                         .buttonStyle(.plain)
                     }
@@ -167,28 +194,28 @@ struct ItemGrid: View {
                     Link(destination: URL(string: "nakupko://seznam")!) {
                         Label(L10n.t("openList", lang: lang), systemImage: "list.bullet")
                             .font(.footnote.weight(.semibold))
-                            .foregroundColor(orange)
+                            .foregroundColor(.white)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 5)
-                            .background(Capsule().fill(orange.opacity(0.12)))
+                            .background(Capsule().fill(Color.white.opacity(0.14)))
                     }
                     Spacer()
                     if hidden > 0 {
-                        Text(L10n.t("range", ["\(start + 1)", "\(start + list.count)", "\(items.count)"], lang: lang)).font(.caption).foregroundColor(.gray)
+                        Text(L10n.t("range", ["\(start + 1)", "\(start + list.count)", "\(items.count)"], lang: lang)).font(.caption).foregroundColor(.white.opacity(0.6))
                         Button(intent: NextPageIntent()) {
                             Text(start + list.count >= items.count ? L10n.t("restart", lang: lang) : L10n.t("next", lang: lang))
                                 .font(.footnote.weight(.semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(brandBlue)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 5)
-                                .background(Capsule().fill(orange))
+                                .background(Capsule().fill(Color.white))
                                 .contentShape(Capsule())
                         }
                         .buttonStyle(.plain)
                     }
                 }
             } else if hidden > 0 {
-                Text(L10n.t("more", ["\(hidden)"], lang: lang)).font(.caption).foregroundColor(.gray)
+                Text(L10n.t("more", ["\(hidden)"], lang: lang)).font(.caption).foregroundColor(.white.opacity(0.6))
             }
         }
     }
