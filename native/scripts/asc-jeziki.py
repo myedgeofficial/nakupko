@@ -9,6 +9,7 @@ exec(src.split("app = call(")[0])
 VERSION = os.environ.get("VERSION", "1.1")
 ROOT = os.path.join(os.path.dirname(__file__), "..", "asc-slike")
 TEXTS = json.load(open(os.path.join(ROOT, "besedila.json"), encoding="utf-8"))
+WARN = TEXTS.pop("_opozorilo", {})
 SETS = {"APP_IPHONE_61": "63", "APP_IPHONE_65": "65"}
 
 
@@ -37,6 +38,18 @@ en = vlocs["en-US"]["attributes"]
 info = next(i for i in call("GET", f"/apps/{app}/appInfos")["data"] if i["attributes"].get("appStoreState") not in ("READY_FOR_SALE", "READY_FOR_DISTRIBUTION"))
 ilocs = {l["attributes"]["locale"]: l for l in call("GET", f"/appInfos/{info['id']}/appInfoLocalizations?limit=50")["data"]}
 privacy = ilocs["en-US"]["attributes"].get("privacyPolicyUrl")
+
+# Angleška in slovenska stran: opozorilo o cenah dodamo pred odstavek o naročnini (ali na konec).
+for locale, w in WARN.items():
+    if locale not in vlocs:
+        continue
+    desc = vlocs[locale]["attributes"].get("description") or ""
+    if w in desc:
+        continue
+    cut = max(desc.find("\n\nNAKUPKO PLUS"), -1)
+    desc = desc[:cut] + "\n\n" + w + desc[cut:] if cut > 0 else desc.rstrip() + "\n\n" + w
+    call("PATCH", f"/appStoreVersionLocalizations/{vlocs[locale]['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": vlocs[locale]["id"], "attributes": {"description": desc}}})
+    print(f"::notice::{locale}: dodano opozorilo o cenah")
 
 for locale, t in TEXTS.items():
     va = {k: t[k] for k in ("description", "keywords", "promotionalText", "whatsNew")}
