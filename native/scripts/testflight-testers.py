@@ -41,3 +41,12 @@ for t in testers:
     else:
         print(f"::notice::Bi odstranil: {who}")
 print(f"::notice::Skupaj testerjev: {len(testers)}")
+
+# Javno povezavo za pridružitev izklopimo, da se ne prijavljajo novi testerji.
+for g in call("GET", f"/betaGroups?filter[app]={app}&filter[isInternalGroup]=false&limit=50")["data"]:
+    on = g["attributes"].get("publicLinkEnabled")
+    if on and MODE == "remove":
+        call("PATCH", f"/betaGroups/{g['id']}", {"data": {"type": "betaGroups", "id": g["id"], "attributes": {"publicLinkEnabled": False}}}, ok_errors=(409, 422))
+        print(f"::notice::Javna povezava izklopljena: {g['attributes']['name']}")
+    else:
+        print(f"::notice::Skupina {g['attributes']['name']}: javna povezava {'vklopljena' if on else 'izklopljena'}")
