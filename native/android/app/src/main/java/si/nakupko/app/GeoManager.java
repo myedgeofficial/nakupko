@@ -58,6 +58,8 @@ final class GeoManager {
     private static final float HOME_RADIUS = 1500;
     private static final float REFETCH_DISTANCE = 2500;
     private static final long RENOTIFY_AFTER = 45 * 60 * 1000L;
+    // Toliko časa moraš biti do ~100 m od trgovine, preden pride obvestilo.
+    private static final int STORE_DWELL_MS = 45 * 1000;
     private static final String CH_STORE = "store";
     private static final String CH_SHOP = "shopping";
     private static final int SHOP_NOTIFICATION = 7001;
@@ -201,7 +203,7 @@ final class GeoManager {
     private void onLocation(Location loc) {
         if (watching && listener != null) listener.onPosition(loc);
         // Ko odideš iz trgovine, seznam iz vrstice z obvestili umaknemo.
-        if (shoppingFrom != null && loc.distanceTo(shoppingFrom) > 800) shopping(false, "", new JSONArray(), 0, 0);
+        if (shoppingFrom != null && loc.distanceTo(shoppingFrom) > 800) shopping(false, "", new JSONArray(), 0, 0, false);
         if (!enabled()) return;
         Location home = homeCenter();
         if (home == null || loc.distanceTo(home) > HOME_RADIUS * 0.6f) refreshRegions(loc, null);
@@ -249,7 +251,9 @@ final class GeoManager {
             fences.add(new Geofence.Builder().setRequestId(STORE_PREFIX + s.optString("id"))
                 .setCircularRegion(s.optDouble("lat"), s.optDouble("lon"), r)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
+                // Obvestilo šele, ko se pri trgovini zadržiš (ne v mimovožnji ali na robu območja).
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
+                .setLoiteringDelay(STORE_DWELL_MS)
                 .setNotificationResponsiveness(30000).build());
         }
         fences.add(new Geofence.Builder().setRequestId(HOME_ID)
@@ -277,7 +281,7 @@ final class GeoManager {
             JSONArray list = new JSONArray();
             try {
                 // Najprej država (is_in): zunaj Slovenije spremljamo vse trgovine z živili, ne le slovenskih verig.
-                String q = String.format(Locale.US, "[out:json][timeout:20];is_in(%f,%f)->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store)$\"](around:5000,%f,%f););out center tags 150;",
+                String q = String.format(Locale.US, "[out:json][timeout:20];is_in(%f,%f)->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,%f,%f););out center tags 150;",
                     loc.getLatitude(), loc.getLongitude(), loc.getLatitude(), loc.getLongitude());
                 HttpURLConnection c = (HttpURLConnection) new URL("https://overpass-api.de/api/interpreter").openConnection();
                 c.setRequestMethod("POST");
@@ -324,6 +328,7 @@ final class GeoManager {
                     s.put("lat", lat);
                     s.put("lon", lon);
                     if (kind.chain != null) s.put("chain", kind.chain);
+                    if (kind.chain != null && StoreRules.ONLY.containsKey(kind.chain)) s.put("only", StoreRules.ONLY.get(kind.chain));
                     s.put("duty", kind.duty);
                     s.put("hours", hours);
                     list.put(s);
@@ -435,10 +440,14 @@ final class GeoManager {
             JSONObject g = groups.optJSONObject(i);
             JSONArray items = g == null ? null : g.optJSONArray("items");
             if (items == null || items.length() == 0) continue;
-            count += items.length();
+            // Samo izdelki, ki jih ta trgovina prodaja (npr. v dm samo drogerija).
+            List<String> sold = new ArrayList<>();
+            for (int k = 0; k < items.length(); k++) if (StoreRules.sells(store.optString("only", ""), g.optString("name", "") + " " + items.optString(k))) sold.add(items.optString(k));
+            if (sold.isEmpty()) continue;
+            count += sold.size();
             if (body.length() > 0) body.append('\n');
             body.append(g.optString("icon", "🛒")).append(' ');
-            for (int k = 0; k < items.length(); k++) body.append(k > 0 ? ", " : "").append(items.optString(k));
+            for (int k = 0; k < sold.size(); k++) body.append(k > 0 ? ", " : "").append(sold.get(k));
         }
         if (count == 0 || foreground) return; // odprta aplikacija to pokaže sama
         // Zaprta trgovina (npr. ob 6h pred Sparom, ki odpre ob 7:30): brez obvestila.
@@ -481,12 +490,29 @@ final class GeoManager {
     }
 
     // ---------- Seznam med nakupovanjem (stalno obvestilo, kot Live Activity na iPhonu) ----------
-    void shopping(boolean active, String store, JSONArray groups, int done, int total) {
+    // updateOnly: aplikacija ni v načinu »V trgovini« – obstoječi seznam samo osvežimo, nikoli ga ne odpremo ali zapremo.
+    private boolean shopShowing = false;
+    private String shopStore = "Nakupovanje";
+    private int shopDone = 0, shopTotal = 0;
+    void shopping(boolean active, String store, JSONArray groups, int done, int total, boolean updateOnly) {
         if (!active) {
             shoppingFrom = null;
+            shopShowing = false;
             NotificationManagerCompat.from(ctx).cancel(SHOP_NOTIFICATION);
             return;
         }
+        if (updateOnly) {
+            if (!shopShowing) return;
+            int open = total;
+            // Kar je izginilo s seznama, je kupljeno; novi izdelki povečajo skupno število.
+            done = shopDone + Math.max(0, (shopTotal - shopDone) - open);
+            total = done + open;
+            store = shopStore;
+        }
+        shopShowing = true;
+        shopStore = store;
+        shopDone = done;
+        shopTotal = total;
         if (shoppingFrom == null) withLastLocation(loc -> { if (loc != null) shoppingFrom = loc; });
         StringBuilder body = new StringBuilder();
         for (int i = 0; i < groups.length(); i++) {
