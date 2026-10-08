@@ -1,0 +1,23 @@
+name: App Store v angleščini
+
+# Push na vejo asc-angl: slovenska stran verzije v App Store dobi angleška besedila, ime in podnaslov.
+on:
+  push:
+    branches: [asc-angl]
+
+jobs:
+  anglescina:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: native
+    env:
+      BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'si.nakupko.app' }}
+      KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+      KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 -m pip install --quiet pyjwt cryptography
+          python3 scripts/asc-anglescina.py
