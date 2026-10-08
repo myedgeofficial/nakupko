@@ -227,6 +227,11 @@
   // ---------- Seznam na zaklenjenem zaslonu med nakupovanjem ----------
   // Ko je odprt način »V trgovini«, iPhone pokaže preostale izdelke na zaklenjenem zaslonu.
   var lastShop = "", shopStartedAt = 0;
+  // »V trgovini« odprt ročno z gumbom (ne ob prihodu v trgovino): ob zaprtju seznam z zaklenjenega zaslona umaknemo.
+  var manualShop = false;
+  document.addEventListener("click", function (e) {
+    if (e.target && e.target.closest && e.target.closest("#btnStoreMode")) manualShop = true;
+  }, true);
   function syncShopping() {
     var api = window.__nakupko, sm = document.getElementById("storeMode");
     if (!api || !api.state || !sm) return;
@@ -248,7 +253,8 @@
     } else {
       shopStartedAt = 0;
       // Zapustil si trgovino (aplikacija je to zaznala): seznam z zaklenjenega zaslona umaknemo.
-      var left = window.__nakupkoLeftAt && Date.now() - window.__nakupkoLeftAt < 60000;
+      var left = (window.__nakupkoLeftAt && Date.now() - window.__nakupkoLeftAt < 60000) || manualShop;
+      manualShop = false;
       // Sicer seznam na zaklenjenem zaslonu ostane (tudi če zapreš »V trgovini« ali odpreš aplikacijo),
       // le osvežimo ga; iPhone ga umakne sam, ko odideš iz trgovine.
       msg = left ? { active: false } : { active: true, updateOnly: true, store: "", items: liveItemsOf(open), groups: groupsOf(open), done: 0, total: open.length };
@@ -272,6 +278,7 @@
   });
   Geo.addListener("storeArrived", function (d) {
     var api = window.__nakupko;
+    manualShop = false;
     if (api && api.openStoreById && d && d.storeId) api.openStoreById(d.storeId);
   });
 
