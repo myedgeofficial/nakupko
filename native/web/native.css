@@ -1,0 +1,119 @@
+/* Samo v iOS aplikaciji: namig »Dodaj na začetni zaslon« ni potreben. */
+#installHint { display: none !important; }
+
+/* Velikost prikaza v iOS aplikaciji poveča iPhone sam (pageZoom), ne CSS zoom,
+   ki v WKWebView pokvari postavitev (ozki stolpci, črke ena pod drugo). */
+html.size-mid body, html.size-senior body { zoom: 1 !important; }
+
+/* Reklama spodaj (samo gradnja za App Store brez naročnine Nakupko Plus); --ad-h nastavi pay.js. */
+.tabs { bottom: calc(10px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
+body { padding-bottom: calc(96px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
+.overlay { padding-bottom: calc(24px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
+
+/* Nastavitve v iOS aplikaciji: brez drsnikov in preizkusov, razdalja in zamik sta nastavljena (native.js). */
+#tab-stores .settings details.more { display: none !important; }
+
+/* »Cene po trgovinah« v iOS aplikaciji ni (uporabnik: nepregledno, manjkajo izdelki). */
+#pricesMore { display: none !important; }
+
+/* Ena velikost za vse (native.js poveča stran), izbire velikosti ni. */
+#tab-stores details.card:has(#sizeBox) { display: none !important; }
+html.size-mid body, html.size-senior body { font-weight: 500; }
+html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inherit; }
+/* Spletna navodila za bližnjico (Safari) v aplikaciji nadomesti kartica »Hitro odpiranje Nakupka«. */
+#tab-stores details.card:has(> ol) { display: none !important; }
+
+/* Animirana navodila »Hitro odpiranje Nakupka« (native.js). */
+.qo-tabs { display: flex; gap: 6px; background: #f1eefa; border-radius: 12px; padding: 4px; margin-bottom: 12px; }
+.qo-tab { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 8px; font-weight: 650; color: #6b6b78; }
+.qo-tab.on { background: #fff; color: #1b1b1f; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.qo-phone { width: 210px; height: 330px; margin: 0 auto; border: 8px solid #1b1b1f; border-radius: 34px; background: #f2f2f7; overflow: hidden; position: relative; }
+.qo-screen { position: absolute; inset: 0; padding: 26px 10px 10px; font-size: 13px; color: #1b1b1f; }
+.qo-screen.qo-in { animation: qoIn .35s ease; }
+@keyframes qoIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+.qo-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; min-height: 22px; }
+.qo-bar b { font-size: 15px; flex: 1; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qo-bar span { font-size: 20px; color: #007aff; min-width: 14px; border-radius: 8px; padding: 0 4px; }
+.qo-done { font-size: 13px !important; font-weight: 600; }
+.qo-row { background: #fff; padding: 9px 10px; border-bottom: 1px solid #ececf0; display: flex; justify-content: space-between; border-radius: 0; }
+.qo-row:first-of-type { border-radius: 10px 10px 0 0; }
+.qo-row:last-child { border-radius: 0 0 10px 10px; border-bottom: 0; }
+.qo-chev { color: #b0b0b8; }
+.qo-check { color: #007aff; font-weight: 700; }
+.qo-search { background: #e4e4ea; border-radius: 9px; padding: 7px 9px; margin-bottom: 10px; color: #6b6b78; }
+.qo-type { color: #1b1b1f; display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; animation: qoType 1.4s steps(7) .3s both; }
+@keyframes qoType { from { width: 0; } to { width: 7.2ch; } }
+.qo-btn2 { background: #fff; color: #007aff; border-radius: 10px; padding: 10px; text-align: center; font-weight: 600; margin: 8px 0; }
+.qo-big { text-align: center; font-size: 15px; font-weight: 700; margin: 30px 0 14px; line-height: 2; }
+.qo-big { font-size: 15px; }
+.qo-home { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 6px; padding-top: 14px; }
+.qo-app { text-align: center; border-radius: 12px; padding: 4px 0; }
+.qo-app span { display: grid; place-items: center; width: 38px; height: 38px; margin: 0 auto 3px; border-radius: 10px; background: #fff; font-size: 22px; box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+.qo-app small { font-size: 9px; }
+.qo-hit { position: relative; animation: qoHit 4.5s ease both; }
+.qo-hit::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
+  background: rgba(138,63,252,.45); border: 2px solid #8A3FFC; opacity: 0; animation: qoTap 4.5s ease both; pointer-events: none; }
+@keyframes qoTap { 0%, 20% { opacity: 0; transform: scale(1.8); } 32% { opacity: 1; transform: scale(1); } 42%, 70% { opacity: 1; transform: scale(.8); } 85%, 100% { opacity: 0; transform: scale(.8); } }
+@keyframes qoHit { 0%, 38% { background-color: inherit; } 45%, 100% { background-color: #e6dcfb; } }
+.qo-dk .qo-hit { animation-name: qoHitDark; }
+@keyframes qoHitDark { 0%, 38% { background-color: inherit; } 45%, 100% { background-color: #4c2a85; } }
+.qo-end { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+.qo-phone-back { width: 90px; height: 150px; border-radius: 18px; background: #2b2b33; position: relative; }
+.qo-phone-back::before { content: ""; position: absolute; left: 10px; top: 10px; width: 30px; height: 30px; border-radius: 9px; background: #45454f; }
+.qo-ripple { position: absolute; left: 50%; top: 55%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; border: 3px solid #8A3FFC; opacity: 0; animation: qoKnock 1.8s ease infinite; }
+.qo-r2 { animation-delay: .3s; }
+@keyframes qoKnock { 0% { opacity: 0; transform: scale(.4); } 15% { opacity: 1; } 60%, 100% { opacity: 0; transform: scale(1.8); } }
+.qo-btn { position: absolute; left: -6px; top: 30px; width: 5px; height: 22px; border-radius: 3px; background: #8A3FFC; animation: qoPress 1.8s ease infinite; }
+@keyframes qoPress { 0%, 30% { transform: none; } 40%, 80% { transform: translateX(3px); box-shadow: 0 0 0 4px rgba(138,63,252,.3); } }
+.qo-open { background: #8A3FFC; color: #fff; font-weight: 700; padding: 8px 14px; border-radius: 12px; opacity: 0; animation: qoOpen 6s ease both; }
+@keyframes qoOpen { 0%, 45% { opacity: 0; transform: scale(.7); } 60%, 100% { opacity: 1; transform: none; } }
+.qo-dots { display: flex; justify-content: center; gap: 5px; margin: 12px 0 6px; }
+.qo-dots i { width: 6px; height: 6px; border-radius: 50%; background: #d8d2e8; }
+.qo-dots i.on { background: #8A3FFC; width: 16px; border-radius: 3px; }
+.qo-cap { text-align: center; font-weight: 650; min-height: 2.8em; margin: 0 0 12px; }
+.qo-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
+.qo-nav .qo-dots { margin: 0; }
+.qo-nav button { border: 0; background: #f1eefa; color: #8A3FFC; width: 40px; height: 40px; border-radius: 50%; font-size: 24px; line-height: 1; font-weight: 700; }
+
+/* Oznaka skupnega seznama nad seznamom (native.js). */
+.hh-badge { display: block; width: 100%; margin: 8px 0 4px; border: 0; border-radius: 12px; padding: 10px 12px; text-align: left;
+  background: #efe6ff; color: #5b21b6; font-weight: 700; font-size: 15px; }
+.hh-badge.off { background: #f1f1f4; color: #6b6b78; }
+
+/* Zasloni aplikacije Shortcuts (temni, kot na iPhonu). */
+.qo-screen.qo-dk { background: #000; color: #fff; }
+.qo-dk .qo-row { background: #1c1c1e; border-color: #2c2c2e; color: #fff; }
+.qo-dk .qo-btn2 { background: #1c1c1e; }
+.qo-sc-app { color: #fff; }
+.qo-sc { height: 100%; position: relative; font-size: 12px; }
+.qo-sc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.qo-sc-top i { font-style: normal; min-width: 22px; height: 22px; border-radius: 11px; background: #1c1c1e; display: grid; place-items: center; font-size: 14px; }
+.qo-sc-top i:empty { background: none; }
+.qo-sc-top i.pill { padding: 0 9px; font-size: 11px; }
+.qo-sc-top small { font-weight: 700; font-size: 12px; }
+.qo-sc-h { display: block; font-size: 19px; margin: 2px 0 8px; }
+.qo-sc-search { background: #1c1c1e; border-radius: 12px; padding: 7px 10px; color: #8e8e93; margin-bottom: 8px; }
+.qo-sc-search .qo-type { color: #fff; }
+.qo-sc-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.qo-sc-tiles span { border-radius: 12px; height: 54px; padding: 6px; display: flex; align-items: flex-end; font-weight: 700; background: linear-gradient(135deg, #3b82f6, #60a5fa); font-size: 11px; }
+.qo-sc-tiles span.pink { background: linear-gradient(135deg, #f0a0e0, #d870c0); }
+.qo-sc-plus { position: absolute; left: 50%; bottom: 8px; width: 38px; height: 38px; margin-left: -19px; border-radius: 50%; background: #2c2c2e; display: grid; place-items: center; font-size: 24px; }
+.qo-sc-ask { margin: 40px 6px 0; padding: 26px 10px; border-radius: 20px; background: #0f0b18; text-align: center; font-weight: 700; font-size: 13px; }
+.qo-sc-desc { position: absolute; left: 0; right: 0; bottom: 10px; background: #1c1c1e; border-radius: 14px; padding: 8px 10px; color: #8e8e93; }
+.qo-sc-note { color: #8e8e93; text-align: center; margin: 30px 0 0; }
+.qo-sc-sheet { position: absolute; left: -4px; right: -4px; bottom: -4px; background: #1c1c1e; border-radius: 20px 20px 0 0; padding: 10px 8px; }
+.qo-sc-sheet.top { top: 0; bottom: -4px; border-radius: 20px; }
+.qo-sc-sheet .qo-sc-search { background: #2c2c2e; }
+.qo-sc-act { background: #2c2c2e; border-radius: 12px; padding: 9px 10px; margin-bottom: 6px; font-weight: 600; }
+.qo-sc-app { padding: 8px 4px 10px; font-weight: 600; }
+.qo-sc .qo-hit::after { background: rgba(138,63,252,.6); }
+
+/* Ime izdelka čez vso širino, cena pod njim (večja pisava ne lomi besed). */
+.list li.item { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; align-items: center; }
+.list li.item > .check { grid-column: 1; grid-row: 1 / span 2; }
+.list li.item > .check + * { grid-column: 2; grid-row: 1 / span 2; }
+.list li.item > .ibody { grid-column: 3; grid-row: 1; align-self: end; }
+.list li.item > .price { grid-column: 3; grid-row: 2; justify-self: start; align-self: start; font-size: 13px; padding: 3px 9px; }
+.list li.item > .del { grid-column: 4; grid-row: 1 / span 2; }
+.list li.item:not(:has(> .price)) > .ibody { grid-row: 1 / span 2; align-self: center; }
+.iname { overflow-wrap: break-word; word-break: normal; }

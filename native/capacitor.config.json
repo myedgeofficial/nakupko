@@ -1,0 +1,9 @@
+{
+  "appId": "si.nakupko.app",
+  "appName": "Nakupko",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#ffffff"
+  }
+}
