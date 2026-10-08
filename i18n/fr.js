@@ -53,6 +53,7 @@ NK_PACK("fr", function (h) {
     "Velikost prikaza": "Taille d'affichage",
     "Več možnosti": "Plus d'options",
     "Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).": "Lieux : © contributeurs OpenStreetMap. Horaires à titre indicatif. Icônes de produits : Microsoft Fluent Emoji (MIT).",
+    "Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.": "Les prix sont indicatifs et peuvent différer de ceux en magasin. Nous ne savons pas si un article est en stock.",
     "Vse": "Tout",
     "Vse kupljeno": "Tout est acheté",
     "Zapri": "Fermer",

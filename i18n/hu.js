@@ -53,6 +53,7 @@ NK_PACK("hu", function (h) {
     "Velikost prikaza": "Megjelenítés mérete",
     "Več možnosti": "További lehetőségek",
     "Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).": "Helyek: © OpenStreetMap közreműködők. A nyitvatartás tájékoztató jellegű. Termékikonok: Microsoft Fluent Emoji (MIT).",
+    "Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.": "Az árak tájékoztató jellegűek, és eltérhetnek a bolti áraktól. Nem tudjuk, hogy egy termék van-e készleten.",
     "Vse": "Mind",
     "Vse kupljeno": "Minden megvéve",
     "Zapri": "Bezárás",
