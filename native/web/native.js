@@ -268,8 +268,11 @@
   setInterval(syncShopping, 1500);
 
   // Pot do trgovine: zemljevid s potjo (Apple Zemljevidi) in pravi čas poti.
-  window.__nakupkoShowRoute = function (st) { Geo.showRoute({ lat: st.lat, lon: st.lon, name: st.short || st.name || "" }).catch(function () {}); };
-  window.__nakupkoRouteInfo = function (st) { return Geo.routeInfo({ lat: st.lat, lon: st.lon }); };
+  // Samo iOS; Android uporabi spletno okno s povezavami na zemljevide.
+  if (platform === "ios") {
+    window.__nakupkoShowRoute = function (st) { Geo.showRoute({ lat: st.lat, lon: st.lon, name: st.short || st.name || "" }).catch(function () {}); };
+    window.__nakupkoRouteInfo = function (st) { return Geo.routeInfo({ lat: st.lat, lon: st.lon }); };
+  }
 
   // iPhone je zaznal prihod/odhod (tudi v ozadju): aplikacija odpre/zapre »V trgovini«.
   Geo.addListener("storeLeft", function (d) {

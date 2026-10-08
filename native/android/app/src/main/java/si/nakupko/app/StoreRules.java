@@ -41,6 +41,13 @@ final class StoreRules {
     }
     private static final String DUTY = "koren[cč]ek|betka|ekspres|de[zž]urn|non ?-?stop";
     private static final String CHAIN_DEFAULT_HOURS = "Mo-Sa 07:00-21:00; Su off; PH off";
+    // Drogerije (dm, Müller) brez podatkov o delovnem času zapirajo ob 20h, ne ob 21h.
+    private static final String DRUGSTORE_DEFAULT_HOURS = "Mo-Sa 08:00-20:00; Su off; PH off";
+
+    static String defaultHours(String chain) {
+        if (chain == null) return "";
+        return chain.equals("dm") || chain.equals("muller") ? DRUGSTORE_DEFAULT_HOURS : CHAIN_DEFAULT_HOURS;
+    }
     private static final List<String> DAYS = Arrays.asList("Su", "Mo", "Tu", "We", "Th", "Fr", "Sa");
 
     private static boolean matches(String text, String pattern) {
@@ -146,7 +153,7 @@ final class StoreRules {
 
     // TRUE = odprto, FALSE = zaprto, null = urnik ni znan (takrat raje obvestimo).
     static Boolean isOpen(String hours, String chain, Calendar now) {
-        String src = hours == null || hours.isEmpty() ? (chain != null ? CHAIN_DEFAULT_HOURS : "") : hours;
+        String src = hours == null || hours.isEmpty() ? defaultHours(chain) : hours;
         Hours h = parse(src);
         if (h == null) return null;
         if (h.always) return true;
