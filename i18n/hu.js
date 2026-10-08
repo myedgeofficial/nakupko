@@ -222,7 +222,26 @@ NK_PACK("hu", function (h) {
     // kategorije
     "Sadje in zelenjava": "Zöldség és gyümölcs", "Mlečni izdelki": "Tejtermékek", "Meso in ribe": "Hús és hal", "Kruh in pecivo": "Pékáru",
     "Shramba": "Kamra", "Prigrizki": "Rágcsálnivaló", "Pijače": "Italok", "Zamrznjeno": "Fagyasztott", "Gospodinjstvo": "Háztartás", "Higiena": "Higiénia",
-    "Tobak": "Dohány", "Brez glutena": "Gluténmentes", "Otroci": "Baba és gyerek", "Zdravje": "Egészség", "Ljubljenčki": "Háziállatok", "Športna prehrana": "Sporttáplálék"
+    "Tobak": "Dohány", "Brez glutena": "Gluténmentes", "Otroci": "Baba és gyerek", "Zdravje": "Egészség", "Ljubljenčki": "Háziállatok", "Športna prehrana": "Sporttáplálék",
+    // nov videz (2026-10): zavihka Seznam/Trgovine, enote pri ceni
+    "Dodaj v hiter seznam!": "Add hozzá a gyorslistához!",
+    "Hiter seznam": "Gyorslista",
+    "Trgovine": "Üzletek",
+    "Najceneje": "Legolcsóbb",
+    "Skupaj": "Összesen",
+    "Sortiraj:": "Rendezés:",
+    "Sortiraj": "Rendezés",
+    "Po ceni": "Ár szerint",
+    "Po razdalji": "Távolság szerint",
+    "Izbriši": "Törlés",
+    "Cene so izklopljene. Vklopiš jih v Nastavitvah pod »Moje trgovine«.": "Az árak ki vannak kapcsolva. A Beállítások „Üzleteim” részében kapcsolhatod be őket.",
+    "Za trgovine v tej državi cen še nimamo.": "Ebben az országban még nincsenek üzleti áraink.",
+    "kos": "db",
+    "šopek": "csokor",
+    "lonček": "cserép",
+    "par": "pár",
+    "komplet": "készlet",
+    "vreča": "zsák"
   };
   var DAYS_ON = { "ob nedeljah": "vasárnaponként", "ob ponedeljkih": "hétfőnként", "ob torkih": "keddenként", "ob sredah": "szerdánként", "ob četrtkih": "csütörtökönként", "ob petkih": "péntekenként", "ob sobotah": "szombatonként" };
   var DAY_AT = { "v nedeljo": "vasárnap", "v ponedeljek": "hétfőn", "v torek": "kedden", "v sredo": "szerdán", "v četrtek": "csütörtökön", "v petek": "pénteken", "v soboto": "szombaton" };
@@ -285,7 +304,8 @@ NK_PACK("hu", function (h) {
     [/^Iz druge trgovine rabiš še \((\d+)\)$/, "Másik üzletből még kell ($1)"],
     [/^(.+): v katerikoli trgovini$/, function (m) { return word(m[1]) + ": bármelyik üzletben"; }],
     [/^≈ (\d+) min peš · (\d+|–) min z avtom$/, "≈ $1 perc gyalog · $2 perc autóval"],
-    [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }]
+    [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }],
+    [/^(\d+) (kos|vrečke|vrečk|rol|roli)$/, function (m) { return m[1] + " " + {"kos": "db", "vrečke": "tasak", "vrečk": "tasak", "rol": "tekercs", "roli": "tekercs"}[m[2]]; }]
   ];
   // Terméknevek: egyelőre angolul (a magyar nevek később jönnek).
   return { exact: EXACT, rules: RULES, prod: function (k, v) { return v[0]; } };

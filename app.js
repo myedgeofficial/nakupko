@@ -584,7 +584,7 @@
 
   function itemMeta(it) {
     var parts = [];
-    if (it.qty && it.qty !== 1) parts.push(String(it.qty).replace(".", ",") + " ×");
+    // količina je pred imenom (»5x Panakota«)
     if (it.brand) parts.push(it.brand);
     var usual = usualStore(it.name);
     if (usual && !it.store) parts.push("običajno: " + usual);
@@ -627,12 +627,15 @@
     toast(k ? it.name + " → " + storeKeyName(k) : it.name + ": v katerikoli trgovini");
   }
   function storePicker(it) {
+    var delBtn = el("button", { type: "button", class: "chip chip-del", onclick: function () { pickOpen = null; removeItem(it.id); } }, ["Izbriši"]);
+    if (it.done) return el("div", { class: "store-pick" }, [delBtn]);
     var box = el("div", { class: "store-pick" }, [el("span", { class: "muted small", text: "Kje kupiš?" })]);
     box.appendChild(el("button", { type: "button", class: "chip" + (!it.store ? " on" : ""), onclick: function () { setItemStore(it, ""); } }, ["Kjerkoli"]));
     storeChoices(it).forEach(function (k) {
       box.appendChild(el("button", { type: "button", class: "chip" + (it.store === k ? " on" : ""), onclick: function () { setItemStore(it, k); } },
         CHAIN_BY_KEY[k] ? [chainDot(k), storeKeyName(k)] : [storeKeyName(k)]));
     });
+    box.appendChild(delBtn);
     return box;
   }
   // ---------- Izbira trgovin za izračun cen ----------
@@ -686,17 +689,22 @@
 
   var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
   var X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  // Cena v vrstici: cena za kos/pakiranje z enoto (»2,49 € / 250 g«), meso in sir na kg; akcija posebej.
   function priceChip(it, storeCtx) {
     if (pricesOff()) return null;
-    var q = it.qty || 1, chain = null, p = null;
+    var chain = null, p = null;
     if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it, chain); if (p.price == null) p = null; }
     if (!p) { p = prefPrice(it); if (p) chain = p.chain; }
     if (!p) return null;
-    var kg = perKg(it.name);
-    var txt = kg ? eur(p.price / kg.amount) + "/" + kg.unit : eur(p.price * q);
-    return el("span", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
-      chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : ""),
-      chain && p.sale ? el("b", { class: "sale", text: (window.NK_T ? window.NK_T("akcija") : "akcija") + " " + (kg ? eur(p.sale / kg.amount) : eur(p.sale * q)) }) : null
+    var kg = perKg(it.name), prod = CATALOG_BY_KEY[norm(it.name)];
+    var unit = kg ? kg.unit : String((prod && prod.unit) || "").replace(/^.*,\s+/, ""); // »tekoči, kos« → »kos«
+    return el("div", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
+      el("span", { class: "pmain" }, [
+        chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }),
+        (kg ? eur(p.price / kg.amount) : eur(p.price)) + (p.est ? "*" : ""),
+        unit ? " / " : null, unit ? el("span", { class: "unit", text: unit }) : null
+      ]),
+      chain && p.sale ? el("b", { class: "sale", text: (window.NK_T ? window.NK_T("akcija") : "akcija") + " " + (kg ? eur(p.sale / kg.amount) : eur(p.sale)) }) : null
     ]);
   }
   // Sir, meso, ribe ipd. so v zelo različnih pakiranjih: pokažemo ceno na kg (izdelki na kg vedno).
@@ -726,32 +734,75 @@
     return (iconMemo[n] = hit);
   }
   function thumbFor(it) {
-    return el("span", { class: "thumb", "aria-hidden": "true" }, [el("img", { src: "icons/" + iconFor(it) + ".svg", alt: "" })]);
+    var m = CAT_META[it.cat] || CAT_META.Drugo;
+    return el("span", { class: "thumb", "aria-hidden": "true", style: "background:" + m[1] }, [el("img", { src: "icons/" + iconFor(it) + ".svg", alt: "" })]);
   }
   try { localStorage.removeItem("nakupko-img"); delete state.imgCache; } catch (e) { /* nič */ }
 
+  function qtyText(q) { return q && q !== 1 ? String(q).replace(".", ",") + "x" : ""; }
   function itemRow(it, big, storeCtx) {
     var meta = itemMeta(it);
     var check = el("button", { class: "check", type: "button", "aria-label": it.done ? "Označi kot nekupljeno" : "Označi kot kupljeno",
       onclick: function () { toggleItem(it.id, storeCtx); } });
     check.innerHTML = CHECK_SVG;
+    // Brisanje: povleci vrstico v levo (gumb za njo) ali tapni ime in »Izbriši«.
     var del = el("button", { class: "del", type: "button", "aria-label": "Izbriši " + it.name, onclick: function () { removeItem(it.id); } });
     del.innerHTML = X_SVG;
     // Tap na ime: izbira trgovine za ta izdelek.
     var tag = it.store ? el("span", { class: "store-tag" }, [CHAIN_BY_KEY[it.store] ? chainDot(it.store) : null, storeKeyName(it.store)]) : null;
-    return el("li", { class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") }, [
-      check,
+    var q = qtyText(it.qty);
+    var row = el("div", { class: "irow" }, [
       thumbFor(it),
-      el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { if (it.done) return; pickOpen = pickOpen === it.id ? null : it.id; renderAll(); } }, [
-        el("div", { class: "iname", text: it.name }),
+      el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { pickOpen = pickOpen === it.id ? null : it.id; renderAll(); } }, [
+        el("div", { class: "iname" }, [q ? el("i", { class: "iqty", text: q }) : null, el("span", { text: it.name })]),
+        it.done ? null : priceChip(it, storeCtx),
         meta || tag ? el("div", { class: "imeta" }, [tag, meta ? document.createTextNode((tag ? " · " : "") + meta) : null]) : null
       ]),
-      it.done ? null : priceChip(it, storeCtx),
-      del,
-      pickOpen === it.id && !it.done ? storePicker(it) : null
+      check
     ]);
+    var li = el("li", { class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") }, [
+      del,
+      row,
+      pickOpen === it.id ? storePicker(it) : null
+    ]);
+    swipeable(li, row);
+    return li;
   }
-
+  // Povleci v levo: pokaže gumb za brisanje (kot na iPhonu). Navpično drsenje ostane brskalniku.
+  var swipedRow = null;
+  function closeSwipe() { if (swipedRow) { swipedRow.classList.remove("swiped"); swipedRow.querySelector(".irow").style.transform = ""; swipedRow = null; } }
+  function swipeable(li, row) {
+    var x0 = null, y0 = 0, dx = 0, moved = false, id = null;
+    row.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (swipedRow && swipedRow !== li) closeSwipe();
+      x0 = e.clientX; y0 = e.clientY; dx = 0; moved = false; id = e.pointerId;
+    });
+    row.addEventListener("pointermove", function (e) {
+      if (x0 === null || e.pointerId !== id) return;
+      var ddx = e.clientX - x0, ddy = e.clientY - y0;
+      if (!moved && (Math.abs(ddx) < 10 || Math.abs(ddx) < Math.abs(ddy) * 1.2)) { if (Math.abs(ddy) > 12) x0 = null; return; }
+      if (!moved) { moved = true; try { row.setPointerCapture(id); } catch (err) { /* nič */ } li.classList.add("dragging"); }
+      var base = li.classList.contains("swiped") ? -88 : 0;
+      dx = Math.max(-110, Math.min(0, base + ddx));
+      row.style.transform = "translateX(" + dx + "px)";
+    });
+    function end() {
+      if (x0 === null) return;
+      x0 = null;
+      li.classList.remove("dragging");
+      if (!moved) return;
+      if (dx < -44) { li.classList.add("swiped"); row.style.transform = "translateX(-88px)"; swipedRow = li; }
+      else { li.classList.remove("swiped"); row.style.transform = ""; if (swipedRow === li) swipedRow = null; }
+    }
+    row.addEventListener("pointerup", end);
+    row.addEventListener("pointercancel", end);
+    // Tap po vlečenju ne odkljuka izdelka; tap na odprto vrstico jo zapre.
+    row.addEventListener("click", function (e) {
+      if (moved) { moved = false; e.stopPropagation(); e.preventDefault(); return; }
+      if (li.classList.contains("swiped")) { e.stopPropagation(); e.preventDefault(); closeSwipe(); }
+    }, true);
+  }
   function renderList() {
     var ul = $("list");
     ul.innerHTML = "";
@@ -1434,37 +1485,99 @@
   function renderHero() {
     var open = state.items.filter(function (i) { return !i.done; });
     $("heroCount").textContent = open.length;
+    $("heroCount").parentNode.classList.toggle("long", open.length > 99);
     $("heroSide").classList.toggle("hidden", pricesOff());
     if (pricesOff()) return;
-    $("heroLabel").textContent = pref().chains ? "Košarica · " + pref().short : "Ocena košarice";
-    if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = "Dodaj izdelke na seznam"; return; }
+    $("heroLabel").textContent = "Ocena košarice";
+    if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = ""; return; }
+    // »≈ 10,61 €« in pod njim trgovina v oklepaju: najcenejša ali tvoje trgovine (npr. Hofer/Lidl).
     if (pref().chains) {
       var total = 0;
       open.forEach(function (it) { var p = prefPrice(it); if (p) total += p.price * (it.qty || 1); });
       $("heroTotal").textContent = "≈ " + eur(total);
-      var grp = compareRows(open).filter(function (r) { return pref().chains.indexOf(r.c) >= 0; });
-      $("heroBest").innerHTML = "";
-      if (grp.length > 1) { $("heroBest").appendChild(chainDot(grp[0].c)); $("heroBest").appendChild(document.createTextNode("od teh najceneje " + CHAIN_BY_KEY[grp[0].c].name)); }
-      else $("heroBest").textContent = "povprečje izbranih trgovin";
-      if (pref2()) {
-        var t2 = 0, n2 = 0;
-        open.forEach(function (it) {
-          var s = 0, n = 0;
-          pref2().chains.forEach(function (c) { var p = priceFor(it, c); if (p.price != null) { s += p.price; n++; } });
-          if (n) { t2 += s / n * (it.qty || 1); n2++; }
-        });
-        if (n2) $("heroBest").appendChild(el("div", { class: "hero-alt", text: pref2().short + " ≈ " + eur(t2) }));
-      }
+      $("heroBest").textContent = "(" + pref().chains.map(function (c) { return CHAIN_BY_KEY[c].name; }).join("/") + ")";
       return;
     }
     var rows = compareRows(open);
-    if (!rows.length) return;
-    // prihranek samo med trgovinami, ki imajo cene za enako izdelkov
-    var same = rows.filter(function (r) { return r.missing === rows[0].missing; });
+    if (!rows.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = ""; return; }
     $("heroTotal").textContent = "≈ " + eur(rows[0].sum);
-    $("heroBest").innerHTML = "";
-    $("heroBest").appendChild(chainDot(rows[0].c));
-    $("heroBest").appendChild(document.createTextNode("najceneje v " + CHAIN_BY_KEY[rows[0].c].name + (same.length > 1 ? " · prihranek " + eur(same[same.length - 1].sum - rows[0].sum) : "")));
+    $("heroBest").textContent = "(" + CHAIN_BY_KEY[rows[0].c].name + ")";
+  }
+  // ---------- Zavihek »Trgovine«: skupna cena seznama po trgovinah ----------
+  var LOGO_IMG = { hofer: "hofer", lidl: "lidl", spar: "spar", eurospin: "eurospin" };
+  var LOGO_WORD = { mercator: ["#E2231A", "Mercator", 11], tus: ["#E30613", "TUŠ", 20], jager: ["#2E8B3E", "JAGER", 14] };
+  function chainLogo(c) {
+    if (LOGO_IMG[c]) return el("span", { class: "slogo" }, [el("img", { src: "logos/" + LOGO_IMG[c] + ".png", alt: "" })]);
+    var w = LOGO_WORD[c], ch = CHAIN_BY_KEY[c] || {};
+    if (w) return el("span", { class: "slogo" }, [el("span", { class: "wm", style: "background:" + w[0] + ";font-size:" + w[2] + "px", text: w[1] })]);
+    return el("span", { class: "slogo" }, [el("span", { class: "wm", style: "background:" + (ch.color || "#8A3FFC") + ";font-size:26px", text: (ch.name || c).charAt(0).toUpperCase() })]);
+  }
+  // Najbližja trgovina te verige (za pot do nje), če poznamo lokacijo.
+  function nearestOfChain(c) {
+    var ref = lastPos || lastFetchPos, best = null;
+    if (!ref) return null;
+    stores.forEach(function (s) {
+      if (s.chain !== c || s.lat == null || /^test\//.test(s.id)) return;
+      var d = distM(ref, s);
+      if (!best || d < best.d) best = { s: s, d: d };
+    });
+    return best;
+  }
+  function openChainMap(c) {
+    var n = nearestOfChain(c);
+    if (n) { openRoute(n.s); return; }
+    var q = encodeURIComponent((CHAIN_BY_KEY[c] || {}).name || c);
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    window.open(ios ? "https://maps.apple.com/?q=" + q : "https://www.google.com/maps/search/?api=1&query=" + q, "_blank");
+  }
+  var storeSort = "price";
+  function renderStoresPane() {
+    var grid = $("storeGrid"), note = $("storesNote");
+    if (!grid) return;
+    grid.innerHTML = "";
+    var open = state.items.filter(function (i) { return !i.done; });
+    var msg = "";
+    if (!open.length) msg = "Dodaj izdelke na seznam za primerjavo.";
+    else if (pricesOff()) msg = state.settings.pricePref === "none" ? "Cene so izklopljene. Vklopiš jih v Nastavitvah pod »Moje trgovine«." : "Za trgovine v tej državi cen še nimamo.";
+    var rows = msg ? [] : compareRows(open).filter(function (r) { return r.missing < open.length; });
+    if (!msg && !rows.length) msg = "Za trgovine v tej državi cen še nimamo.";
+    note.textContent = msg;
+    note.classList.toggle("hidden", !msg);
+    $("storesBar").classList.toggle("hidden", !rows.length);
+    if (!rows.length) return;
+    var best = rows[0];
+    rows.forEach(function (r) { r.near = nearestOfChain(r.c); });
+    var hasDist = rows.some(function (r) { return r.near; });
+    var opt = $("storeSort").querySelector('option[value="dist"]');
+    if (opt) opt.disabled = !hasDist;
+    $("storesBar").classList.toggle("one", !hasDist);
+    var list = rows.slice();
+    if (storeSort === "dist" && hasDist) list.sort(function (a, b) { return (a.near ? a.near.d : 1e12) - (b.near ? b.near.d : 1e12); });
+    list.forEach(function (r) {
+      var c = CHAIN_BY_KEY[r.c], isBest = r === best;
+      var tot = eur(r.sum);
+      grid.appendChild(el("div", { class: "stile" + (isBest ? " best" : "") }, [
+        el("div", { class: "stop" }, [
+          chainLogo(r.c),
+          el("div", { class: "sname-wrap" }, [
+            el("div", { class: "stname", text: c.name }),
+            isBest ? el("div", { class: "stag", text: "Najceneje" }) : el("div", { class: "stag m", text: "+" + eur(r.sum - best.sum) }),
+            r.near ? el("div", { class: "sdist", text: fmtDist(r.near.d) }) : null,
+            r.missing ? el("div", { class: "sdist" }, [r.missing + " ", el("span", { text: "brez cene" })]) : null
+          ])
+        ]),
+        el("div", { class: "sbot" }, [
+          el("div", null, [el("div", { class: "sk", text: "Skupaj" }), el("div", { class: "sv" + (tot.length > 8 ? " long" : ""), text: tot })]),
+          el("button", { class: "spin", type: "button", "aria-label": "Pokaži pot", onclick: function () { openChainMap(r.c); } },
+            [svgEl('<path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/>')])
+        ])
+      ]));
+    });
+  }
+  function svgEl(inner) {
+    var w = document.createElement("span");
+    w.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + inner + "</svg>";
+    return w.firstChild;
   }
   function renderCompare() {
     var ul = $("compare");
@@ -1859,6 +1972,7 @@
     renderQuick();
     renderReco();
     renderCompare();
+    renderStoresPane();
     if ($("pricesMore").open) renderPriceTable();
     renderStoreMode();
   }
@@ -1878,9 +1992,36 @@
     b.addEventListener("click", function () {
       filter = b.dataset.filter;
       document.querySelectorAll(".seg button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      $("filterLabel").textContent = b.textContent;
+      setFilterMenu(false);
       renderList();
     });
   });
+  // Izbira »Hiter seznam / Ta trgovina / Kupljeno« kot spustni seznam.
+  function setFilterMenu(open) {
+    document.querySelector("#listBar .seg").classList.toggle("hidden", !open);
+    $("filterBtn").setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  $("filterBtn").addEventListener("click", function (e) {
+    e.stopPropagation();
+    setFilterMenu($("filterBtn").getAttribute("aria-expanded") !== "true");
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || !e.target.closest("#listBar .dd")) setFilterMenu(false);
+    if (swipedRow && (!e.target.closest || !e.target.closest("li.item.swiped"))) closeSwipe();
+  });
+  // Zavihka nad seznamom: SEZNAM / TRGOVINE.
+  function setPane(p) {
+    var stores_ = p === "stores";
+    $("ftList").classList.toggle("on", !stores_); $("ftList").setAttribute("aria-selected", String(!stores_));
+    $("ftStores").classList.toggle("on", stores_); $("ftStores").setAttribute("aria-selected", String(stores_));
+    $("paneList").classList.toggle("hidden", stores_);
+    $("paneStores").classList.toggle("hidden", !stores_);
+    if (stores_) renderStoresPane();
+  }
+  $("ftList").addEventListener("click", function () { setPane("list"); });
+  $("ftStores").addEventListener("click", function () { setPane("stores"); });
+  $("storeSort").addEventListener("change", function (e) { storeSort = e.target.value; renderStoresPane(); });
 
   $("addInput").addEventListener("input", function () {
     pendingProduct = null; pendingBrand = null; $("brandPick").classList.add("hidden"); selIdx = -1; renderSuggest();

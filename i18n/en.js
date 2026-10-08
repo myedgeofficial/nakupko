@@ -223,7 +223,26 @@ NK_PACK("en", function (h) {
     // kategorije
     "Sadje in zelenjava": "Fruit & vegetables", "Mlečni izdelki": "Dairy", "Meso in ribe": "Meat & fish", "Kruh in pecivo": "Bread & bakery",
     "Shramba": "Pantry", "Prigrizki": "Snacks", "Pijače": "Drinks", "Zamrznjeno": "Frozen", "Gospodinjstvo": "Household", "Higiena": "Personal care",
-    "Tobak": "Tobacco", "Brez glutena": "Gluten-free", "Otroci": "Baby & kids", "Zdravje": "Health", "Ljubljenčki": "Pets", "Športna prehrana": "Sports nutrition"
+    "Tobak": "Tobacco", "Brez glutena": "Gluten-free", "Otroci": "Baby & kids", "Zdravje": "Health", "Ljubljenčki": "Pets", "Športna prehrana": "Sports nutrition",
+    // nov videz (2026-10): zavihka Seznam/Trgovine, enote pri ceni
+    "Dodaj v hiter seznam!": "Add to your quick list!",
+    "Hiter seznam": "Quick list",
+    "Trgovine": "Stores",
+    "Najceneje": "Cheapest",
+    "Skupaj": "Total",
+    "Sortiraj:": "Sort:",
+    "Sortiraj": "Sort",
+    "Po ceni": "By price",
+    "Po razdalji": "By distance",
+    "Izbriši": "Delete",
+    "Cene so izklopljene. Vklopiš jih v Nastavitvah pod »Moje trgovine«.": "Prices are turned off. Turn them on in Settings under \"My stores\".",
+    "Za trgovine v tej državi cen še nimamo.": "We don't have store prices for this country yet.",
+    "kos": "pc",
+    "šopek": "bunch",
+    "lonček": "pot",
+    "par": "pair",
+    "komplet": "set",
+    "vreča": "bag"
   };
   var DAYS_ON = { "ob nedeljah": "on Sundays", "ob ponedeljkih": "on Mondays", "ob torkih": "on Tuesdays", "ob sredah": "on Wednesdays", "ob četrtkih": "on Thursdays", "ob petkih": "on Fridays", "ob sobotah": "on Saturdays" };
   var DAY_AT = { "v nedeljo": "on Sunday", "v ponedeljek": "on Monday", "v torek": "on Tuesday", "v sredo": "on Wednesday", "v četrtek": "on Thursday", "v petek": "on Friday", "v soboto": "on Saturday" };
@@ -287,7 +306,8 @@ NK_PACK("en", function (h) {
     [/^Iz druge trgovine rabiš še \((\d+)\)$/, "You still need from another store ($1)"],
     [/^(.+): v katerikoli trgovini$/, function (m) { return word(m[1]) + ": at any store"; }],
     [/^≈ (\d+) min peš · (\d+|–) min z avtom$/, "≈ $1 min walk · $2 min by car"],
-    [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }]
+    [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }],
+    [/^(\d+) (kos|vrečke|vrečk|rol|roli)$/, function (m) { return m[1] + " " + {"kos": "pcs", "vrečke": "bags", "vrečk": "bags", "rol": "rolls", "roli": "rolls"}[m[2]]; }]
   ];
   return { exact: EXACT, rules: RULES, prod: function (k, v) { return v[0]; } };
 });

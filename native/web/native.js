@@ -155,7 +155,8 @@
   var hhKnown = null;
   function hhBadge() {
     var hh = window.__nakupkoHousehold ? window.__nakupkoHousehold() : null;
-    var head = document.querySelector("#countOpen") && document.querySelector("#countOpen").closest(".card-head");
+    // nad seznamom (vrstica »Hiter seznam« v zavihku SEZNAM); starejša postavitev: glava kartice s številom
+    var head = document.getElementById("listBar") || (document.querySelector("#countOpen") && document.querySelector("#countOpen").closest(".card-head"));
     var b = document.getElementById("hhBadge");
     if (!hh || !head) { if (b) b.remove(); hhKnown = null; return; }
     if (!b) {
@@ -380,7 +381,7 @@
       '<div style="color:#5b5b66;font-size:15px;margin-bottom:6px">Stisni gumb, nato izberi:</div>' +
       missing.map(function (m) { return '<div style="margin:4px 0">• ' + m + '</div>'; }).join("") +
       '</div>' +
-      '<button id="gateGo" type="button" style="border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:#8A3FFC;color:#fff;width:100%;max-width:340px;margin:0 auto">Vklopi zdaj</button>' +
+      '<button id="gateGo" type="button" style="border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:linear-gradient(135deg,#9923FC,#4837FB 55%,#1482FC);color:#fff;width:100%;max-width:340px;margin:0 auto">Vklopi zdaj</button>' +
       '<button id="gateLater" type="button" style="border:0;background:none;color:#8a8a96;padding:16px;font-size:15px;margin-top:6px">Kasneje</button>';
     document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };

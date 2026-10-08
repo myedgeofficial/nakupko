@@ -222,7 +222,26 @@ NK_PACK("fr", function (h) {
     // kategorije
     "Sadje in zelenjava": "Fruits et légumes", "Mlečni izdelki": "Produits laitiers", "Meso in ribe": "Viande et poisson", "Kruh in pecivo": "Pain et viennoiseries",
     "Shramba": "Épicerie", "Prigrizki": "Snacks", "Pijače": "Boissons", "Zamrznjeno": "Surgelés", "Gospodinjstvo": "Entretien", "Higiena": "Hygiène",
-    "Tobak": "Tabac", "Brez glutena": "Sans gluten", "Otroci": "Bébé et enfants", "Zdravje": "Santé", "Ljubljenčki": "Animaux", "Športna prehrana": "Nutrition sportive"
+    "Tobak": "Tabac", "Brez glutena": "Sans gluten", "Otroci": "Bébé et enfants", "Zdravje": "Santé", "Ljubljenčki": "Animaux", "Športna prehrana": "Nutrition sportive",
+    // nov videz (2026-10): zavihka Seznam/Trgovine, enote pri ceni
+    "Dodaj v hiter seznam!": "Ajoute-le à ta liste rapide !",
+    "Hiter seznam": "Liste rapide",
+    "Trgovine": "Magasins",
+    "Najceneje": "Le moins cher",
+    "Skupaj": "Total",
+    "Sortiraj:": "Trier :",
+    "Sortiraj": "Trier",
+    "Po ceni": "Par prix",
+    "Po razdalji": "Par distance",
+    "Izbriši": "Supprimer",
+    "Cene so izklopljene. Vklopiš jih v Nastavitvah pod »Moje trgovine«.": "Les prix sont désactivés. Active-les dans Réglages, sous « Mes magasins ».",
+    "Za trgovine v tej državi cen še nimamo.": "Nous n'avons pas encore de prix pour les magasins de ce pays.",
+    "kos": "pce",
+    "šopek": "botte",
+    "lonček": "pot",
+    "par": "paire",
+    "komplet": "lot",
+    "vreča": "sac"
   };
   var DAYS_ON = { "ob nedeljah": "le dimanche", "ob ponedeljkih": "le lundi", "ob torkih": "le mardi", "ob sredah": "le mercredi", "ob četrtkih": "le jeudi", "ob petkih": "le vendredi", "ob sobotah": "le samedi" };
   var DAY_AT = { "v nedeljo": "dimanche", "v ponedeljek": "lundi", "v torek": "mardi", "v sredo": "mercredi", "v četrtek": "jeudi", "v petek": "vendredi", "v soboto": "samedi" };
@@ -285,7 +304,8 @@ NK_PACK("fr", function (h) {
     [/^Iz druge trgovine rabiš še \((\d+)\)$/, "D'un autre magasin, il te faut encore ($1)"],
     [/^(.+): v katerikoli trgovini$/, function (m) { return word(m[1]) + " : dans n'importe quel magasin"; }],
     [/^≈ (\d+) min peš · (\d+|–) min z avtom$/, "≈ $1 min à pied · $2 min en voiture"],
-    [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }]
+    [/^(.+) → (.+)$/, function (m) { return word(m[1]) + " → " + m[2]; }],
+    [/^(\d+) (kos|vrečke|vrečk|rol|roli)$/, function (m) { return m[1] + " " + {"kos": "pces", "vrečke": "sachets", "vrečk": "sachets", "rol": "rouleaux", "roli": "rouleaux"}[m[2]]; }]
   ];
   // Noms de produits : en anglais pour l'instant (les noms français suivront).
   return { exact: EXACT, rules: RULES, prod: function (k, v) { return v[0]; } };
