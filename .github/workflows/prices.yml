@@ -22,6 +22,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write
 
 concurrency:
   group: prices
@@ -33,12 +34,12 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - name: Samo enkrat na dan, med 3h in 6h po slovenskem času
+      - name: Samo enkrat na dan, od 3h dalje (GitHub urnik zamuja)
         id: when
         run: |
           H=$(TZ=Europe/Ljubljana date +%H)
           if [ "${{ github.event_name }}" != "schedule" ]; then echo "run=yes" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if [ "$H" -lt 3 ] || [ "$H" -gt 5 ]; then echo "run=no" >> "$GITHUB_OUTPUT"; echo "Ura v Sloveniji je $H, preskočim."; exit 0; fi
+          if [ "$H" -lt 3 ]; then echo "run=no" >> "$GITHUB_OUTPUT"; echo "Ura v Sloveniji je $H, preskočim."; exit 0; fi
           TODAY=$(TZ=Europe/Ljubljana date +%Y-%m-%d)
           git fetch -q origin main
           DONE=$(git show origin/main:prices.json | python3 -c "import json,sys;print(json.load(sys.stdin).get('preverjeno',''))")
@@ -64,6 +65,11 @@ jobs:
           git commit -m "Cene $(TZ=Europe/Ljubljana date +%Y-%m-%d)"
           for i in 1 2 3; do git pull --rebase -q origin main && git push -q origin HEAD:main && exit 0; sleep 5; done
           exit 1
+      - name: Osveži še odpiralne čase trgovin
+        if: steps.when.outputs.run == 'yes' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run hours.yml --ref main || true
       - name: Predogled sprememb (testna veja)
         if: steps.when.outputs.run == 'yes' && github.ref != 'refs/heads/main'
         run: git diff --stat; git diff prices.js | head -c 3000 || true
