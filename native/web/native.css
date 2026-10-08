@@ -27,7 +27,7 @@ html.size-mid .iname, html.size-senior .iname { font-weight: 800; }
 .qo-tabs { display: flex; gap: 6px; background: #f1eefa; border-radius: 12px; padding: 4px; margin-bottom: 12px; }
 .qo-tab { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 8px; font-weight: 650; color: #6b6b78; }
 .qo-tab.on { background: #fff; color: #1b1b1f; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-.qo-phone { width: 210px; height: 330px; margin: 0 auto; border: 8px solid #1b1b1f; border-radius: 34px; background: #f2f2f7; overflow: hidden; position: relative; }
+.qo-phone { width: 186px; height: auto; aspect-ratio: 390 / 844; margin: 0 auto; border: 8px solid #1b1b1f; border-radius: 34px; background: #f2f2f7; overflow: hidden; position: relative; }
 .qo-screen { position: absolute; inset: 0; padding: 26px 10px 10px; font-size: 13px; color: #1b1b1f; }
 .qo-screen.qo-in { animation: qoIn .35s ease; }
 @keyframes qoIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
@@ -110,3 +110,14 @@ html.size-mid .iname, html.size-senior .iname { font-weight: 800; }
 
 /* Vrstica izdelka (nov videz): ime čez vso širino, cena pod njim; besede se ne lomijo. */
 .iname { overflow-wrap: break-word; word-break: normal; }
+
+/* Telefon v vodiču ima razmerje pravega iPhona (ožji), zato manjša vsebina zaslona. */
+.qo-screen { padding: 30px 8px 8px; font-size: 11px; }
+.qo-bar b { font-size: 13px; }
+.qo-row { padding: 7px 8px; gap: 4px; white-space: nowrap; }
+.qo-row > :first-child, .qo-row { overflow: hidden; text-overflow: ellipsis; }
+.qo-home { gap: 10px 2px; }
+.qo-app span { width: 30px; height: 30px; font-size: 17px; border-radius: 8px; }
+.qo-app small { font-size: 8px; }
+.qo-big, .qo-sc { font-size: 11px; }
+.qo-phone-back { width: 80px; height: 160px; }
