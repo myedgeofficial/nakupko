@@ -1,9 +1,9 @@
 name: TestFlight testerji
 
-# Izpiše testerje ali odstrani vse razen Urške in Teota (aplikacija je zdaj v App Store).
+# Push na vejo testerji = izpis; push na testerji-odstrani = odstrani vse razen Urške in Teota (aplikacija je v App Store).
 on:
   push:
-    branches: [testerji]
+    branches: [testerji, testerji-odstrani]
   workflow_dispatch:
     inputs:
       mode:
@@ -21,7 +21,7 @@ jobs:
       KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
       ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
       KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
-      MODE: ${{ inputs.mode || 'list' }}
+      MODE: ${{ github.ref_name == 'testerji-odstrani' && 'remove' || inputs.mode || 'list' }}
       KEEP: "teo.simonic7@gmail.com,urska.repusic@gmail.com,teo,urška,urska"
     steps:
       - uses: actions/checkout@v4
