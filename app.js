@@ -696,7 +696,7 @@
     var txt = kg ? eur(p.price / kg.amount) + "/" + kg.unit : eur(p.price * q);
     return el("span", { class: "price" + (p.est ? " est" : ""), title: chain ? CHAIN_BY_KEY[chain].name : pref().label }, [
       chain ? chainDot(chain) : el("i", { class: "avg", text: "Ø" }), txt + (p.est ? "*" : ""),
-      chain && p.sale ? el("b", { class: "sale", text: "akcija " + (kg ? eur(p.sale / kg.amount) : eur(p.sale * q)) }) : null
+      chain && p.sale ? el("b", { class: "sale", text: (window.NK_T ? window.NK_T("akcija") : "akcija") + " " + (kg ? eur(p.sale / kg.amount) : eur(p.sale * q)) }) : null
     ]);
   }
   // Sir, meso, ribe ipd. so v zelo različnih pakiranjih: pokažemo ceno na kg (izdelki na kg vedno).
