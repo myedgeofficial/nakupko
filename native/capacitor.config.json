@@ -5,5 +5,9 @@
   "ios": {
     "contentInset": "never",
     "backgroundColor": "#FDF9FD"
+  },
+  "android": {
+    "includePlugins": [],
+    "backgroundColor": "#FDF9FD"
   }
 }

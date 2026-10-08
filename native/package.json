@@ -5,9 +5,11 @@
   "description": "Nakupko iOS aplikacija (Capacitor ovoj okoli spletne aplikacije v korenu repozitorija)",
   "scripts": {
     "www": "node scripts/build-www.js",
-    "sync": "node scripts/build-www.js && npx cap sync ios"
+    "sync": "node scripts/build-www.js && npx cap sync ios",
+    "sync:android": "node scripts/build-www.js && npx cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
     "@capacitor-community/admob": "^8.1.0",
     "@capacitor/core": "^8.5.0",
     "@capacitor/ios": "^8.5.0"
