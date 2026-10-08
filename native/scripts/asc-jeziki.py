@@ -50,12 +50,14 @@ for locale, t in TEXTS.items():
         if not r:
             continue
         vid = r["data"]["id"]
+    ilocs = {l["attributes"]["locale"]: l for l in call("GET", f"/appInfos/{info['id']}/appInfoLocalizations?limit=50")["data"]}
     ia = {"name": t["name"], "subtitle": t["subtitle"]}
     if privacy:
         ia["privacyPolicyUrl"] = privacy
     if locale in ilocs:
         iid = ilocs[locale]["id"]
-        call("PATCH", f"/appInfoLocalizations/{iid}", {"data": {"type": "appInfoLocalizations", "id": iid, "attributes": ia}}, ok_errors=(409, 422))
+        r = call("PATCH", f"/appInfoLocalizations/{iid}", {"data": {"type": "appInfoLocalizations", "id": iid, "attributes": ia}}, ok_errors=(409, 422))
+        print(f"::notice::{locale}: ime {'nastavljeno' if r else 'NI nastavljeno'}: {t['name']}")
     else:
         call("POST", "/appInfoLocalizations", {"data": {"type": "appInfoLocalizations", "attributes": dict(ia, locale=locale),
              "relationships": {"appInfo": {"data": {"type": "appInfos", "id": info["id"]}}}}}, ok_errors=(409, 422))
@@ -65,5 +67,9 @@ for locale, t in TEXTS.items():
     for kind, size in SETS.items():
         sid = have.get(kind) or call("POST", "/appScreenshotSets", {"data": {"type": "appScreenshotSets", "attributes": {"screenshotDisplayType": kind},
               "relationships": {"appStoreVersionLocalization": {"data": {"type": "appStoreVersionLocalizations", "id": vid}}}}})["data"]["id"]
-        done.append(f"{kind} {upload(sid, sorted(glob.glob(os.path.join(ROOT, f'{lang}-{size}', '*.jpg'))))}")
+        files = sorted(glob.glob(os.path.join(ROOT, f'{lang}-{size}', '*.jpg')))
+        if kind in have and len(call("GET", f"/appScreenshotSets/{sid}/appScreenshots?limit=50")["data"]) == len(files):
+            done.append(f"{kind} že naložene")
+            continue
+        done.append(f"{kind} {upload(sid, files)}")
     print(f"::notice::{locale}: besedila, ime, slike ({', '.join(done)})")
