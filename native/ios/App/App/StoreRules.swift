@@ -23,6 +23,12 @@ enum StoreRules {
     ]
     private static let dutyPattern = "koren[cč]ek|betka|ekspres|de[zž]urn|non ?-?stop"
     private static let chainDefaultHours = "Mo-Sa 07:00-21:00; Su off; PH off"
+    // Drogerije (dm, Müller) imajo krajši delovni čas kot živilske trgovine.
+    private static let drugstoreDefaultHours = "Mo-Sa 08:00-20:00; Su off; PH off"
+    static func defaultHours(_ chain: String?) -> String {
+        guard let c = chain else { return "" }
+        return (c == "dm" || c == "muller") ? drugstoreDefaultHours : chainDefaultHours
+    }
     private static let dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 
     private static func matches(_ text: String, _ pattern: String) -> Bool {
@@ -116,7 +122,7 @@ enum StoreRules {
 
     // true = odprto, false = zaprto, nil = urnik ni znan (takrat raje obvestimo).
     static func isOpen(hours: String?, chain: String?, at now: Date = Date(), calendar cal: Calendar = .current) -> Bool? {
-        let src = (hours ?? "").isEmpty ? (chain != nil ? chainDefaultHours : "") : hours!
+        let src = (hours ?? "").isEmpty ? defaultHours(chain) : hours!
         guard let h = parse(src) else { return nil }
         if h.always { return true }
         let holiday = isHoliday(now, calendar: cal)

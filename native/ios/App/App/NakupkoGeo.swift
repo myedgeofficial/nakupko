@@ -591,10 +591,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     // Delovni čas v OpenStreetMap je pogosto zastarel (npr. Spar do 20h, v resnici do 21h):
-    // trgovino štejemo za zaprto šele uro po zapiranju in pol ure pred odprtjem.
+    // trgovino z vpisanim urnikom štejemo za zaprto šele uro po zapiranju in pol ure pred odprtjem.
+    // Brez vpisanega urnika (privzeti urnik verige) velja urnik točno, brez dodatnega časa.
     private func mayBeOpen(_ store: GeoStore) -> Bool {
         let now = Date()
-        return StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now) != false
+        let open = StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now)
+        // Brez dodatnega časa: privzeti urnik verige in drogerije (dm, Müller), ki se urnika držijo.
+        if (store.hours ?? "").isEmpty || store.chain == "dm" || store.chain == "muller" { return open != false }
+        return open != false
             || StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now.addingTimeInterval(-60 * 60)) == true
             || StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now.addingTimeInterval(30 * 60)) == true
     }

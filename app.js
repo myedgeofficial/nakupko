@@ -474,7 +474,17 @@
     // brez izbrane znamke: cena glavne znamke iz kataloga (npr. Red Bull), ne povprečje s cenenimi in akcijami
     if (!b) {
       var first = brandGroups(p).filter(function (x) { return BASE_PRICES[key + "|" + norm(x.name)]; })[0];
-      return first ? key + "|" + norm(first.name) : null;
+      if (!first) return null;
+      var fk = key + "|" + norm(first.name);
+      // Cena glavne znamke iz ene same trgovine, ki je dosti višja od splošne cene (npr. jajca Jata 5,09 € v Sparu,
+      // drugje 2 €), je verjetno drugo pakiranje: takrat velja splošna cena izdelka.
+      var nums = function (o) { return Object.keys(o || {}).map(function (c) { return o[c]; }).filter(function (v) { return typeof v === "number"; }); };
+      var fb = nums(BASE_PRICES[fk]), gen = nums(BASE_PRICES[key]);
+      if (fb.length === 1 && gen.length >= 2) {
+        var ga = gen.reduce(function (a, v) { return a + v; }, 0) / gen.length;
+        if (fb[0] > ga * 1.8) return null;
+      }
+      return fk;
     }
     var g = brandGroups(p).filter(function (x) { var n = norm(x.name); return b === n || b.indexOf(n + " ") === 0; })[0];
     var k = g ? key + "|" + norm(g.name) : null;
