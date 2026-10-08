@@ -10,6 +10,7 @@ VERSION = os.environ.get("VERSION", "1.1")
 ROOT = os.path.join(os.path.dirname(__file__), "..", "asc-slike")
 TEXTS = json.load(open(os.path.join(ROOT, "besedila.json"), encoding="utf-8"))
 WARN = TEXTS.pop("_opozorilo", {})
+NOVE = [x for x in os.environ.get("NOVE", "").split(",") if x]  # jeziki, kjer slike vedno zamenjamo
 SETS = {"APP_IPHONE_61": "63", "APP_IPHONE_65": "65"}
 
 
@@ -81,7 +82,7 @@ for locale, t in TEXTS.items():
         sid = have.get(kind) or call("POST", "/appScreenshotSets", {"data": {"type": "appScreenshotSets", "attributes": {"screenshotDisplayType": kind},
               "relationships": {"appStoreVersionLocalization": {"data": {"type": "appStoreVersionLocalizations", "id": vid}}}}})["data"]["id"]
         files = sorted(glob.glob(os.path.join(ROOT, f'{lang}-{size}', '*.jpg')))
-        if kind in have and len(call("GET", f"/appScreenshotSets/{sid}/appScreenshots?limit=50")["data"]) == len(files):
+        if kind in have and lang not in NOVE and len(call("GET", f"/appScreenshotSets/{sid}/appScreenshots?limit=50")["data"]) == len(files):
             done.append(f"{kind} že naložene")
             continue
         done.append(f"{kind} {upload(sid, files)}")
