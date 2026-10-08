@@ -121,7 +121,7 @@
   }
   function announce() {
     if (!code) return;
-    fetch(DB + "/h/" + code + "/members/" + member() + ".json", { method: "PATCH", body: JSON.stringify({ name: myName() || "Član", at: { ".sv": "timestamp" } }) }).catch(function () {});
+    fetch(DB + "/h/" + code + "/members/" + member() + ".json", { method: "PATCH", body: JSON.stringify({ name: myName() || "Član", lang: window.NK_LANG || "sl", at: { ".sv": "timestamp" } }) }).catch(function () {});
   }
 
   function join(c) {

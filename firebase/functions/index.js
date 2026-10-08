@@ -43,6 +43,30 @@ function sendApns(tokens, title, body) {
   return Promise.all(tokens.map(one)).finally(() => client.close());
 }
 
+// Besedila obvestil v jeziku prejemnika (jezik aplikacije: lang pri članu ali v zahtevi).
+const TEXT = {
+  sl: { visit: (w, s) => w + " je v trgovini " + s, more: "Rabiš še kaj? Dodaj na skupen seznam.", live: "na seznamu. Kljukaj kar na zaklenjenem zaslonu." },
+  en: { visit: (w, s) => w + " is at " + s, more: "Need anything else? Add it to the shared list.", live: "on your list. Tick them off right on the lock screen." },
+  de: { visit: (w, s) => w + " ist bei " + s, more: "Brauchst du noch etwas? Füg es zur gemeinsamen Liste hinzu.", live: "auf der Liste. Hake sie direkt auf dem Sperrbildschirm ab." },
+  hr: { visit: (w, s) => w + " je u trgovini " + s, more: "Trebaš još nešto? Dodaj na zajednički popis.", live: "na popisu. Označavaj ih na zaključanom zaslonu." },
+  it: { visit: (w, s) => w + " è da " + s, more: "Ti serve altro? Aggiungilo alla lista condivisa.", live: "nella lista. Spuntali dalla schermata di blocco." },
+  hu: { visit: (w, s) => w + " most itt van: " + s, more: "Kell még valami? Add hozzá a közös listához.", live: "a listán. Pipáld ki a zárolási képernyőn." },
+  fr: { visit: (w, s) => w + " est chez " + s, more: "Besoin d'autre chose ? Ajoute-le à la liste partagée.", live: "sur ta liste. Coche-les sur l'écran verrouillé." },
+  es: { visit: (w, s) => w + " está en " + s, more: "¿Necesitas algo más? Añádelo a la lista compartida.", live: "en tu lista. Márcalos en la pantalla bloqueada." }
+};
+function textOf(lang) { return TEXT[String(lang || "sl").slice(0, 2)] || TEXT[{ bs: 1, sr: 1 }[String(lang || "").slice(0, 2)] ? "hr" : "en"]; }
+function itemsOf(n, lang) {
+  const l = String(lang || "sl").slice(0, 2);
+  if (l === "sl") return n + (n === 1 ? " izdelek" : n === 2 ? " izdelka" : n < 5 ? " izdelki" : " izdelkov");
+  if (l === "hr" || l === "bs" || l === "sr") return n + (n % 10 === 1 && n % 100 !== 11 ? " proizvod" : " proizvoda");
+  if (l === "de") return n + " Artikel";
+  if (l === "it") return n + (n === 1 ? " prodotto" : " prodotti");
+  if (l === "hu") return n + " termék";
+  if (l === "fr") return n + (n === 1 ? " article" : " articles");
+  if (l === "es") return n + (n === 1 ? " producto" : " productos");
+  return n + (n === 1 ? " item" : " items");
+}
+
 // Zažene seznam na zaklenjenem zaslonu (Live Activity, iOS 17.2+) s pushom »push-to-start«.
 function sendLiveStart(token, store, state) {
   if (!token || !process.env.APNS_KEY_P8) return Promise.resolve({ status: 0, data: "brez ključa" });
@@ -59,7 +83,7 @@ function sendLiveStart(token, store, state) {
       "stale-date": Math.floor(Date.now() / 1000) + 4 * 3600,
       alert: {
         title: "🛒 " + store,
-        body: left + (left === 1 ? " izdelek" : left === 2 ? " izdelka" : left < 5 ? " izdelki" : " izdelkov") + " na seznamu. Kljukaj kar na zaklenjenem zaslonu."
+        body: itemsOf(left, state.lang) + " " + textOf(state.lang).live
       }
     }
   });
@@ -93,7 +117,8 @@ exports.liveStart = onValueCreated({
   const items = Array.isArray(state.items) ? state.items.slice(0, 30).map((i) => ({
     id: String(i.id || ""), label: String(i.label || "").slice(0, 40), icon: String(i.icon || "🛒").slice(0, 4)
   })).filter((i) => i.id && i.label) : [];
-  const clean = { items, done: 0, total: items.length };
+  const lang = String(v.lang || state.lang || "sl").slice(0, 3);
+  const clean = { items, done: 0, total: items.length, lang };
   const res = items.length ? await sendLiveStart(String(v.token || ""), String(v.store || "Trgovina").slice(0, 40), clean) : { status: 0, data: "prazen seznam" };
   console.log("liveStart", event.params.dev, v.store, res.status, res.data);
   // Seznam in žeton ne ostaneta na strežniku; ostane le odgovor Appla (za dnevnik v aplikaciji).
@@ -124,13 +149,16 @@ exports.storeVisit = onValueCreated({
 
   const members = (await admin.database().ref("/h/" + code + "/members").get()).val() || {};
   const others = Object.keys(members).filter((id) => id !== visit.member).map((id) => members[id]);
-  const ios = others.map((m) => m.ios).filter(Boolean);
-  const android = others.map((m) => m.fcm).filter(Boolean);
-
   const who = (visit.name || "Član").slice(0, 30);
-  const title = "🛒 " + who + " je v trgovini " + String(visit.store).slice(0, 40);
-  const body = "Rabiš še kaj? Dodaj na skupen seznam.";
-  const [apns, fcm] = await Promise.all([sendApns(ios, title, body), sendFcm(android, title, body)]);
+  // Vsak prejemnik dobi obvestilo v jeziku svoje aplikacije.
+  const byLang = {};
+  others.forEach((m) => { const l = String(m.lang || "sl").slice(0, 3); (byLang[l] = byLang[l] || []).push(m); });
+  const sent = await Promise.all(Object.keys(byLang).map((l) => {
+    const t = textOf(l), title = "🛒 " + t.visit(who, String(visit.store).slice(0, 40));
+    return Promise.all([sendApns(byLang[l].map((m) => m.ios).filter(Boolean), title, t.more), sendFcm(byLang[l].map((m) => m.fcm).filter(Boolean), title, t.more)]);
+  }));
+  const apns = [].concat(...sent.map((x) => x[0] || []));
+  const fcm = sent.map((x) => x[1]).filter(Boolean)[0] || null;
 
   // Neveljavne žetone (aplikacija izbrisana) odstranimo.
   const cleanup = {};

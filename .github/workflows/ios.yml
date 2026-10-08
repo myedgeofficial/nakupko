@@ -41,10 +41,13 @@ jobs:
           cache: npm
           cache-dependency-path: native/package-lock.json
 
-      - name: Preizkusi pravila trgovin (verige, delovni čas, prazniki)
+      - name: Preizkusi pravila trgovin (verige, delovni čas, prazniki) in zaznavanje prihoda/odhoda
         run: |
-          xcrun swiftc ios/App/App/StoreRules.swift tests/main.swift -o "$RUNNER_TEMP/storerules"
+          xcrun swiftc ios/App/App/StoreRules.swift ios/App/App/StoreDetector.swift tests/main.swift -o "$RUNNER_TEMP/storerules"
           "$RUNNER_TEMP/storerules"
+          node tests/store-detect.test.js
+          node tests/drzave.test.js
+          node tests/i18n.test.js
 
       - name: Pripravi spletni del in Capacitor
         env:

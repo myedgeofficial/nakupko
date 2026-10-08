@@ -4,6 +4,8 @@ import SwiftUI
 import WidgetKit
 
 // Seznam na zaklenjenem zaslonu med nakupovanjem, urejen po oddelkih trgovine.
+// Tudi v majhni obliki (.small): Apple Watch in, od iOS 26, zaslon avta v CarPlay.
+// Razširitev zato zahteva iOS 18 (aplikacija sama deluje od iOS 17).
 @main
 struct NakupkoWidgets: WidgetBundle {
     var body: some Widget {
@@ -17,7 +19,7 @@ private let maxShown = LiveList.perPage
 struct ShoppingLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: ShoppingAttributes.self) { context in
-            LockScreenList(store: context.attributes.store, state: context.state)
+            LiveRoot(store: context.attributes.store, state: context.state)
                 .widgetURL(URL(string: "nakupko://seznam"))
                 .activityBackgroundTint(Color.white)
                 .activitySystemActionForegroundColor(orange)
@@ -31,7 +33,7 @@ struct ShoppingLiveActivity: Widget {
                     Text("\(context.state.done)/\(context.state.total)").font(.headline).foregroundColor(orange)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    ItemGrid(items: context.state.items, page: 0, shown: 4, dark: true, big: false)
+                    ItemGrid(items: context.state.items, page: 0, shown: 4, dark: true, big: false, lang: context.state.lang)
                 }
             } compactLeading: {
                 Image(systemName: "cart.fill").foregroundColor(orange)
@@ -41,6 +43,64 @@ struct ShoppingLiveActivity: Widget {
                 Text("\(left)").foregroundColor(orange)
             }
         }
+        .supplementalActivityFamilies([.small])
+    }
+}
+
+// Zaklenjen zaslon ali majhna oblika (CarPlay, Apple Watch).
+struct LiveRoot: View {
+    let store: String
+    let state: ShoppingAttributes.ContentState
+
+    var body: some View {
+        if #available(iOS 18.0, *) {
+            FamilyAwareList(store: store, state: state)
+        } else {
+            LockScreenList(store: store, state: state)
+        }
+    }
+}
+
+@available(iOS 18.0, *)
+struct FamilyAwareList: View {
+    @Environment(\.activityFamily) private var family
+    let store: String
+    let state: ShoppingAttributes.ContentState
+
+    var body: some View {
+        if family == .small {
+            SmallList(store: store, state: state)
+        } else {
+            LockScreenList(store: store, state: state)
+        }
+    }
+}
+
+// Majhna oblika za zaslon avta (CarPlay) in uro: trgovina, napredek in prvi izdelki, brez gumbov.
+struct SmallList: View {
+    let store: String
+    let state: ShoppingAttributes.ContentState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: "cart.fill").foregroundColor(orange)
+                Text(store).font(.headline).lineLimit(1)
+                Spacer(minLength: 4)
+                Text("\(state.done)/\(state.total)").font(.headline).foregroundColor(orange)
+            }
+            if state.items.isEmpty {
+                Text(L10n.t("allDone", lang: state.lang)).font(.subheadline)
+            } else {
+                ForEach(state.items.prefix(3), id: \.self) { item in
+                    Text(item.icon + " " + item.label).font(.subheadline).lineLimit(1)
+                }
+                if state.items.count > 3 {
+                    Text(L10n.t("more", ["\(state.items.count - 3)"], lang: state.lang)).font(.caption).foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(10)
     }
 }
 
@@ -54,10 +114,10 @@ struct LockScreenList: View {
             HStack {
                 Label(store, systemImage: "cart.fill").font(.headline).foregroundColor(.black).lineLimit(1)
                 Spacer()
-                Text(state.items.isEmpty ? "Vse v košarici ✓" : "\(state.done)/\(state.total)")
+                Text(state.items.isEmpty ? L10n.t("allDone", lang: state.lang) : "\(state.done)/\(state.total)")
                     .font(.headline).foregroundColor(orange)
             }
-            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: false, big: true)
+            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: false, big: true, lang: state.lang)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -71,6 +131,7 @@ struct ItemGrid: View {
     let shown: Int
     let dark: Bool
     let big: Bool
+    var lang: String? = nil
 
     var body: some View {
         let start = page * shown < items.count ? page * shown : 0
@@ -104,7 +165,7 @@ struct ItemGrid: View {
             if big {
                 HStack(spacing: 8) {
                     Link(destination: URL(string: "nakupko://seznam")!) {
-                        Label("Odpri seznam", systemImage: "list.bullet")
+                        Label(L10n.t("openList", lang: lang), systemImage: "list.bullet")
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(orange)
                             .padding(.horizontal, 12)
@@ -113,9 +174,9 @@ struct ItemGrid: View {
                     }
                     Spacer()
                     if hidden > 0 {
-                        Text("\(start + 1)–\(start + list.count) od \(items.count)").font(.caption).foregroundColor(.gray)
+                        Text(L10n.t("range", ["\(start + 1)", "\(start + list.count)", "\(items.count)"], lang: lang)).font(.caption).foregroundColor(.gray)
                         Button(intent: NextPageIntent()) {
-                            Text(start + list.count >= items.count ? "Na začetek ↺" : "Naprej ›")
+                            Text(start + list.count >= items.count ? L10n.t("restart", lang: lang) : L10n.t("next", lang: lang))
                                 .font(.footnote.weight(.semibold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 14)
@@ -127,7 +188,7 @@ struct ItemGrid: View {
                     }
                 }
             } else if hidden > 0 {
-                Text("in še \(hidden) …").font(.caption).foregroundColor(.gray)
+                Text(L10n.t("more", ["\(hidden)"], lang: lang)).font(.caption).foregroundColor(.gray)
             }
         }
     }
