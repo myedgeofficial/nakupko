@@ -134,10 +134,13 @@
     api.toast("Povezano s skupnim seznamom.");
   }
   function leave() {
-    if (!confirm("Zapustiš skupen seznam? Izdelki ostanejo na tem telefonu.")) return;
+    if (!confirm("Prenehaš deliti seznam? Izdelki ostanejo na tem telefonu, ostali tvojih sprememb ne bodo več videli.")) return;
+    // Odjava iz gospodinjstva: ostali ne dobijo več obvestil »… je v trgovini«.
+    fetch(DB + "/h/" + code + "/members/" + member() + ".json", { method: "DELETE" }).catch(function () {});
     disconnect(); code = ""; dirty = {}; saveDirty();
     try { localStorage.removeItem(CODE_KEY); } catch (e) { /* nič */ }
     renderCard();
+    api.toast("Seznam ni več deljen.");
   }
   function share() {
     var link = "https://myedgeofficial.github.io/nakupko/?dom=" + code;
@@ -163,9 +166,8 @@
       p.appendChild(document.createTextNode("Koda: "));
       var b = document.createElement("b"); b.textContent = pretty(code); p.appendChild(b);
       add("p", { class: "muted small" }, online ? "Povezano kot " + (myName() || "Član") + ". Kar doda kdorkoli, vidijo vsi." : "Ni povezave. Spremembe se pošljejo, ko bo internet.");
-      var row = add("div", { class: "row" });
-      var s = document.createElement("button"); s.className = "primary"; s.type = "button"; s.textContent = "Pošlji kodo"; s.onclick = share; row.appendChild(s);
-      var l = document.createElement("button"); l.className = "link"; l.type = "button"; l.textContent = "Zapusti"; l.onclick = leave; row.appendChild(l);
+      var s = add("button", { class: "primary full", type: "button" }, "Pošlji kodo"); s.onclick = share;
+      var l = add("button", { class: "ghost full hh-leave", type: "button" }, "Prenehaj deliti seznam"); l.onclick = leave;
     } else {
       add("p", { class: "muted small" }, "Isti seznam na več telefonih, npr. s partnerjem. Kar doda eden, vidi drugi.");
       var c = add("button", { class: "primary full", type: "button" }, "Ustvari skupen seznam");
