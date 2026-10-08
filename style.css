@@ -88,7 +88,7 @@ h2.inline { display: inline; }
 .corner:active { transform: none; filter: brightness(.95); }
 .corner .play { width: 16px; height: 16px; fill: #fff; stroke: none; flex: none; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; margin-top: 2px; }
-.basket { position: relative; width: 172px; flex: none; margin: -6px 0 -10px -12px; }
+.basket { position: relative; width: 140px; flex: none; margin: 8px 0 -10px -12px; }
 .basket img { width: 100%; height: auto; display: block; }
 /* Število na sprednji ploskvi košarice (sredina ploskve: 68,7 % širine, 69,6 % višine slike). */
 .hero-num {
@@ -515,7 +515,7 @@ details.card[open] > summary { margin-bottom: 12px; }
 /* ---------- Ozki zasloni (iPhone z večjim prikazom, SE) ---------- */
 @media (max-width: 360px) {
   .corner { height: 54px; padding: 0 16px 0 20px; font-size: 17px; }
-  .basket { width: 150px; }
+  .basket { width: 124px; }
   .hero-num { font-size: 38px; }
   .hero-num small { font-size: 11.5px; }
   .hero-total { font-size: 29px; }
