@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nakupko nadzor</title>
+<style>
+  :root { --bg: #f6f5f9; --card: #fff; --ink: #1c1b22; --mute: #6b6878; --line: #e7e4ee; --acc: #8A3FFC; --bad: #c62828; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; }
+  header h1 { font-size: 20px; margin: 0; flex: 1; }
+  header small { color: var(--mute); }
+  button, .btn { font: inherit; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 10px; padding: 7px 12px; cursor: pointer; }
+  button.main { background: var(--acc); border-color: var(--acc); color: #fff; }
+  button:disabled { opacity: .6; cursor: default; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+  .tile .k { color: var(--mute); font-size: 13px; }
+  .tile .v { font-size: 28px; font-weight: 700; margin: 2px 0; font-variant-numeric: tabular-nums; }
+  .tile .s { color: var(--mute); font-size: 13px; }
+  h2 { font-size: 16px; margin: 4px 0 10px; }
+  .mute { color: var(--mute); font-size: 13px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--mute); font-weight: 600; font-size: 13px; }
+  tr.sum td { font-weight: 700; border-bottom: 0; }
+  input, select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; width: 120px; }
+  label.row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 0; }
+  .err { color: var(--bad); font-size: 13px; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 110px; padding-top: 6px; }
+  .bars div { flex: 1; background: var(--acc); border-radius: 3px 3px 0 0; min-height: 1px; position: relative; }
+  .bars div.zero { background: var(--line); }
+  .axis { display: flex; justify-content: space-between; color: var(--mute); font-size: 12px; margin-top: 4px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .two { grid-template-columns: 1fr; } .tile .v { font-size: 24px; } }
+  #login { text-align: center; padding: 60px 16px; }
+  #login p { color: var(--mute); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Nakupko · nadzor</h1>
+    <small id="who"></small>
+    <button id="out" hidden>Odjava</button>
+  </header>
+
+  <div id="login" class="card">
+    <h2>Prijava</h2>
+    <p>Dostop imata samo teo.simonic7@gmail.com in urska.repusic@gmail.com.</p>
+    <button class="main" id="in">Prijava z Googlom</button>
+    <p class="err" id="loginErr"></p>
+  </div>
+
+  <main id="app" hidden>
+    <div class="grid">
+      <div class="card tile"><div class="k">Prenosi skupaj</div><div class="v" id="tDl">–</div><div class="s" id="tDlS"></div></div>
+      <div class="card tile"><div class="k">Aktivni uporabniki</div><div class="v" id="tAct">–</div><div class="s" id="tActS"></div></div>
+      <div class="card tile"><div class="k">Naročniki Plus</div><div class="v" id="tSub">–</div><div class="s" id="tSubS"></div></div>
+      <div class="card tile"><div class="k">Reklame ta mesec (AdMob)</div><div class="v" id="tAd">–</div><div class="s" id="tAdS"></div></div>
+      <div class="card tile"><div class="k">Prihodek ta mesec</div><div class="v" id="tRev">–</div><div class="s" id="tRevS"></div></div>
+      <div class="card tile"><div class="k">Za davek ta mesec (ocena)</div><div class="v" id="tTax">–</div><div class="s" id="tTaxS"></div></div>
+    </div>
+
+    <div class="two">
+      <div class="card"><h2>Aktivni na dan (30 dni)</h2><div class="bars" id="cAct"></div><div class="axis" id="cActX"></div></div>
+      <div class="card"><h2>Novi prenosi iPhone na dan (30 dni)</h2><div class="bars" id="cDl"></div><div class="axis" id="cDlX"></div></div>
+    </div>
+
+    <div class="card">
+      <h2>Po mesecih</h2>
+      <div class="scroll"><table id="months"></table></div>
+      <p class="mute" id="taxNote"></p>
+    </div>
+
+    <div class="two">
+      <div class="card">
+        <h2>Aktivni po napravah</h2>
+        <div class="scroll"><table id="split"></table></div>
+        <p class="mute">Šteje vsak telefon, ki je ta dan odprl Nakupko. Številke so anonimne.</p>
+      </div>
+      <div class="card">
+        <h2>Kdo je naročen</h2>
+        <div id="subs"></div>
+        <p class="mute">Apple ne razkrije, kdo je naročen (ne imen ne e-pošte). Vidiš število naročnin in države.</p>
+      </div>
+    </div>
+
+    <details class="card" id="settings">
+      <summary><b>Nastavitve</b></summary>
+      <label class="row">Apple Vendor number <input id="sVendor" inputmode="numeric" placeholder="npr. 93012345"></label>
+      <p class="mute">App Store Connect → Payments and Financial Reports → številka levo zgoraj.</p>
+      <label class="row">Način obdavčitve
+        <select id="sMode"><option value="norm">Normirani s.p. (4 %)</option><option value="custom">Svoj odstotek</option></select></label>
+      <label class="row" id="sPctRow" hidden>Davek v % prihodka <input id="sPct" type="number" step="0.1" min="0" max="60"></label>
+      <h2 style="margin-top:14px">AdMob zaslužek (EUR)</h2>
+      <p class="mute">Se prenese samodejno ob prijavi z Googlovim računom, ki ima dostop do AdMob. Ročni vnos velja samo za mesece brez samodejnih podatkov.</p>
+      <div id="sAdmob"></div>
+      <button class="main" id="sSave">Shrani</button> <span class="mute" id="sMsg"></span>
+    </details>
+
+    <p class="mute">Osveženo: <span id="when">–</span> · <button id="refresh">Osveži zdaj</button></p>
+    <p class="mute">AdMob: <span id="adWhen">–</span> · <button id="adBtn">Osveži AdMob</button></p>
+    <div class="err" id="errs"></div>
+  </main>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-database-compat.js"></script>
+<script>
+(function () {
+  "use strict";
+  var OWNERS = ["teo.simonic7@gmail.com", "urska.repusic@gmail.com"];
+  var DB_URL = "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app";
+  var MONTHS = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "avg", "sep", "okt", "nov", "dec"];
+  var $ = function (id) { return document.getElementById(id); };
+  var data = {}, ref = null, pendingToken = null;
+
+  var eur = function (v) { return (Math.round(v * 100) / 100).toLocaleString("sl-SI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"; };
+  var int = function (v) { return Math.round(v || 0).toLocaleString("sl-SI"); };
+  var ljDay = function (d) { return (d || new Date()).toLocaleDateString("sv-SE", { timeZone: "Europe/Ljubljana" }); };
+  var addDays = function (s, n) { var d = new Date(s + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  var monthName = function (m) { return MONTHS[+m.slice(5, 7) - 1] + " " + m.slice(0, 4); };
+
+  // Zneski v različnih valutah → EUR po zadnjem tečaju ECB.
+  function toEur(obj) {
+    var r = data.tecaji || { EUR: 1 }, sum = 0;
+    Object.keys(obj || {}).forEach(function (c) { var rate = c === "EUR" ? 1 : r[c]; if (rate) sum += obj[c] / rate; });
+    return sum;
+  }
+  // AdMob: samodejni podatki imajo prednost pred ročnim vnosom.
+  function admobMonths() {
+    var out = {}, man = (data.rocno || {}).admob || {}, auto = (data.admob || {}).meseci || {};
+    Object.keys(man).forEach(function (m) { out[m] = +man[m] || 0; });
+    Object.keys(auto).forEach(function (m) { out[m] = +auto[m].zasluzek || 0; });
+    return out;
+  }
+  var AD_SCOPE = "https://www.googleapis.com/auth/admob.readonly";
+  function saveToken(cred) {
+    if (!cred || !cred.accessToken) return null;
+    try { sessionStorage.setItem("admob-token", JSON.stringify({ t: cred.accessToken, exp: Date.now() + 50 * 60 * 1000 })); } catch (e) { /* nič */ }
+    return cred.accessToken;
+  }
+  function savedToken() {
+    try { var o = JSON.parse(sessionStorage.getItem("admob-token") || "null"); return o && o.exp > Date.now() ? o.t : null; } catch (e) { return null; }
+  }
+  function ymdObj(s) { return { year: +s.slice(0, 4), month: +s.slice(5, 7), day: +s.slice(8, 10) }; }
+  function syncAdmob(token) {
+    if (!token || !ref) return Promise.resolve();
+    $("adWhen").textContent = "prenašam …";
+    var h = { authorization: "Bearer " + token, "content-type": "application/json" };
+    return fetch("https://admob.googleapis.com/v1/accounts", { headers: h }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.error) throw new Error(j.error.status === "PERMISSION_DENIED" ? "ta Google račun nima dostopa do AdMob ali AdMob API ni vklopljen" : j.error.message);
+      var acc = (j.account || [])[0];
+      if (!acc) throw new Error("ta Google račun nima AdMob računa");
+      var body = { reportSpec: {
+        dateRange: { startDate: ymdObj("2026-10-01"), endDate: ymdObj(ljDay()) },
+        dimensions: ["MONTH"], metrics: ["ESTIMATED_EARNINGS", "IMPRESSIONS"],
+        localizationSettings: { currencyCode: "EUR" } } };
+      return fetch("https://admob.googleapis.com/v1/" + acc.name + "/networkReport:generate", { method: "POST", headers: h, body: JSON.stringify(body) })
+        .then(function (r) { return r.json(); });
+    }).then(function (rows) {
+      if (rows && rows.error) throw new Error(rows.error.message);
+      var meseci = {};
+      (rows || []).forEach(function (x) {
+        if (!x.row) return;
+        var v = x.row.dimensionValues.MONTH.value, m = v.slice(0, 4) + "-" + v.slice(4, 6), mv = x.row.metricValues;
+        meseci[m] = { zasluzek: Math.round(+(mv.ESTIMATED_EARNINGS || {}).microsValue / 10000) / 100 || 0, prikazi: +((mv.IMPRESSIONS || {}).integerValue || 0) };
+      });
+      return ref.child("admob").set({ meseci: meseci, osvezeno: firebase.database.ServerValue.TIMESTAMP, kdo: firebase.auth().currentUser.email, napaka: null });
+    }).catch(function (e) {
+      $("adWhen").textContent = "napaka: " + e.message;
+      return ref.child("admob/napaka").set(firebase.auth().currentUser.email + ": " + e.message).catch(function () {});
+    });
+  }
+  function taxPct() {
+    var s = data.rocno || {};
+    return s.davek === "custom" && isFinite(+s.odstotek) ? +s.odstotek : 4;
+  }
+
+  function bars(el, axis, values, days) {
+    var max = Math.max.apply(null, values.concat([1]));
+    el.innerHTML = values.map(function (v, i) {
+      return '<div class="' + (v ? "" : "zero") + '" style="height:' + Math.max(1, v / max * 100) + '%" title="' + days[i] + ": " + v + '"></div>';
+    }).join("");
+    axis.innerHTML = "<span>" + days[0].slice(5).split("-").reverse().join(".") + ".</span><span>največ " + int(max) + "</span><span>danes</span>";
+  }
+
+  function render() {
+    var apple = data.apple || {}, dnevi = apple.dnevi || {}, akt = data.aktivni || {}, rocno = data.rocno || {}, admob = admobMonths();
+    var today = ljDay(), month = today.slice(0, 7);
+
+    // Mesečni seštevki.
+    var months = {}, totDl = 0;
+    Object.keys(dnevi).forEach(function (d) {
+      var x = dnevi[d], m = d.slice(0, 7);
+      var o = months[m] = months[m] || { dl: 0, buys: 0, gross: 0, net: 0 };
+      o.dl += x.prenosi || 0; o.buys += x.narocnine || 0;
+      o.gross += toEur(x.kupci); o.net += toEur(x.izplacilo);
+      totDl += x.prenosi || 0;
+    });
+    Object.keys(admob).forEach(function (m) { months[m] = months[m] || { dl: 0, buys: 0, gross: 0, net: 0 }; });
+    if (!months[month]) months[month] = { dl: 0, buys: 0, gross: 0, net: 0 };
+    var pct = taxPct(), keys = Object.keys(months).sort().reverse();
+    var sum = { dl: 0, buys: 0, gross: 0, net: 0, ad: 0, rev: 0, tax: 0 };
+    var rows = keys.map(function (m) {
+      var o = months[m], ad = +admob[m] || 0, rev = o.net + ad, tax = rev * pct / 100;
+      sum.dl += o.dl; sum.buys += o.buys; sum.gross += o.gross; sum.net += o.net; sum.ad += ad; sum.rev += rev; sum.tax += tax;
+      o.ad = ad; o.rev = rev; o.tax = tax;
+      return "<tr><td>" + monthName(m) + "</td><td>" + int(o.dl) + "</td><td>" + int(o.buys) + "</td><td>" + eur(o.gross) + "</td><td>" + eur(o.net) +
+        "</td><td>" + eur(ad) + "</td><td><b>" + eur(rev) + "</b></td><td>" + eur(tax) + "</td><td>" + eur(rev - tax) + "</td></tr>";
+    });
+    $("months").innerHTML = "<tr><th>Mesec</th><th>Prenosi iPhone</th><th>Plačila Plus</th><th>Kupci plačali</th><th>Apple izplača</th><th>AdMob</th><th>Prihodek</th><th>Davek (" + pct.toLocaleString("sl-SI") + " %)</th><th>Ostane</th></tr>" +
+      rows.join("") + '<tr class="sum"><td>Skupaj</td><td>' + int(sum.dl) + "</td><td>" + int(sum.buys) + "</td><td>" + eur(sum.gross) + "</td><td>" + eur(sum.net) +
+      "</td><td>" + eur(sum.ad) + "</td><td>" + eur(sum.rev) + "</td><td>" + eur(sum.tax) + "</td><td>" + eur(sum.rev - sum.tax) + "</td></tr>";
+    $("taxNote").textContent = (rocno.davek === "custom" ? "Davek je izračunan s tvojim odstotkom. " :
+      "Ocena za normirani s.p.: 80 % prihodka so priznani stroški, od ostalih 20 % se plača 20 % akontacije dohodnine, kar je 4 % prihodka. ") +
+      "»Kupci plačali« vključuje DDV in Applovo provizijo, »Apple izplača« je tvoj dejanski prihodek. Prispevki za socialno varnost niso všteti. Točen znesek naj potrdi računovodja.";
+
+    // Ploščice.
+    var andDl = (data.android || {}).prenosi || 0;
+    $("tDl").textContent = int(totDl + andDl);
+    $("tDlS").textContent = "iPhone " + int(totDl) + " · Android " + int(andDl);
+    var t = akt.teden || {}, mo = akt.mesec || {}, dn = akt.danes || {};
+    $("tAct").textContent = int(t.skupaj);
+    $("tActS").textContent = "zadnjih 7 dni · danes " + int(dn.skupaj) + " · 30 dni " + int(mo.skupaj);
+    var n = apple.narocnine;
+    $("tSub").textContent = n ? int(n.placljive + n.brezplacne) : "–";
+    $("tSubS").textContent = (n ? "po Applu (" + n.datum.split("-").reverse().join(".") + ")" : "Apple še ni poslal poročila") + " · v aplikaciji " + int(akt.plusTeden);
+    var cm = months[month];
+    var am0 = data.admob || {}, amM = (am0.meseci || {})[month] || {};
+    $("tAd").textContent = eur(cm.ad);
+    $("tAdS").textContent = am0.osvezeno ? int(amM.prikazi) + " prikazov · skupaj " + eur(sum.ad) : "še ni povezano: prijava z Urškinim računom ali gumb »Osveži AdMob« spodaj";
+    $("tRev").textContent = eur(cm.rev);
+    $("tRevS").textContent = "Apple " + eur(cm.net) + " · AdMob " + eur(cm.ad);
+    $("tTax").textContent = eur(cm.tax);
+    $("tTaxS").textContent = "leto " + today.slice(0, 4) + ": " + eur(keys.filter(function (m) { return m.slice(0, 4) === today.slice(0, 4); }).reduce(function (a, m) { return a + months[m].tax; }, 0));
+
+    // Grafa.
+    var days = []; for (var i = 29; i >= 0; i--) days.push(addDays(today, -i));
+    var ad = akt.dnevi || {};
+    bars($("cAct"), $("cActX"), days.map(function (d) { return (ad[d] || {}).skupaj || 0; }), days);
+    bars($("cDl"), $("cDlX"), days.map(function (d) { return (dnevi[d] || {}).prenosi || 0; }), days);
+
+    // Po napravah.
+    var row = function (name, o) { o = o || {}; return "<tr><td>" + name + "</td><td>" + int(o.skupaj) + "</td><td>" + int(o.ios) + "</td><td>" + int(o.android) + "</td><td>" + int(o.web) + "</td></tr>"; };
+    $("split").innerHTML = "<tr><th></th><th>Skupaj</th><th>iPhone</th><th>Android</th><th>Splet</th></tr>" + row("Danes", dn) + row("7 dni", t) + row("30 dni", mo);
+
+    // Naročniki.
+    if (n) {
+      var c = Object.keys(n.drzave || {}).sort(function (a, b) { return n.drzave[b] - n.drzave[a]; });
+      $("subs").innerHTML = "<p><b>" + int(n.placljive) + "</b> plačljivih" + (n.brezplacne ? ", <b>" + int(n.brezplacne) + "</b> na brezplačnem preizkusu" : "") + "</p>" +
+        (c.length ? '<p class="mute">Države: ' + c.map(function (k) { return k + " " + int(n.drzave[k]); }).join(", ") + "</p>" : "");
+    } else $("subs").innerHTML = '<p class="mute">Ni še podatkov. Apple poročilo o naročninah pošlje dan po prvi naročnini.</p>';
+
+    // Stanje.
+    var p = data.povzetek || {};
+    $("when").textContent = p.osvezeno ? new Date(p.osvezeno).toLocaleString("sl-SI") : "še nikoli";
+    var am = data.admob || {};
+    $("adWhen").textContent = am.osvezeno ? "osveženo " + new Date(am.osvezeno).toLocaleString("sl-SI") + (am.napaka ? " · zadnja napaka: " + am.napaka : "") : (am.napaka ? "napaka: " + am.napaka : "še ni povezan");
+    var e = p.napake || {};
+    $("errs").innerHTML = Object.keys(e).map(function (k) { return "<div>" + k + ": " + String(e[k]).replace(/</g, "&lt;") + "</div>"; }).join("");
+    if (e.apple && /Vendor/.test(e.apple)) $("settings").open = true;
+  }
+
+  function fillSettings() {
+    var s = data.rocno || {}, admob = s.admob || {};
+    $("sVendor").value = s.vendor || "";
+    $("sMode").value = s.davek === "custom" ? "custom" : "norm";
+    $("sPct").value = s.odstotek != null ? s.odstotek : "";
+    $("sPctRow").hidden = $("sMode").value !== "custom";
+    var ms = [], d = new Date(), start = "2026-10";
+    for (var m = ljDay(d).slice(0, 7); m >= start; ) {
+      ms.push(m);
+      var y = +m.slice(0, 4), mm = +m.slice(5, 7) - 1;
+      if (mm === 0) { y--; mm = 12; }
+      m = y + "-" + String(mm).padStart(2, "0");
+    }
+    $("sAdmob").innerHTML = ms.map(function (m) {
+      return '<label class="row">' + monthName(m) + ' <input data-m="' + m + '" type="number" step="0.01" min="0" value="' + (admob[m] != null ? admob[m] : "") + '"></label>';
+    }).join("");
+  }
+
+  $("sMode").onchange = function () { $("sPctRow").hidden = this.value !== "custom"; };
+  $("sSave").onclick = function () {
+    var admob = {};
+    Array.prototype.forEach.call(document.querySelectorAll("#sAdmob input"), function (i) { if (i.value !== "") admob[i.dataset.m] = Math.round(+i.value * 100) / 100; });
+    var vendorChanged = ($("sVendor").value.trim() !== String((data.rocno || {}).vendor || ""));
+    var v = { vendor: $("sVendor").value.trim(), davek: $("sMode").value, odstotek: $("sPct").value === "" ? null : +$("sPct").value, admob: admob };
+    $("sMsg").textContent = "Shranjujem …";
+    ref.child("rocno").set(v).then(function () {
+      $("sMsg").textContent = "Shranjeno.";
+      if (vendorChanged && v.vendor) refresh();
+    }).catch(function (e) { $("sMsg").textContent = "Napaka: " + e.message; });
+  };
+
+  function refresh() {
+    $("refresh").disabled = true; $("refresh").textContent = "Osvežujem …";
+    ref.child("osvezi").set({ t: firebase.database.ServerValue.TIMESTAMP, kdo: firebase.auth().currentUser.email })
+      .catch(function (e) { $("errs").textContent = e.message; });
+    setTimeout(function () { $("refresh").disabled = false; $("refresh").textContent = "Osveži zdaj"; }, 30000);
+  }
+  $("refresh").onclick = refresh;
+
+  fetch("/__/firebase/init.json").then(function (r) { return r.json(); }).then(function (cfg) {
+    cfg.databaseURL = DB_URL;
+    firebase.initializeApp(cfg);
+    var auth = firebase.auth();
+    $("in").onclick = function () {
+      var prov = new firebase.auth.GoogleAuthProvider();
+      prov.addScope(AD_SCOPE);
+      prov.setCustomParameters({ prompt: "select_account" });
+      auth.signInWithPopup(prov).then(function (res) { pendingToken = saveToken(res.credential); if (ref) syncAdmob(pendingToken); }).catch(function (e) {
+        if (/popup/.test(e.code || "")) return auth.signInWithRedirect(prov);
+        $("loginErr").textContent = e.message;
+      });
+    };
+    $("out").onclick = function () { try { sessionStorage.removeItem("admob-token"); } catch (e) { /* nič */ } auth.signOut(); };
+    auth.getRedirectResult().then(function (res) { if (res && res.credential) { pendingToken = saveToken(res.credential); if (ref) syncAdmob(pendingToken); } }).catch(function () {});
+    $("adBtn").onclick = function () {
+      var t = savedToken();
+      if (t) return syncAdmob(t);
+      var prov = new firebase.auth.GoogleAuthProvider();
+      prov.addScope(AD_SCOPE);
+      prov.setCustomParameters({ login_hint: auth.currentUser.email });
+      auth.currentUser.reauthenticateWithPopup(prov).then(function (res) { syncAdmob(saveToken(res.credential)); })
+        .catch(function (e) { $("adWhen").textContent = "napaka: " + e.message; });
+    };
+    auth.onAuthStateChanged(function (u) {
+      if (ref) { ref.off(); ref = null; }
+      $("out").hidden = !u; $("who").textContent = u ? u.email : "";
+      var ok = u && u.emailVerified && OWNERS.indexOf((u.email || "").toLowerCase()) >= 0;
+      $("login").hidden = !!ok; $("app").hidden = !ok;
+      if (u && !ok) $("loginErr").textContent = "Račun " + u.email + " nima dostopa.";
+      if (!ok) return;
+      ref = firebase.database().ref("nadzor");
+      var first = true;
+      ref.on("value", function (s) {
+        data = s.val() || {};
+        if (first) { fillSettings(); first = false; var t = pendingToken || savedToken(); pendingToken = null; if (t) syncAdmob(t); }
+        render();
+      }, function (e) { $("errs").textContent = "Branje ni uspelo: " + e.message; });
+    });
+  }).catch(function (e) { $("loginErr").textContent = "Nastavitve Firebase manjkajo: " + e.message; });
+})();
+</script>
+</body>
+</html>

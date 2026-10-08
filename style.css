@@ -140,6 +140,9 @@ input[type=text], input[type=search], textarea {
 .suggest li span:last-child { font-size: 13px; color: var(--muted); }
 .brands { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
 .brands > span { width: 100%; }
+.brands .confirm { margin-top: 4px; white-space: normal; font-size: 16px; }
+.hh-leave { margin-top: 8px; }
+.added-note { margin: 10px 2px 0; font-weight: 650; color: var(--violet, var(--brand)); }
 
 /* ---------- Čipi ---------- */
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }

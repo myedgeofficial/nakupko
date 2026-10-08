@@ -89,9 +89,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         set { defaults.set(newValue, forKey: "geo.chainCost") }
     }
     // Druga stopnja: po obvestilu »blizu si« spremljamo natančno lokacijo, dokler ne obstaneš pri trgovini.
-    private struct Arrival { let store: GeoStore; let open: [ItemGroup]; let items: [LiveItem]; let count: Int; let started: Date; var stillSince: Date? }
+    private struct Arrival { let store: GeoStore; let open: [ItemGroup]; let items: [LiveItem]; let count: Int; let started: Date; var stillSince: Date?; var wantNear = false }
     private var arrival: Arrival?
     private let arrivalRadius: CLLocationDistance = 60
+    // Obvestilo »blizu« šele, ko si res pri trgovini (ne že na robu 250-metrskega območja ali v mimovožnji).
+    private let nearRadius: CLLocationDistance = 120
+    private let nearMaxSpeed: CLLocationSpeed = 7   // ~25 km/h
     private let arrivalDwell: TimeInterval = 12
     private let arrivalTimeout: TimeInterval = 8 * 60
     // Žeton, s katerim strežnik zažene seznam na zaklenjenem zaslonu (iOS 17.2+).
@@ -354,7 +357,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         guard !fetching else { return }
         fetching = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "nakupko.stores")
-        let q = "[out:json][timeout:20];(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
+        let q = "[out:json][timeout:20];(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
         var req = URLRequest(url: URL(string: "https://overpass-api.de/api/interpreter")!)
         req.httpMethod = "POST"
         req.timeoutInterval = 25
@@ -379,7 +382,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                     // Samo verige in dežurne trgovine, kot v aplikaciji.
                     guard let kind = StoreRules.kind(text: text, hours: hours) else { return nil }
                     return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
-                                    chain: kind.chain, duty: kind.duty, hours: hours)
+                                    chain: kind.chain, duty: kind.duty, hours: hours, only: kind.chain.flatMap { StoreRules.only[$0] })
                 }
                 guard !list.isEmpty else { return }
                 self.stores = list
@@ -507,13 +510,15 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         sent[id] = now
         notified = sent
 
-        // 1. stopnja: »blizu si« (+ namig, če je bližnja trgovina občutno cenejša).
+        // 1. stopnja: »blizu si« (+ namig, če je bližnja trgovina občutno cenejša) – pošlje checkArrival,
+        // ko si do ~120 m od trgovine in ne voziš hitro.
         let lastNear = defaults.double(forKey: "geo.lastNear")
+        var wantNear = false
         if defaults.object(forKey: "geo.nearNotify") as? Bool == false { log("  brez obvestila »blizu« (izklopljeno)") }
         else if now - lastNear < nearEvery { log("  brez obvestila »blizu« (zadnje pred \(Int((now - lastNear) / 60)) min)") }
-        else { defaults.set(now, forKey: "geo.lastNear"); postNearNotification(id: id, store: store, count: count) }
+        else { wantNear = true }
         // 2. stopnja: ko obstaneš pri trgovini, se seznam odpre na zaklenjenem zaslonu.
-        startArrivalWatch(Arrival(store: store, open: open, items: items, count: count, started: Date(), stillSince: nil))
+        startArrivalWatch(Arrival(store: store, open: open, items: items, count: count, started: Date(), stillSince: nil, wantNear: wantNear))
     }
 
     // Delovni čas v OpenStreetMap je pogosto zastarel (npr. Spar do 20h, v resnici do 21h),
@@ -619,6 +624,15 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let d = loc.distance(from: CLLocation(latitude: a.store.lat, longitude: a.store.lon))
         let near = d <= arrivalRadius + min(max(loc.horizontalAccuracy, 0), 40)
         let slow = loc.speed < 0 || loc.speed < 2.0
+        if a.wantNear && d <= nearRadius + min(max(loc.horizontalAccuracy, 0), 30) && (loc.speed < 0 || loc.speed < nearMaxSpeed) {
+            a.wantNear = false
+            arrival = a
+            let now = Date().timeIntervalSince1970
+            if now - defaults.double(forKey: "geo.lastNear") >= nearEvery {
+                defaults.set(now, forKey: "geo.lastNear")
+                postNearNotification(id: a.store.id, store: a.store, count: a.count)
+            }
+        }
         if near && slow {
             if a.stillSince == nil { a.stillSince = Date() }
             arrival = a
@@ -722,7 +736,10 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 
     // ---------- Seznam na zaklenjenem zaslonu (Live Activity) ----------
-    func shopping(active: Bool, store: String, items list: [LiveItem], done: Int, total: Int) {
+    // updateOnly: aplikacija ni v načinu »V trgovini« (npr. zaprl si ga ali pa je seznam odprl iPhone sam) –
+    // obstoječi seznam na zaklenjenem zaslonu samo osvežimo, nikoli ga ne zapremo ali na novo odpremo.
+    // Seznam se zapre šele, ko res odideš iz trgovine.
+    func shopping(active: Bool, store: String, items list: [LiveItem], done: Int, total: Int, updateOnly: Bool = false) {
         guard #available(iOS 16.2, *) else { return }
         let current = Activity<ShoppingAttributes>.activities
         guard active else {
@@ -730,7 +747,18 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             for a in current { Task { await a.end(nil, dismissalPolicy: .immediate) } }
             return
         }
-        if shoppingFrom == nil { shoppingFrom = manager.location }
+        if updateOnly {
+            let fitted = LiveList.fit(list)
+            for a in current where a.activityState == .active {
+                let prev = a.content.state
+                // Kar je izginilo s seznama, je kupljeno; novi izdelki povečajo skupno število.
+                let d = prev.done + max(0, (prev.total - prev.done) - list.count)
+                let st = ShoppingAttributes.ContentState(items: fitted, done: d, total: d + list.count, page: LiveList.clampPage(prev.page, count: fitted.count))
+                Task { await a.update(ActivityContent(state: st, staleDate: Date().addingTimeInterval(4 * 3600))) }
+            }
+            return
+        }
+        if shoppingFrom == nil { shoppingFrom = freshLocation() }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let fitted = LiveList.fit(list)
         let keepPage = current.first(where: { $0.attributes.store == store })?.content.state.page
@@ -748,6 +776,12 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 _ = startLive(store: store, items: list, completion: { _ in })
             }
         }
+    }
+
+    // Za »odšel si iz trgovine« (800 m) uporabimo le svežo in natančno lokacijo, ne zastarele od doma.
+    private func freshLocation() -> CLLocation? {
+        guard let l = manager.location, -l.timestamp.timeIntervalSinceNow < 120, l.horizontalAccuracy >= 0, l.horizontalAccuracy < 150 else { return nil }
+        return l
     }
 
     // Live Activity sprejme največ 4 KB podatkov: dolge sezname skrajšamo.
@@ -789,7 +823,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         checkArrival(loc)
         // Ko odideš iz trgovine, seznam z zaklenjenega zaslona umaknemo.
-        if let from = shoppingFrom, loc.distance(from: from) > 800 { shopping(active: false, store: "", items: [], done: 0, total: 0) }
+        if #available(iOS 16.2, *), shoppingFrom == nil, !Activity<ShoppingAttributes>.activities.isEmpty,
+           -loc.timestamp.timeIntervalSinceNow < 60, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy < 100 { shoppingFrom = loc }
+        if let from = shoppingFrom, loc.distance(from: from) > 800, loc.horizontalAccuracy >= 0, loc.horizontalAccuracy < 200 { shopping(active: false, store: "", items: [], done: 0, total: 0) }
         guard enabled else { return }
         let home = manager.monitoredRegions.first { $0.identifier == homeId } as? CLCircularRegion
         if home == nil || loc.distance(from: CLLocation(latitude: home!.center.latitude, longitude: home!.center.longitude)) > homeRadius * 0.6 {
@@ -930,8 +966,9 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let items = Self.parseItems(call)
         let done = call.getInt("done") ?? 0
         let total = call.getInt("total") ?? 0
+        let updateOnly = call.getBool("updateOnly") ?? false
         DispatchQueue.main.async {
-            GeoManager.shared.shopping(active: active, store: store, items: items, done: done, total: total)
+            GeoManager.shared.shopping(active: active, store: store, items: items, done: done, total: total, updateOnly: updateOnly)
             call.resolve()
         }
     }

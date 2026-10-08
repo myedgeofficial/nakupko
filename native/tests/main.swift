@@ -22,6 +22,8 @@ check("Spar je veriga", StoreRules.kind(text: "Spar Spar", hours: "")?.chain, "s
 check("Tuš je veriga", StoreRules.kind(text: "Tuš market", hours: "")?.chain, "tus")
 check("Korenček je dežurna", StoreRules.kind(text: "Korenček", hours: "")?.duty, true)
 check("24/7 je dežurna", StoreRules.kind(text: "Market", hours: "24/7")?.duty, true)
+check("dm je drogerija", StoreRules.kind(text: "dm dm drogerie markt", hours: "")?.chain, "dm")
+check("Admiral ni dm", StoreRules.kind(text: "Admiral", hours: "") == nil, true)
 check("Druga trgovina se ne spremlja", StoreRules.kind(text: "Indijska trgovina", hours: "") == nil, true)
 
 // 5. 10. 2026 je ponedeljek, 4. 10. nedelja, 10. 10. sobota.

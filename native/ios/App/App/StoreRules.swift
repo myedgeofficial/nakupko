@@ -10,7 +10,15 @@ enum StoreRules {
         ("lidl", "lidl"),
         ("hofer", "hofer|aldi"),
         ("eurospin", "eurospin"),
-        ("jager", "jager")
+        ("jager", "jager"),
+        // Drogerije: v obvestilu samo izdelki zanje (kot only v app.js).
+        ("dm", "^dm\\b|dm[ -]drogerie|dm drogerija"),
+        ("muller", "m[uü]ller")
+    ]
+    // Specializirane trgovine prodajo samo te izdelke (enak regex kot only v app.js).
+    static let only: [String: String] = [
+        "dm": "^(higiena|gospodinjstvo|otroci|zdravje|brez glutena|ljubljenčki) |protein|pralni|detergent|mehčal",
+        "muller": "^(higiena|gospodinjstvo|otroci|zdravje) |pralni|detergent|mehčal"
     ]
     private static let dutyPattern = "koren[cč]ek|betka|ekspres|de[zž]urn|non ?-?stop"
     private static let chainDefaultHours = "Mo-Sa 07:00-21:00; Su off; PH off"

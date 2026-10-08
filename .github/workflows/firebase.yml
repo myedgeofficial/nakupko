@@ -1,7 +1,8 @@
 name: Strežnik (Firebase)
 
-# Objavi pravila baze in funkcijo za obvestila »član je v trgovini«.
-# Potrebne skrivnosti: FIREBASE_SERVICE_ACCOUNT (JSON), APNS_KEY_P8, APNS_KEY_ID, APPLE_TEAM_ID.
+# Objavi pravila baze, funkcije (obvestila »član je v trgovini«, nadzorna plošča) in stran nadzorne plošče.
+# Potrebne skrivnosti: FIREBASE_SERVICE_ACCOUNT (JSON), APNS_KEY_P8, APNS_KEY_ID, APPLE_TEAM_ID,
+# APPSTORE_KEY_ID, APPSTORE_ISSUER_ID, APPSTORE_KEY_P8 (poročila o prodaji).
 on:
   push:
     branches: [main]
@@ -35,19 +36,32 @@ jobs:
           APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
           APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
         run: |
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
           python3 - <<'PY'
           import os, re
-          p8 = os.environ.get("APNS_KEY_P8", "").strip()
-          body = re.sub(r"-----[A-Z ]+-----|\\n|\s", "", p8)
-          pem = ("-----BEGIN PRIVATE KEY-----\\n" + "\\n".join(body[i:i+64] for i in range(0, len(body), 64)) + "\\n-----END PRIVATE KEY-----") if body else ""
+          def pem(name):
+              body = re.sub(r"-----[A-Z ]+-----|\\n|\s", "", os.environ.get(name, "").strip())
+              return ("-----BEGIN PRIVATE KEY-----\\n" + "\\n".join(body[i:i+64] for i in range(0, len(body), 64)) + "\\n-----END PRIVATE KEY-----") if body else ""
           with open("functions/.env", "w") as f:
               f.write(f'APNS_KEY_ID={os.environ.get("APNS_KEY_ID", "")}\n')
               f.write(f'APPLE_TEAM_ID={os.environ.get("APPLE_TEAM_ID", "")}\n')
-              f.write(f'APNS_KEY_P8="{pem}"\n')
-          print("Ključ za obvestila:", "da" if body else "manjka")
+              f.write(f'APNS_KEY_P8="{pem("APNS_KEY_P8")}"\n')
+              f.write(f'ASC_KEY_ID={os.environ.get("ASC_KEY_ID", "")}\n')
+              f.write(f'ASC_ISSUER_ID={os.environ.get("ASC_ISSUER_ID", "")}\n')
+              f.write(f'ASC_KEY_P8="{pem("ASC_KEY_P8")}"\n')
+          print("Ključ za obvestila:", "da" if os.environ.get("APNS_KEY_P8") else "manjka")
+          print("Ključ App Store Connect:", "da" if os.environ.get("ASC_KEY_P8") else "manjka")
           PY
-          npx --yes firebase-tools@14 deploy --only database,functions --project nakupko-8ad19 --non-interactive --force
+          # AdMob API za samodejni prikaz zaslužka na nadzorni plošči.
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa.json" --quiet && gcloud services enable admob.googleapis.com --project nakupko-8ad19 --quiet || echo "::warning::AdMob API ni bil vklopljen"
+          FB="npx --yes firebase-tools@14 --project nakupko-8ad19 --non-interactive"
+          # Spletna aplikacija (za prijavo z Googlom na nadzorni plošči) in privzeta stran gostovanja.
+          if ! $FB apps:list WEB --json | grep -q '"appId"'; then $FB apps:create WEB "Nakupko nadzor"; fi
+          $FB hosting:sites:list --json | grep -q '"name"' || $FB hosting:sites:create nakupko-8ad19 || true
+          $FB deploy --only database,functions,hosting --force
           rm -f "$RUNNER_TEMP/sa.json" functions/.env
