@@ -19,7 +19,7 @@ body { padding-bottom: calc(96px + env(safe-area-inset-bottom) + var(--ad-h, 0px
 /* Ena velikost za vse (native.js poveča stran), izbire velikosti ni. */
 #tab-stores details.card:has(#sizeBox) { display: none !important; }
 html.size-mid body, html.size-senior body { font-weight: 500; }
-html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inherit; }
+html.size-mid .iname, html.size-senior .iname { font-weight: 800; }
 /* Spletna navodila za bližnjico (Safari) v aplikaciji nadomesti kartica »Hitro odpiranje Nakupka«. */
 #tab-stores details.card:has(> ol) { display: none !important; }
 
@@ -27,7 +27,7 @@ html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inh
 .qo-tabs { display: flex; gap: 6px; background: #f1eefa; border-radius: 12px; padding: 4px; margin-bottom: 12px; }
 .qo-tab { flex: 1; border: 0; background: transparent; border-radius: 9px; padding: 8px; font-weight: 650; color: #6b6b78; }
 .qo-tab.on { background: #fff; color: #1b1b1f; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-.qo-phone { width: 210px; height: 330px; margin: 0 auto; border: 8px solid #1b1b1f; border-radius: 34px; background: #f2f2f7; overflow: hidden; position: relative; }
+.qo-phone { width: 186px; height: auto; aspect-ratio: 390 / 844; margin: 0 auto; border: 8px solid #1b1b1f; border-radius: 34px; background: #f2f2f7; overflow: hidden; position: relative; }
 .qo-screen { position: absolute; inset: 0; padding: 26px 10px 10px; font-size: 13px; color: #1b1b1f; }
 .qo-screen.qo-in { animation: qoIn .35s ease; }
 @keyframes qoIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
@@ -52,7 +52,7 @@ html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inh
 .qo-app small { font-size: 9px; }
 .qo-hit { position: relative; animation: qoHit 4.5s ease both; }
 .qo-hit::after { content: ""; position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
-  background: rgba(138,63,252,.45); border: 2px solid #8A3FFC; opacity: 0; animation: qoTap 4.5s ease both; pointer-events: none; }
+  background: rgba(96,41,251,.45); border: 2px solid #6029FB; opacity: 0; animation: qoTap 4.5s ease both; pointer-events: none; }
 @keyframes qoTap { 0%, 20% { opacity: 0; transform: scale(1.8); } 32% { opacity: 1; transform: scale(1); } 42%, 70% { opacity: 1; transform: scale(.8); } 85%, 100% { opacity: 0; transform: scale(.8); } }
 @keyframes qoHit { 0%, 38% { background-color: inherit; } 45%, 100% { background-color: #e6dcfb; } }
 .qo-dk .qo-hit { animation-name: qoHitDark; }
@@ -60,25 +60,25 @@ html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inh
 .qo-end { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
 .qo-phone-back { width: 90px; height: 150px; border-radius: 18px; background: #2b2b33; position: relative; }
 .qo-phone-back::before { content: ""; position: absolute; left: 10px; top: 10px; width: 30px; height: 30px; border-radius: 9px; background: #45454f; }
-.qo-ripple { position: absolute; left: 50%; top: 55%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; border: 3px solid #8A3FFC; opacity: 0; animation: qoKnock 1.8s ease infinite; }
+.qo-ripple { position: absolute; left: 50%; top: 55%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; border: 3px solid #6029FB; opacity: 0; animation: qoKnock 1.8s ease infinite; }
 .qo-r2 { animation-delay: .3s; }
 @keyframes qoKnock { 0% { opacity: 0; transform: scale(.4); } 15% { opacity: 1; } 60%, 100% { opacity: 0; transform: scale(1.8); } }
-.qo-btn { position: absolute; left: -6px; top: 30px; width: 5px; height: 22px; border-radius: 3px; background: #8A3FFC; animation: qoPress 1.8s ease infinite; }
-@keyframes qoPress { 0%, 30% { transform: none; } 40%, 80% { transform: translateX(3px); box-shadow: 0 0 0 4px rgba(138,63,252,.3); } }
-.qo-open { background: #8A3FFC; color: #fff; font-weight: 700; padding: 8px 14px; border-radius: 12px; opacity: 0; animation: qoOpen 6s ease both; }
+.qo-btn { position: absolute; left: -6px; top: 30px; width: 5px; height: 22px; border-radius: 3px; background: #6029FB; animation: qoPress 1.8s ease infinite; }
+@keyframes qoPress { 0%, 30% { transform: none; } 40%, 80% { transform: translateX(3px); box-shadow: 0 0 0 4px rgba(96,41,251,.3); } }
+.qo-open { background: #6029FB; color: #fff; font-weight: 700; padding: 8px 14px; border-radius: 12px; opacity: 0; animation: qoOpen 6s ease both; }
 @keyframes qoOpen { 0%, 45% { opacity: 0; transform: scale(.7); } 60%, 100% { opacity: 1; transform: none; } }
 .qo-dots { display: flex; justify-content: center; gap: 5px; margin: 12px 0 6px; }
 .qo-dots i { width: 6px; height: 6px; border-radius: 50%; background: #d8d2e8; }
-.qo-dots i.on { background: #8A3FFC; width: 16px; border-radius: 3px; }
+.qo-dots i.on { background: #6029FB; width: 16px; border-radius: 3px; }
 .qo-cap { text-align: center; font-weight: 650; min-height: 2.8em; margin: 0 0 12px; }
 .qo-nav { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 12px; }
 .qo-nav .qo-dots { margin: 0; }
-.qo-nav button { border: 0; background: #f1eefa; color: #8A3FFC; width: 40px; height: 40px; border-radius: 50%; font-size: 24px; line-height: 1; font-weight: 700; }
+.qo-nav button { border: 0; background: #f1eefa; color: #6029FB; width: 40px; height: 40px; border-radius: 50%; font-size: 24px; line-height: 1; font-weight: 700; }
 
 /* Oznaka skupnega seznama nad seznamom (native.js). */
-.hh-badge { display: block; width: 100%; margin: 8px 0 4px; border: 0; border-radius: 12px; padding: 10px 12px; text-align: left;
-  background: #efe6ff; color: #5b21b6; font-weight: 700; font-size: 15px; }
-.hh-badge.off { background: #f1f1f4; color: #6b6b78; }
+.hh-badge { display: block; width: 100%; margin: 0 0 10px; border: 0; border-radius: 16px; padding: 11px 14px; text-align: left;
+  background: #fff; color: #6029FB; font-weight: 800; font-size: 15px; box-shadow: 0 1px 3px rgba(80,40,140,.08); }
+.hh-badge.off { background: #fff; color: #6E7396; }
 
 /* Zasloni aplikacije Shortcuts (temni, kot na iPhonu). */
 .qo-screen.qo-dk { background: #000; color: #fff; }
@@ -106,14 +106,18 @@ html.size-mid .iname, html.size-senior .iname { font-weight: 800; font-size: inh
 .qo-sc-sheet .qo-sc-search { background: #2c2c2e; }
 .qo-sc-act { background: #2c2c2e; border-radius: 12px; padding: 9px 10px; margin-bottom: 6px; font-weight: 600; }
 .qo-sc-app { padding: 8px 4px 10px; font-weight: 600; }
-.qo-sc .qo-hit::after { background: rgba(138,63,252,.6); }
+.qo-sc .qo-hit::after { background: rgba(96,41,251,.6); }
 
-/* Ime izdelka čez vso širino, cena pod njim (večja pisava ne lomi besed). */
-.list li.item { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 4px; align-items: center; }
-.list li.item > .check { grid-column: 1; grid-row: 1 / span 2; }
-.list li.item > .check + * { grid-column: 2; grid-row: 1 / span 2; }
-.list li.item > .ibody { grid-column: 3; grid-row: 1; align-self: end; }
-.list li.item > .price { grid-column: 3; grid-row: 2; justify-self: start; align-self: start; font-size: 13px; padding: 3px 9px; }
-.list li.item > .del { grid-column: 4; grid-row: 1 / span 2; }
-.list li.item:not(:has(> .price)) > .ibody { grid-row: 1 / span 2; align-self: center; }
+/* Vrstica izdelka (nov videz): ime čez vso širino, cena pod njim; besede se ne lomijo. */
 .iname { overflow-wrap: break-word; word-break: normal; }
+
+/* Telefon v vodiču ima razmerje pravega iPhona (ožji), zato manjša vsebina zaslona. */
+.qo-screen { padding: 30px 8px 8px; font-size: 11px; }
+.qo-bar b { font-size: 13px; }
+.qo-row { padding: 7px 8px; gap: 4px; white-space: nowrap; }
+.qo-row > :first-child, .qo-row { overflow: hidden; text-overflow: ellipsis; }
+.qo-home { gap: 10px 2px; }
+.qo-app span { width: 30px; height: 30px; font-size: 17px; border-radius: 8px; }
+.qo-app small { font-size: 8px; }
+.qo-big, .qo-sc { font-size: 11px; }
+.qo-phone-back { width: 80px; height: 160px; }

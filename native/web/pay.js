@@ -92,7 +92,7 @@
 
   function btn(id, text, primary) {
     return '<button id="' + id + '" type="button" style="' + (primary
-      ? "border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:#8A3FFC;color:#fff;width:100%;max-width:340px;margin:0 auto"
+      ? "border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:linear-gradient(135deg,#9923FC,#4837FB 55%,#1482FC);color:#fff;width:100%;max-width:340px;margin:0 auto"
       : "border:0;background:none;color:#8a8a96;padding:14px;font-size:15px") + '"' + (busy ? " disabled" : "") + ">" + text + "</button>";
   }
 
@@ -116,7 +116,7 @@
       '<h2 style="margin:0 0 8px;font-size:26px">Nakupko Plus</h2>' +
       '<p style="margin:0 0 20px;color:#5b5b66">' + what + '</p>' +
       '<div style="font-size:22px;font-weight:700;margin-bottom:4px">' + priceText() + ' na mesec</div>' +
-      (trial ? '<div style="color:#8A3FFC;font-weight:600;margin-bottom:18px">' + trial + '</div>' : '<div style="margin-bottom:18px"></div>') +
+      (trial ? '<div style="color:#6029FB;font-weight:600;margin-bottom:18px">' + trial + '</div>' : '<div style="margin-bottom:18px"></div>') +
       btn("plusBuy", busy ? "Trenutek …" : (trial ? "Začni brezplačno" : "Naroči se"), true) +
       btn("plusRestore", "Obnovi nakup") +
       (MODE === "background" ? btn("plusLater", "Ne zdaj") : "") +

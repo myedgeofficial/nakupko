@@ -1,0 +1,84 @@
+name: Android aplikacija
+
+# PR: preveri, da se Android aplikacija zgradi.
+# main, veja android ali ročni zagon: zgradi APK (za prijatelje) in AAB (za Google Play)
+# ter ju objavi na https://github.com/myedgeofficial/nakupko/releases/tag/android
+on:
+  pull_request:
+  push:
+    branches: [main, android]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: native
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_B64 != '' && secrets.ANDROID_KEYSTORE_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: native/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Pripravi spletni del in Capacitor
+        run: |
+          npm ci
+          npm run sync:android
+
+      - name: Podpisni ključ
+        if: env.HAS_KEY == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          echo "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/nakupko.keystore"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/nakupko.keystore" >> "$GITHUB_ENV"
+
+      - name: Preizkusi in zgradi
+        working-directory: native/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testDebugUnitTest assembleRelease bundleRelease -PversionCode=${{ github.run_number }}
+          mkdir -p "$RUNNER_TEMP/out"
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/Nakupko.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/out/Nakupko.aab"
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::warning::Ni podpisnega ključa (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD). APK je podpisan začasno: posodobitev ne bo šla čez staro različico, Google Play pa ga ne sprejme."
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nakupko-android-${{ github.run_number }}
+          path: ${{ runner.temp }}/out/
+
+      - name: Objavi za prenos
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete android --cleanup-tag --yes || true
+          gh release create android "$RUNNER_TEMP/out/Nakupko.apk" "$RUNNER_TEMP/out/Nakupko.aab" \
+            --target "$GITHUB_SHA" --prerelease --title "Nakupko za Android (gradnja ${{ github.run_number }})" \
+            --notes "Na Android telefonu odpri https://github.com/${{ github.repository }}/releases/download/android/Nakupko.apk in namesti. Nakupko.aab je za Google Play Console."
