@@ -334,8 +334,7 @@
   });
   var lastZoom = 0;
   function syncZoom() {
-    // iPhone: celoten prikaz malo manjši, da se izgled prilagodi zaslonu.
-    var z = (window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() === "ios") ? 0.87 : 1;
+    var z = 1;
     if (z === lastZoom) return;
     lastZoom = z;
     Geo.setZoom({ zoom: z }).catch(function () { lastZoom = 0; });
