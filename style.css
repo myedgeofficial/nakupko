@@ -493,6 +493,9 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 /* ---------- Skupen seznam ---------- */
 .hh-code { font-size: 16px; margin: 0 0 3.5px; letter-spacing: .04em; }
 .hh-join { margin-top: 9px; }
+.hh-req { border: 1px solid #E3E0EC; border-radius: 12px; padding: 9px 11px; margin: 7px 0 9px; }
+.hh-req p { margin: 0 0 7px; }
+.hh-loc { padding: 9px 0; margin-bottom: 7px; }
 #hhBox .row { align-items: center; margin-top: 9px; }
 
 /* ---------- Izdelek za določeno trgovino ---------- */

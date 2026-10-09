@@ -49,6 +49,8 @@ struct Household {
     let code: String
     let member: String
     let name: String
+    // Član je sam dovolil, da ostali dobijo obvestilo »… je v trgovini« (household.js, Nastavitve).
+    let share: Bool
 }
 
 final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationCenterDelegate {
@@ -157,11 +159,13 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private var household: Household? {
         get {
             guard let u = defaults.string(forKey: "geo.hh.url"), let c = defaults.string(forKey: "geo.hh.code"), !u.isEmpty, !c.isEmpty else { return nil }
-            return Household(url: u, code: c, member: defaults.string(forKey: "geo.hh.member") ?? "", name: defaults.string(forKey: "geo.hh.name") ?? "")
+            return Household(url: u, code: c, member: defaults.string(forKey: "geo.hh.member") ?? "", name: defaults.string(forKey: "geo.hh.name") ?? "",
+                             share: defaults.bool(forKey: "geo.hh.share"))
         }
         set {
             defaults.set(newValue?.url, forKey: "geo.hh.url"); defaults.set(newValue?.code, forKey: "geo.hh.code")
             defaults.set(newValue?.member, forKey: "geo.hh.member"); defaults.set(newValue?.name, forKey: "geo.hh.name")
+            defaults.set(newValue?.share ?? false, forKey: "geo.hh.share")
         }
     }
     // Žeton za obvestila (APNs); strežnik ga uporabi, da partnerju sporoči, da si v trgovini.
@@ -496,7 +500,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     // Pravi prihod (obstal pri trgovini) zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
     private func reportVisit(storeId id: String) {
-        guard let hh = household, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
+        // Brez privolitve člana obiska ne zapišemo (nič ne gre na strežnik).
+        guard let hh = household, hh.share, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
         if !mayBeOpen(store) { return }
         let now = Date().timeIntervalSince1970
         var sent = visitSent
@@ -1042,7 +1047,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         var hh: Household?
         if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String {
-            hh = Household(url: u, code: c, member: (h["member"] as? String) ?? "", name: (h["name"] as? String) ?? "")
+            hh = Household(url: u, code: c, member: (h["member"] as? String) ?? "", name: (h["name"] as? String) ?? "", share: (h["share"] as? Bool) ?? false)
         }
         DispatchQueue.main.async {
             if let u = dbUrl, !u.isEmpty { UserDefaults.standard.set(u, forKey: "geo.dbUrl") }
