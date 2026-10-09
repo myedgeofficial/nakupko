@@ -1,6 +1,6 @@
 // Nakupko strežnik: ko je član skupnega seznama vsaj minuto v trgovini, ostale člane obvestimo.
 // Telefon ob prihodu v trgovino zapiše /h/{koda}/visits/{id}; ob odhodu doda left: true.
-const { onValueCreated } = require("firebase-functions/v2/database");
+const { onValueCreated, onValueWritten } = require("firebase-functions/v2/database");
 const admin = require("firebase-admin");
 const http2 = require("http2");
 const crypto = require("crypto");
@@ -45,14 +45,30 @@ function sendApns(tokens, title, body) {
 
 // Besedila obvestil v jeziku prejemnika (jezik aplikacije: lang pri članu ali v zahtevi).
 const TEXT = {
-  sl: { visit: (w, s) => w + " je v trgovini " + s, more: "Rabiš še kaj? Dodaj na skupen seznam.", live: "na seznamu. Kljukaj kar na zaklenjenem zaslonu." },
-  en: { visit: (w, s) => w + " is at " + s, more: "Need anything else? Add it to the shared list.", live: "on your list. Tick them off right on the lock screen." },
-  de: { visit: (w, s) => w + " ist bei " + s, more: "Brauchst du noch etwas? Füg es zur gemeinsamen Liste hinzu.", live: "auf der Liste. Hake sie direkt auf dem Sperrbildschirm ab." },
-  hr: { visit: (w, s) => w + " je u trgovini " + s, more: "Trebaš još nešto? Dodaj na zajednički popis.", live: "na popisu. Označavaj ih na zaključanom zaslonu." },
-  it: { visit: (w, s) => w + " è da " + s, more: "Ti serve altro? Aggiungilo alla lista condivisa.", live: "nella lista. Spuntali dalla schermata di blocco." },
-  hu: { visit: (w, s) => w + " most itt van: " + s, more: "Kell még valami? Add hozzá a közös listához.", live: "a listán. Pipáld ki a zárolási képernyőn." },
-  fr: { visit: (w, s) => w + " est chez " + s, more: "Besoin d'autre chose ? Ajoute-le à la liste partagée.", live: "sur ta liste. Coche-les sur l'écran verrouillé." },
-  es: { visit: (w, s) => w + " está en " + s, more: "¿Necesitas algo más? Añádelo a la lista compartida.", live: "en tu lista. Márcalos en la pantalla bloqueada." }
+  sl: { visit: (w, s) => w + " je v trgovini " + s, more: "Rabiš še kaj? Dodaj na skupen seznam.", live: "na seznamu. Kljukaj kar na zaklenjenem zaslonu.",
+    ask: (w) => w + " se želi pridružiti tvojemu seznamu", askMore: "Odpri Nakupko in sprejmi ali zavrni.",
+    loc: (w) => w + " ti bo sporočil(a), ko bo v trgovini", locMore: "Vidiš samo ime trgovine. Izklopi lahko kadarkoli." },
+  en: { visit: (w, s) => w + " is at " + s, more: "Need anything else? Add it to the shared list.", live: "on your list. Tick them off right on the lock screen.",
+    ask: (w) => w + " wants to join your list", askMore: "Open Nakupko to accept or decline.",
+    loc: (w) => w + " will let you know when they're at a store", locMore: "You only see the store name. They can turn it off anytime." },
+  de: { visit: (w, s) => w + " ist bei " + s, more: "Brauchst du noch etwas? Füg es zur gemeinsamen Liste hinzu.", live: "auf der Liste. Hake sie direkt auf dem Sperrbildschirm ab.",
+    ask: (w) => w + " möchte deiner Liste beitreten", askMore: "Öffne Nakupko, um anzunehmen oder abzulehnen.",
+    loc: (w) => w + " sagt dir Bescheid, wenn er/sie im Geschäft ist", locMore: "Du siehst nur den Namen des Geschäfts. Jederzeit abschaltbar." },
+  hr: { visit: (w, s) => w + " je u trgovini " + s, more: "Trebaš još nešto? Dodaj na zajednički popis.", live: "na popisu. Označavaj ih na zaključanom zaslonu.",
+    ask: (w) => w + " se želi pridružiti tvom popisu", askMore: "Otvori Nakupko i prihvati ili odbij.",
+    loc: (w) => w + " će ti javiti kad je u trgovini", locMore: "Vidiš samo ime trgovine. Može se isključiti u bilo kojem trenutku." },
+  it: { visit: (w, s) => w + " è da " + s, more: "Ti serve altro? Aggiungilo alla lista condivisa.", live: "nella lista. Spuntali dalla schermata di blocco.",
+    ask: (w) => w + " vuole unirsi alla tua lista", askMore: "Apri Nakupko per accettare o rifiutare.",
+    loc: (w) => w + " ti avviserà quando è in un negozio", locMore: "Vedi solo il nome del negozio. Si può disattivare in qualsiasi momento." },
+  hu: { visit: (w, s) => w + " most itt van: " + s, more: "Kell még valami? Add hozzá a közös listához.", live: "a listán. Pipáld ki a zárolási képernyőn.",
+    ask: (w) => w + " csatlakozni szeretne a listádhoz", askMore: "Nyisd meg a Nakupkót, és fogadd el vagy utasítsd el.",
+    loc: (w) => w + " szól, amikor boltban van", locMore: "Csak a bolt nevét látod. Bármikor kikapcsolható." },
+  fr: { visit: (w, s) => w + " est chez " + s, more: "Besoin d'autre chose ? Ajoute-le à la liste partagée.", live: "sur ta liste. Coche-les sur l'écran verrouillé.",
+    ask: (w) => w + " veut rejoindre ta liste", askMore: "Ouvre Nakupko pour accepter ou refuser.",
+    loc: (w) => w + " te préviendra quand il/elle est au magasin", locMore: "Tu ne vois que le nom du magasin. Désactivable à tout moment." },
+  es: { visit: (w, s) => w + " está en " + s, more: "¿Necesitas algo más? Añádelo a la lista compartida.", live: "en tu lista. Márcalos en la pantalla bloqueada.",
+    ask: (w) => w + " quiere unirse a tu lista", askMore: "Abre Nakupko para aceptar o rechazar.",
+    loc: (w) => w + " te avisará cuando esté en una tienda", locMore: "Solo ves el nombre de la tienda. Se puede desactivar en cualquier momento." }
 };
 function textOf(lang) { return TEXT[String(lang || "sl").slice(0, 2)] || TEXT[{ bs: 1, sr: 1 }[String(lang || "").slice(0, 2)] ? "hr" : "en"]; }
 function itemsOf(n, lang) {
@@ -142,13 +158,18 @@ exports.storeVisit = onValueCreated({
   const { code } = event.params;
   if (!visit.member || !visit.store) return;
 
+  // Privolitev: obisk sporočimo le, če ga je član sam dovolil in je sprejet na seznam; sicer ga zbrišemo.
+  const sender = (await admin.database().ref("/h/" + code + "/members/" + visit.member).get()).val();
+  if (!sender || sender.loc !== true || sender.status === "pending") { await event.data.ref.remove(); return; }
+
   // Minuta v trgovini: če se je medtem odpeljal naprej (left), ne obveščamo.
   await new Promise((r) => setTimeout(r, WAIT_MS));
   const now = (await event.data.ref.get()).val();
   if (!now || now.left || now.notified) return;
 
   const members = (await admin.database().ref("/h/" + code + "/members").get()).val() || {};
-  const others = Object.keys(members).filter((id) => id !== visit.member).map((id) => members[id]);
+  if (!members[visit.member] || members[visit.member].loc !== true) { await event.data.ref.remove(); return; }  // medtem izklopil
+  const others = accepted(members, visit.member);
   const who = (visit.name || "Član").slice(0, 30);
   // Vsak prejemnik dobi obvestilo v jeziku svoje aplikacije.
   const byLang = {};
@@ -168,8 +189,57 @@ exports.storeVisit = onValueCreated({
     }
   });
   if (Object.keys(cleanup).length) await admin.database().ref("/h/" + code + "/members").update(cleanup);
-  await event.data.ref.update({ notified: true, sent: ios.length + android.length });
+  await event.data.ref.update({ notified: true, sent: others.filter((m) => m.ios || m.fcm).length });
   console.log("obisk", code, visit.store, "apns", JSON.stringify(apns), "fcm", JSON.stringify(fcm));
+});
+
+// Člani seznama, ki so sprejeti (brez statusa = starejša različica, sprejet), razen enega.
+function accepted(members, except) {
+  return Object.keys(members || {}).filter((id) => id !== except && members[id] && members[id].status !== "pending").map((id) => members[id]);
+}
+// Isto obvestilo vsem v njihovem jeziku.
+function notifyAll(list, make) {
+  const byLang = {};
+  list.forEach((m) => { const l = String(m.lang || "sl").slice(0, 3); (byLang[l] = byLang[l] || []).push(m); });
+  return Promise.all(Object.keys(byLang).map((l) => {
+    const [title, body] = make(textOf(l));
+    return Promise.all([sendApns(byLang[l].map((m) => m.ios).filter(Boolean), title, body), sendFcm(byLang[l].map((m) => m.fcm).filter(Boolean), title, body)]);
+  }));
+}
+
+// Prošnja za pridružitev (household.js zapiše člana s status: "pending"): obvestimo sprejete člane.
+exports.memberJoin = onValueCreated({
+  ref: "/h/{code}/members/{member}",
+  instance: "nakupko-8ad19-default-rtdb",
+  region: "europe-west1",
+  timeoutSeconds: 30,
+  memory: "128MiB"
+}, async (event) => {
+  const m = event.data.val() || {};
+  if (m.status !== "pending") return;
+  const { code, member } = event.params;
+  const members = (await admin.database().ref("/h/" + code + "/members").get()).val() || {};
+  const who = String(m.name || "Član").slice(0, 30);
+  const res = await notifyAll(accepted(members, member), (t) => ["👋 " + t.ask(who), t.askMore]);
+  console.log("prošnja", code, member, JSON.stringify(res));
+});
+
+// Član je vklopil »Sporoči, ko sem v trgovini«: ostali dobijo obvestilo, da bodo to izvedeli.
+exports.locShared = onValueWritten({
+  ref: "/h/{code}/members/{member}/loc",
+  instance: "nakupko-8ad19-default-rtdb",
+  region: "europe-west1",
+  timeoutSeconds: 30,
+  memory: "128MiB"
+}, async (event) => {
+  if (event.data.before.val() === true || event.data.after.val() !== true) return;
+  const { code, member } = event.params;
+  const members = (await admin.database().ref("/h/" + code + "/members").get()).val() || {};
+  const me = members[member];
+  if (!me || me.status === "pending") return;
+  const who = String(me.name || "Član").slice(0, 30);
+  const res = await notifyAll(accepted(members, member), (t) => ["📍 " + t.loc(who), t.locMore]);
+  console.log("deljenje", code, member, JSON.stringify(res));
 });
 
 Object.assign(exports, require("./nadzor"));

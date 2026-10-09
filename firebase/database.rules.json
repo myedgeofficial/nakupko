@@ -11,7 +11,9 @@
         },
         "members": {
           "$member": {
-            ".validate": "$member.matches(/^[A-Z0-9]{10}$/)"
+            ".validate": "$member.matches(/^[A-Z0-9]{10}$/)",
+            "status": { ".validate": "newData.val() == 'pending' || newData.val() == 'ok'" },
+            "loc": { ".validate": "newData.isBoolean()" }
           }
         },
         "visits": {
