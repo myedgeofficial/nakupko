@@ -162,6 +162,14 @@ NK_PACK("en", function (h) {
     "Google Zemljevidi": "Google Maps",
     "Samodejno (po lokaciji)": "Automatic (by location)",
     "Jezik / Language": "Language",
+    // »Rabiš kaj?« (household.js)
+    "Vprašanje poslano.": "Question sent.",
+    "Vprašaj znova": "Ask again",
+    "🙋 Rabiš kaj? Vprašaj ostale": "🙋 Need anything? Ask the others",
+    "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.": "Need anything? Add items or reply that you need nothing.",
+    "Kaj rabiš? npr. mleko": "What do you need? e.g. milk",
+    "✓ Dodaj na seznam": "✓ Add to list",
+    "Ne rabim nič": "I don't need anything",
     // household.js
     "Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah.": "Should others on the shared list get a notification when you're at a store? They only see the store name, not your location. You can turn it off anytime in Settings.",
     "Sprejeto. Seznam je zdaj skupen.": "Accepted. The list is now shared.",
@@ -271,6 +279,12 @@ NK_PACK("en", function (h) {
   }
   // Sestavljena besedila (s števili, imeni ...): [vzorec, prevod]
   var RULES = [
+    [/^🙋 (.+) je v trgovini ?(.*)$/, function (m) { return "🙋 " + m[1] + (m[2] ? " is at " + m[2] : " is at the store"); }],
+    [/^✓ (.+): dodano (.*)$/, "✓ $1: added $2"],
+    [/^✗ (.+): ne rabi nič$/, "✗ $1: doesn't need anything"],
+    [/^👀 (.+): videno, izbira …$/, "👀 $1: seen, choosing …"],
+    [/^⏳ (.+): še ni videno$/, "⏳ $1: not seen yet"],
+    [/^(.+) vidi, kaj si dodal\.$/, "$1 can see what you added."],
     [/^(.+) se želi pridružiti skupnemu seznamu\. Sprejmeš\?$/, "$1 wants to join the shared list. Accept?"],
     [/^(.+) se želi pridružiti skupnemu seznamu\.$/, "$1 wants to join the shared list."],
     [/^(\d+) od (\d+) v košarici(?: · še ≈ (.+))?$/, function (m) { return m[1] + " of " + m[2] + " in basket" + (m[3] ? " · left ≈ " + m[3] : ""); }],

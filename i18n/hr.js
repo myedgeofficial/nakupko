@@ -162,6 +162,14 @@ NK_PACK("hr", function (h) {
     "Google Zemljevidi": "Google Karte",
     "Samodejno (po lokaciji)": "Automatski (prema lokaciji)",
     "Jezik / Language": "Jezik",
+    // »Rabiš kaj?« (household.js)
+    "Vprašanje poslano.": "Pitanje poslano.",
+    "Vprašaj znova": "Pitaj ponovno",
+    "🙋 Rabiš kaj? Vprašaj ostale": "🙋 Trebaš li nešto? Pitaj ostale",
+    "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.": "Trebaš li nešto? Dodaj proizvode ili odgovori da ne trebaš ništa.",
+    "Kaj rabiš? npr. mleko": "Što trebaš? npr. mlijeko",
+    "✓ Dodaj na seznam": "✓ Dodaj na popis",
+    "Ne rabim nič": "Ne trebam ništa",
     // household.js
     "Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah.": "Da ostali na zajedničkom popisu dobiju obavijest kad si u trgovini? Vide samo ime trgovine, ne tvoju lokaciju. Možeš isključiti bilo kad u Postavkama.",
     "Sprejeto. Seznam je zdaj skupen.": "Prihvaćeno. Popis je sada zajednički.",
@@ -270,6 +278,12 @@ NK_PACK("hr", function (h) {
     return s.replace(/manj kot dnevom/, "manje od jednog dana").replace(/^1 dnevom$/, "1 dan").replace(/(\d+) dnevi/, "$1 dana");
   }
   var RULES = [
+    [/^🙋 (.+) je v trgovini ?(.*)$/, function (m) { return "🙋 " + m[1] + (m[2] ? " je u trgovini " + m[2] : " je u trgovini"); }],
+    [/^✓ (.+): dodano (.*)$/, "✓ $1: dodano $2"],
+    [/^✗ (.+): ne rabi nič$/, "✗ $1: ne treba ništa"],
+    [/^👀 (.+): videno, izbira …$/, "👀 $1: viđeno, bira …"],
+    [/^⏳ (.+): še ni videno$/, "⏳ $1: još nije viđeno"],
+    [/^(.+) vidi, kaj si dodal\.$/, "$1 vidi što si dodao/la."],
     [/^(.+) se želi pridružiti skupnemu seznamu\. Sprejmeš\?$/, "$1 se želi pridružiti zajedničkom popisu. Prihvaćaš?"],
     [/^(.+) se želi pridružiti skupnemu seznamu\.$/, "$1 se želi pridružiti zajedničkom popisu."],
     [/^(\d+) od (\d+) v košarici(?: · še ≈ (.+))?$/, function (m) { return m[1] + " od " + m[2] + " u košarici" + (m[3] ? " · još ≈ " + m[3] : ""); }],
