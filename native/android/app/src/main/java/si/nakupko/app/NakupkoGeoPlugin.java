@@ -57,6 +57,7 @@ public class NakupkoGeoPlugin extends Plugin {
     protected void handleOnResume() {
         geo.foreground = true;
         askExtraPermissions();
+        geo.repostShopping();
         geo.refresh();
     }
 
@@ -69,7 +70,12 @@ public class NakupkoGeoPlugin extends Plugin {
     // Android dovoli le eno vprašanje naenkrat, zato drugo pride, ko se uporabnik vrne v aplikacijo.
     // Lokacijo »Vedno« vprašamo ob vsakem zagonu aplikacije, dokler je ni.
     private void askExtraPermissions() {
-        if (!geo.enabled() || !geo.hasLocation() || getActivity() == null) return;
+        if (getActivity() == null) return;
+        // Seznam na zaklenjenem zaslonu potrebuje obvestila tudi brez zaznavanja trgovin.
+        if (!geo.enabled() || !geo.hasLocation()) {
+            if (geo.shopShowing()) askNotifications();
+            return;
+        }
         if (!geo.hasBackground() && Build.VERSION.SDK_INT >= 29) {
             if (askedExtra) return;
             askedExtra = true;
@@ -78,7 +84,11 @@ public class NakupkoGeoPlugin extends Plugin {
             ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 7010);
             return;
         }
-        if (!geo.hasNotifications() && Build.VERSION.SDK_INT >= 33 && !askedNotifications) {
+        askNotifications();
+    }
+
+    private void askNotifications() {
+        if (!geo.hasNotifications() && Build.VERSION.SDK_INT >= 33 && !askedNotifications && getActivity() != null) {
             askedNotifications = true;
             ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.POST_NOTIFICATIONS}, 7011);
         }
@@ -154,6 +164,7 @@ public class NakupkoGeoPlugin extends Plugin {
         JSONArray groups = call.getArray("groups", new JSArray());
         geo.shopping(Boolean.TRUE.equals(call.getBoolean("active", false)), call.getString("store", "Nakupovanje"),
             groups, call.getInt("done", 0), call.getInt("total", 0), Boolean.TRUE.equals(call.getBoolean("updateOnly", false)));
+        if (geo.shopShowing() && getActivity() != null) getActivity().runOnUiThread(this::askNotifications);
         call.resolve();
     }
 

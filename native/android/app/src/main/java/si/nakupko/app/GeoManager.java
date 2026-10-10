@@ -61,7 +61,10 @@ final class GeoManager {
     // Toliko časa moraš biti do ~100 m od trgovine, preden pride obvestilo.
     private static final int STORE_DWELL_MS = 45 * 1000;
     private static final String CH_STORE = "store";
-    private static final String CH_SHOP = "shopping";
+    // Nov kanal: stari »shopping« je bil tih (IMPORTANCE_LOW), tihih obvestil pa
+    // večina telefonov (Android 12+, Samsung) na zaklenjenem zaslonu ne pokaže.
+    private static final String CH_SHOP = "shopping_list";
+    private static final String CH_SHOP_OLD = "shopping";
     private static final int SHOP_NOTIFICATION = 7001;
 
     private static GeoManager instance;
@@ -494,6 +497,14 @@ final class GeoManager {
     private boolean shopShowing = false;
     private String shopStore = "Nakupovanje";
     private int shopDone = 0, shopTotal = 0;
+    private JSONArray shopGroups = new JSONArray();
+
+    boolean shopShowing() { return shopShowing; }
+
+    // Ko uporabnik šele zdaj dovoli obvestila, seznam pokažemo takoj.
+    void repostShopping() {
+        if (shopShowing && hasNotifications()) shopping(true, shopStore, shopGroups, shopDone, shopTotal, false);
+    }
     void shopping(boolean active, String store, JSONArray groups, int done, int total, boolean updateOnly) {
         if (!active) {
             shoppingFrom = null;
@@ -510,6 +521,7 @@ final class GeoManager {
             store = shopStore;
         }
         shopShowing = true;
+        shopGroups = groups;
         shopStore = store;
         shopDone = done;
         shopTotal = total;
@@ -534,8 +546,12 @@ final class GeoManager {
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setProgress(Math.max(total, 1), done, false)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openApp(null));
+        // Android 16: »Live Update« – seznam stalno na vrhu zaklenjenega zaslona in v vrstici stanja (kot Live Activity).
+        n.getExtras().putBoolean("android.requestPromotedOngoing", true);
         post(SHOP_NOTIFICATION, n);
     }
 
@@ -544,9 +560,13 @@ final class GeoManager {
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
         NotificationChannel store = new NotificationChannel(CH_STORE, "Si v trgovini", NotificationManager.IMPORTANCE_HIGH);
         store.setDescription("Obvestilo s seznamom, ko prideš v trgovino.");
-        NotificationChannel shop = new NotificationChannel(CH_SHOP, "Seznam med nakupovanjem", NotificationManager.IMPORTANCE_LOW);
-        shop.setDescription("Preostali izdelki, dokler nakupuješ.");
+        NotificationChannel shop = new NotificationChannel(CH_SHOP, "Seznam med nakupovanjem", NotificationManager.IMPORTANCE_DEFAULT);
+        shop.setDescription("Preostali izdelki na zaklenjenem zaslonu, dokler nakupuješ.");
+        shop.setSound(null, null);
+        shop.enableVibration(false);
+        shop.setShowBadge(false);
         shop.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
+        nm.deleteNotificationChannel(CH_SHOP_OLD);
         nm.createNotificationChannel(store);
         nm.createNotificationChannel(shop);
     }
