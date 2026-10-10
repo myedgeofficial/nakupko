@@ -1,14 +1,18 @@
 // Skupen seznam za gospodinjstvo: isti seznam na več telefonih prek kode.
 // Seznam hrani Firebase Realtime Database (REST + EventSource, brez knjižnic).
+// Privolitev: kdor se pridruži s kodo, čaka, da ga nekdo s seznama sprejme (dobi obvestilo).
+// »… je v trgovini« se pošilja samo, če je član to sam vklopil (loc), izklopi se v Nastavitvah.
 (function () {
   "use strict";
   var DB = window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app";
   var CODE_KEY = "nakupko-household", DIRTY_KEY = "nakupko-household-dirty", MEMBER_KEY = "nakupko-member", NAME_KEY = "nakupko-name";
+  var STATUS_KEY = "nakupko-hh-status", LOC_KEY = "nakupko-hh-loc";
   var ALPHA = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   var api = window.__nakupko;
   if (!api || !api.setItems) return;
 
   var code = "", shared = null, dirty = {}, es = null, online = false, retry = null;
+  var members = null, mes = null, asked = {};
   try { code = localStorage.getItem(CODE_KEY) || ""; dirty = JSON.parse(localStorage.getItem(DIRTY_KEY) || "{}") || {}; } catch (e) { /* nič */ }
 
   function $(id) { return document.getElementById(id); }
@@ -119,28 +123,141 @@
     if (n) { try { localStorage.setItem(NAME_KEY, n); } catch (e) { /* nič */ } }
     return n;
   }
+  function get(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function set(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* nič */ } }
+  // Stanje pridružitve: "pending" = čaka na potrditev; prazno (starejše različice) ali "ok" = sprejet.
+  function pending() { return get(STATUS_KEY) === "pending"; }
+  // Ali smem ostalim sporočiti, ko sem v trgovini: "1" da, "0" ne, prazno = še nisem odgovoril (= ne).
+  function locOn() { return get(LOC_KEY) === "1"; }
+  function memberUrl(id) { return DB + "/h/" + code + "/members/" + id + ".json"; }
+  function nativeSync() { if (window.__nakupkoNativeSync) window.__nakupkoNativeSync(); }
+
   function announce() {
-    if (!code) return;
-    fetch(DB + "/h/" + code + "/members/" + member() + ".json", { method: "PATCH", body: JSON.stringify({ name: myName() || "Član", lang: window.NK_LANG || "sl", at: { ".sv": "timestamp" } }) }).catch(function () {});
+    if (!code || pending()) return;
+    fetch(memberUrl(member()), { method: "PATCH", body: JSON.stringify({ name: myName() || "Član", lang: window.NK_LANG || "sl", at: { ".sv": "timestamp" } }) }).catch(function () {});
   }
 
-  function join(c) {
+  function setLoc(on) {
+    set(LOC_KEY, on ? "1" : "0");
+    if (code && !pending()) fetch(memberUrl(member()), { method: "PATCH", body: JSON.stringify({ loc: !!on }) }).catch(function () {});
+    renderCard(); nativeSync();
+  }
+  // Vprašamo enkrat, ko je na seznamu še kdo drug; odgovor se da kadarkoli spremeniti s stikalom.
+  function askLoc() {
+    if (get(LOC_KEY) || !othersOk().length) return;
+    setLoc(confirm("Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah."));
+  }
+
+  // ---------- Člani: prošnje za pridružitev ----------
+  function othersOk() {
+    return Object.keys(members || {}).filter(function (id) { return id !== member() && members[id] && members[id].status !== "pending"; });
+  }
+  function requests() {
+    return Object.keys(members || {}).filter(function (id) { return id !== member() && members[id] && members[id].status === "pending"; });
+  }
+  function accept(id) {
+    fetch(memberUrl(id), { method: "PATCH", body: JSON.stringify({ status: "ok" }) }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      api.toast("Sprejeto. Seznam je zdaj skupen.");
+      if (members && members[id]) members[id].status = "ok";
+      renderCard(); askLoc();
+    }).catch(function () { api.toast("Ni povezave. Poskusi znova."); });
+  }
+  function decline(id) {
+    fetch(memberUrl(id), { method: "DELETE" }).then(function () {
+      if (members) delete members[id];
+      renderCard();
+    }).catch(function () { api.toast("Ni povezave. Poskusi znova."); });
+  }
+  function onMembers() {
+    var me = members[member()];
+    if (pending()) {
+      if (me && me.status === "ok") {
+        set(STATUS_KEY, "ok");
+        api.toast("Sprejet si. Seznam je zdaj skupen.");
+        connect(); announce(); askLoc(); watchAsks(); nativeSync();
+      } else if (!me) {  // prošnja je bila zapisana, zdaj je ni: zavrnjena
+        api.toast("Prošnja za pridružitev ni bila sprejeta.");
+        reset();
+      }
+      renderCard();
+      return;
+    }
+    if (!me) announce();
+    else if (typeof me.loc !== "boolean" && get(LOC_KEY)) setLoc(locOn());  // stanje s telefona na strežnik
+    renderCard();
+    requests().forEach(function (id) {
+      if (asked[id]) return;
+      asked[id] = 1;
+      if (!document.hidden && confirm((members[id].name || "Član") + " se želi pridružiti skupnemu seznamu. Sprejmeš?")) accept(id);
+    });
+    askLoc();
+  }
+  function watchMembers() {
+    if (mes) { mes.close(); mes = null; }
+    members = null;
+    if (!code || !window.EventSource) return;
+    mes = new EventSource(DB + "/h/" + code + "/members.json");
+    function onData(kind) {
+      return function (e) {
+        var m;
+        try { m = JSON.parse(e.data); } catch (x) { return; }
+        if (!m) return;
+        var parts = m.path.split("/").filter(Boolean);
+        if (!parts.length) {
+          if (kind === "put") members = m.data || {};
+          else { members = members || {}; Object.keys(m.data || {}).forEach(function (id) { if (m.data[id] === null) delete members[id]; else members[id] = m.data[id]; }); }
+        } else if (members) {
+          var id = parts[0];
+          if (parts.length === 1) { if (m.data === null) delete members[id]; else members[id] = m.data; }
+          else if (kind === "put" && m.data === null) { if (members[id]) delete members[id][parts[1]]; }
+          else { members[id] = members[id] || {}; if (parts.length === 2) members[id][parts[1]] = m.data; }
+        }
+        if (members) onMembers();
+      };
+    }
+    mes.addEventListener("put", onData("put"));
+    mes.addEventListener("patch", onData("patch"));
+  }
+
+  function reset() {
+    disconnect();
+    if (mes) { mes.close(); mes = null; }
+    if (aes) { aes.close(); aes = null; }
+    asks = {};
+    members = null; code = ""; dirty = {}; saveDirty();
+    set(CODE_KEY, ""); set(STATUS_KEY, ""); set(LOC_KEY, "");
+    renderCard(); nativeSync();
+  }
+
+  // Nov seznam: ustvarjalec je takoj član. Obstoječi seznam: prošnja, ki jo mora nekdo s seznama sprejeti.
+  function join(c, creator) {
     c = cleanCode(c);
-    if (c.length < 10) { api.toast("Koda ima 10 znakov."); return; }
+    if (c.length < 10) { api.toast("Koda ima 10 znakov."); return Promise.resolve(false); }
     if (!myName()) askName();
-    code = c; dirty = {}; saveDirty();
-    try { localStorage.setItem(CODE_KEY, code); } catch (e) { /* nič */ }
-    connect(); renderCard(); announce();
-    api.toast("Povezano s skupnim seznamom.");
+    var me = { name: myName() || "Član", lang: window.NK_LANG || "sl", status: creator ? "ok" : "pending", at: { ".sv": "timestamp" } };
+    var check = creator ? Promise.resolve(true) : fetch(DB + "/h/" + c + "/members.json?shallow=true", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { return !!(m && Object.keys(m).length); });
+    return check.then(function (exists) {
+      if (!exists) { api.toast("Seznama s to kodo ni."); return false; }
+      return fetch(DB + "/h/" + c + "/members/" + member() + ".json", { method: "PATCH", body: JSON.stringify(me) }).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        disconnect(); code = c; dirty = {}; saveDirty();
+        set(CODE_KEY, code); set(STATUS_KEY, me.status); set(LOC_KEY, "");
+        watchMembers();
+        if (creator) { connect(); watchAsks(); api.toast("Skupen seznam je ustvarjen."); }
+        else api.toast("Prošnja poslana. Ko te sprejmejo, se seznam poveže.");
+        renderCard(); nativeSync();
+        return true;
+      });
+    }).catch(function () { api.toast("Ni povezave. Poskusi znova."); return false; });
   }
   function leave() {
-    if (!confirm("Prenehaš deliti seznam? Izdelki ostanejo na tem telefonu, ostali tvojih sprememb ne bodo več videli.")) return;
+    if (!confirm(pending() ? "Prekličeš prošnjo za pridružitev?" : "Prenehaš deliti seznam? Izdelki ostanejo na tem telefonu, ostali tvojih sprememb ne bodo več videli.")) return;
     // Odjava iz gospodinjstva: ostali ne dobijo več obvestil »… je v trgovini«.
-    fetch(DB + "/h/" + code + "/members/" + member() + ".json", { method: "DELETE" }).catch(function () {});
-    disconnect(); code = ""; dirty = {}; saveDirty();
-    try { localStorage.removeItem(CODE_KEY); } catch (e) { /* nič */ }
-    renderCard();
-    api.toast("Seznam ni več deljen.");
+    fetch(memberUrl(member()), { method: "DELETE" }).catch(function () {});
+    var was = pending();
+    reset();
+    api.toast(was ? "Prošnja preklicana." : "Seznam ni več deljen.");
   }
   function share() {
     var link = "https://myedgeofficial.github.io/nakupko/?dom=" + code;
@@ -149,29 +266,209 @@
     else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { api.toast("Koda kopirana."); });
   }
 
+  // ---------- »Rabiš kaj?«: vprašanje iz trgovine ostalim na seznamu ----------
+  // /h/{koda}/asks/{id} = {from, name, store, lang, at, answers: {član: {name, seen, ans: "added"|"none", items}}}
+  var ASK_MS = 30 * 60 * 1000;
+  var asks = {}, aes = null, askShown = {}, askKey = "";
+  function askUrl(id, sub) { return DB + "/h/" + code + "/asks" + (id ? "/" + id : "") + (sub || "") + ".json"; }
+  function fresh(a) { return a && a.at && Date.now() - a.at < ASK_MS; }
+  function watchAsks() {
+    if (aes) { aes.close(); aes = null; }
+    asks = {};
+    if (!code || pending() || !window.EventSource) return;
+    aes = new EventSource(askUrl());
+    function onData(kind) {
+      return function (e) {
+        var m;
+        try { m = JSON.parse(e.data); } catch (x) { return; }
+        if (!m) return;
+        var parts = m.path.split("/").filter(Boolean);
+        if (!parts.length) {
+          if (kind === "put") asks = m.data || {};
+          else Object.keys(m.data || {}).forEach(function (id) { if (m.data[id] === null) delete asks[id]; else asks[id] = m.data[id]; });
+        } else {
+          // Globlja sprememba (npr. answers/{član}/ans): popravimo samo to vejo.
+          var o = asks, last = parts.length - 1;
+          for (var i = 0; i < last; i++) { if (!o[parts[i]] || typeof o[parts[i]] !== "object") o[parts[i]] = {}; o = o[parts[i]]; }
+          if (m.data === null) delete o[parts[last]];
+          else if (kind === "patch" && typeof m.data === "object") { o[parts[last]] = o[parts[last]] || {}; Object.assign(o[parts[last]], m.data); }
+          else o[parts[last]] = m.data;
+        }
+        onAsks();
+      };
+    }
+    aes.addEventListener("put", onData("put"));
+    aes.addEventListener("patch", onData("patch"));
+  }
+  function myAsk() {
+    var best = null;
+    Object.keys(asks).forEach(function (id) { var a = asks[id]; if (a && a.from === member() && fresh(a) && (!best || a.at > best.a.at)) best = { id: id, a: a }; });
+    return best;
+  }
+  function inStore() { var sm = $("storeMode"); return sm && !sm.classList.contains("hidden"); }
+  function storeName() {
+    var st = api.activeStore ? api.activeStore() : null;
+    return (st && (st.short || st.name)) || "";
+  }
+  function sendAsk() {
+    var mine = myAsk();
+    // Prejšnje vprašanje zamenja novo (ostali vidijo le zadnje).
+    if (mine) fetch(askUrl(mine.id), { method: "DELETE" }).catch(function () {});
+    var a = { from: member(), name: myName() || "Član", store: storeName().slice(0, 40), lang: window.NK_LANG || "sl", at: { ".sv": "timestamp" } };
+    fetch(askUrl(), { method: "POST", body: JSON.stringify(a) }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (j) {
+      a.at = Date.now();
+      if (j && j.name) asks[j.name] = a;
+      api.toast("Vprašanje poslano.");
+      renderAsk();
+    }).catch(function () { api.toast("Ni povezave. Poskusi znova."); });
+  }
+  // Vrstica v načinu »V trgovini«: gumb ali odgovori ostalih.
+  function renderAsk() {
+    var box = $("smAsk");
+    if (!box) return;
+    var show = code && !pending() && inStore() && othersOk().length;
+    var mine = show ? myAsk() : null;
+    var lines = [];
+    if (mine) {
+      var ans = mine.a.answers || {};
+      othersOk().forEach(function (id) {
+        var r = ans[id], who = (r && r.name) || (members[id] && members[id].name) || "Član";
+        if (r && r.ans === "added") lines.push(["ok", "✓ " + who + ": dodano " + (r.items || []).join(", ")]);
+        else if (r && r.ans === "none") lines.push(["no", "✗ " + who + ": ne rabi nič"]);
+        else if (r && r.seen) lines.push(["seen", "👀 " + who + ": videno, izbira …"]);
+        else lines.push(["wait", "⏳ " + who + ": še ni videno"]);
+      });
+    }
+    var key = JSON.stringify([!!show, lines]);
+    if (key === askKey) return;
+    askKey = key;
+    box.innerHTML = "";
+    box.classList.toggle("hidden", !show);
+    if (!show) return;
+    lines.forEach(function (l) { var p = document.createElement("div"); p.className = "sm-ask-line " + l[0]; p.textContent = l[1]; box.appendChild(p); });
+    var b = document.createElement("button");
+    b.type = "button"; b.className = mine ? "link sm-ask-btn" : "ghost sm-ask-btn";
+    b.textContent = mine ? "Vprašaj znova" : "🙋 Rabiš kaj? Vprašaj ostale";
+    b.onclick = sendAsk;
+    box.appendChild(b);
+  }
+  // Prejemnik: vprašanje se odpre samo; odgovor je »Dodaj na seznam« ali »Ne rabim nič«.
+  function answer(id, data) {
+    data.name = myName() || "Član";
+    data.at = { ".sv": "timestamp" };
+    if (asks[id]) { asks[id].answers = asks[id].answers || {}; asks[id].answers[member()] = Object.assign(asks[id].answers[member()] || {}, data); }
+    return fetch(askUrl(id, "/answers/" + member()), { method: "PATCH", body: JSON.stringify(data) }).catch(function () {});
+  }
+  function showAsk(id) {
+    var a = asks[id];
+    if (!a || $("askSheet")) return;
+    askShown[id] = 1;
+    answer(id, { seen: { ".sv": "timestamp" } });
+    var wrap = document.createElement("div");
+    wrap.id = "askSheet"; wrap.className = "sheet-wrap"; wrap.setAttribute("role", "dialog"); wrap.setAttribute("aria-modal", "true");
+    var sh = document.createElement("div"); sh.className = "sheet ask-sheet"; wrap.appendChild(sh);
+    function el(tag, cls, text, parent) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; (parent || sh).appendChild(e); return e; }
+    el("div", "sheet-grip");
+    el("h1", "", "🙋 " + (a.name || "Član") + " je v trgovini" + (a.store ? " " + a.store : ""));
+    el("p", "muted", "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.");
+    var picked = [];
+    var chips = el("div", "ask-chips");
+    var form = el("form", "add-row");
+    form.setAttribute("autocomplete", "off");
+    var inp = document.createElement("input"); inp.type = "text"; inp.placeholder = "Kaj rabiš? npr. mleko"; form.appendChild(inp);
+    var addB = document.createElement("button"); addB.type = "submit"; addB.className = "ghost"; addB.textContent = "+"; form.appendChild(addB);
+    var ok = el("button", "primary full", "✓ Dodaj na seznam");
+    ok.type = "button";
+    var no = el("button", "ghost full", "Ne rabim nič");
+    no.type = "button";
+    function draw() {
+      chips.innerHTML = "";
+      picked.forEach(function (n, k) {
+        var c = document.createElement("button"); c.type = "button"; c.className = "chip on"; c.textContent = n;
+        c.onclick = function () { picked.splice(k, 1); draw(); };
+        chips.appendChild(c);
+      });
+      ok.disabled = !picked.length && !inp.value.trim();
+    }
+    inp.oninput = draw;
+    form.onsubmit = function (e) {
+      e.preventDefault();
+      inp.value.split(/[,;\n]/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (s) { s = s.charAt(0).toUpperCase() + s.slice(1); if (picked.indexOf(s) < 0) picked.push(s); });
+      inp.value = ""; draw(); inp.focus();
+    };
+    function close() { wrap.remove(); }
+    ok.onclick = function () {
+      form.onsubmit({ preventDefault: function () {} });
+      if (!picked.length) return;
+      picked.forEach(function (n) { api.add(n); });
+      answer(id, { ans: "added", items: picked.slice(0, 20) });
+      api.toast((a.name || "Član") + " vidi, kaj si dodal.");
+      close();
+    };
+    no.onclick = function () { answer(id, { ans: "none" }); close(); };
+    wrap.addEventListener("click", function (e) { if (e.target === wrap) close(); });
+    draw();
+    document.body.appendChild(wrap);
+  }
+  function onAsks() {
+    renderAsk();
+    if (document.hidden) return;
+    Object.keys(asks).forEach(function (id) {
+      var a = asks[id];
+      if (!fresh(a) || a.from === member() || askShown[id]) return;
+      var r = (a.answers || {})[member()];
+      if (r && r.ans) return;
+      showAsk(id);
+    });
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) onAsks(); });
+  setInterval(renderAsk, 1000);
+
   // ---------- Nastavitve ----------
   function renderCard() {
     var box = $("hhBox");
     if (!box) return;
     box.innerHTML = "";
-    function add(tag, attrs, text) {
+    function add(tag, attrs, text, parent) {
       var e = document.createElement(tag);
       Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
       if (text) e.textContent = text;
-      box.appendChild(e);
+      (parent || box).appendChild(e);
       return e;
     }
-    if (code) {
+    if (code && pending()) {
+      var pc = add("p", { class: "hh-code" });
+      pc.appendChild(document.createTextNode("Koda: "));
+      var pb = document.createElement("b"); pb.textContent = pretty(code); pc.appendChild(pb);
+      add("p", { class: "muted small" }, "Čakam, da te sprejme nekdo s tega seznama. Dobil je obvestilo.");
+      var x = add("button", { class: "ghost full hh-leave", type: "button" }, "Prekliči prošnjo"); x.onclick = leave;
+    } else if (code) {
       var p = add("p", { class: "hh-code" });
       p.appendChild(document.createTextNode("Koda: "));
       var b = document.createElement("b"); b.textContent = pretty(code); p.appendChild(b);
       add("p", { class: "muted small" }, online ? "Povezano kot " + (myName() || "Član") + ". Kar doda kdorkoli, vidijo vsi." : "Ni povezave. Spremembe se pošljejo, ko bo internet.");
+      requests().forEach(function (id) {
+        var q = add("div", { class: "hh-req" });
+        add("p", {}, (members[id].name || "Član") + " se želi pridružiti skupnemu seznamu.", q);
+        var qr = add("div", { class: "row" }, "", q);
+        var ok = add("button", { class: "primary", type: "button" }, "Sprejmi", qr); ok.onclick = function () { accept(id); };
+        var no = add("button", { class: "link", type: "button" }, "Zavrni", qr); no.onclick = function () { decline(id); };
+      });
+      var row = add("div", { class: "set-row hh-loc" });
+      var t = add("div", { class: "set-text" }, "", row);
+      add("b", {}, "Sporoči, ko sem v trgovini", t);
+      add("span", { class: "muted small" }, "Ostali dobijo obvestilo z imenom trgovine. Tvoje lokacije ne vidi nihče.", t);
+      var sw = add("button", { class: "switch", type: "button", role: "switch", "aria-checked": locOn() ? "true" : "false", "aria-label": "Sporoči, ko sem v trgovini" }, "", row);
+      sw.onclick = function () { setLoc(!locOn()); };
       var s = add("button", { class: "primary full", type: "button" }, "Pošlji kodo"); s.onclick = share;
       var l = add("button", { class: "ghost full hh-leave", type: "button" }, "Prenehaj deliti seznam"); l.onclick = leave;
     } else {
       add("p", { class: "muted small" }, "Isti seznam na več telefonih, npr. s partnerjem. Kar doda eden, vidi drugi.");
       var c = add("button", { class: "primary full", type: "button" }, "Ustvari skupen seznam");
-      c.onclick = function () { join(newCode()); share(); };
+      c.onclick = function () { join(newCode(), true).then(function (ok) { if (ok) share(); }); };
       var r = add("div", { class: "row hh-join" });
       var i = document.createElement("input"); i.type = "text"; i.placeholder = "Vpiši kodo"; i.autocapitalize = "characters"; i.className = "full"; r.appendChild(i);
       var j = document.createElement("button"); j.className = "ghost"; j.type = "button"; j.textContent = "Pridruži se"; j.onclick = function () { join(i.value); }; r.appendChild(j);
@@ -182,10 +479,11 @@
   var card = $("hhCard");
   if (card) card.classList.remove("hidden");
   window.__nakupkoAfterSave = afterSave;
-  window.__nakupkoHousehold = function () { return code && DB ? { url: DB, code: code, member: member(), name: myName() || "Član" } : null; };
+  // Telefon (native.js): dokler prošnja ni sprejeta, seznama ni; obisk trgovine pošlje le, če je član to dovolil.
+  window.__nakupkoHousehold = function () { return code && DB && !pending() ? { url: DB, code: code, member: member(), name: myName() || "Član", share: locOn() } : null; };
   renderCard();
-  connect();
-  announce();
+  if (!pending()) { connect(); announce(); watchAsks(); }
+  watchMembers();
   window.addEventListener("online", flush);
 
   // Povezava ?dom=KODA iz sporočila.

@@ -2227,7 +2227,7 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
+  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n) { addItem(n, "", 1, { silent: true }); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
     // Klik na obvestilo »trgovina je blizu«: odpremo prav to trgovino, brez čakanja na GPS v aplikaciji.
     var list = stores.concat((state.storesCache && state.storesCache.list) || []);
     var st = list.filter(function (x) { return x.id === id; })[0] || lastNearStore || null;

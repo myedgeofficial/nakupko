@@ -49,6 +49,8 @@ struct Household {
     let code: String
     let member: String
     let name: String
+    // Član je sam dovolil, da ostali dobijo obvestilo »… je v trgovini« (household.js, Nastavitve).
+    let share: Bool
 }
 
 final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationCenterDelegate {
@@ -157,11 +159,13 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private var household: Household? {
         get {
             guard let u = defaults.string(forKey: "geo.hh.url"), let c = defaults.string(forKey: "geo.hh.code"), !u.isEmpty, !c.isEmpty else { return nil }
-            return Household(url: u, code: c, member: defaults.string(forKey: "geo.hh.member") ?? "", name: defaults.string(forKey: "geo.hh.name") ?? "")
+            return Household(url: u, code: c, member: defaults.string(forKey: "geo.hh.member") ?? "", name: defaults.string(forKey: "geo.hh.name") ?? "",
+                             share: defaults.bool(forKey: "geo.hh.share"))
         }
         set {
             defaults.set(newValue?.url, forKey: "geo.hh.url"); defaults.set(newValue?.code, forKey: "geo.hh.code")
             defaults.set(newValue?.member, forKey: "geo.hh.member"); defaults.set(newValue?.name, forKey: "geo.hh.name")
+            defaults.set(newValue?.share ?? false, forKey: "geo.hh.share")
         }
     }
     // Žeton za obvestila (APNs); strežnik ga uporabi, da partnerju sporoči, da si v trgovini.
@@ -426,6 +430,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     // Trgovine iz OpenStreetMap (isto kot spletna aplikacija), da deluje tudi na poti.
     private func fetchStores(around loc: CLLocation) {
+        refreshOfficial()
         guard !fetching else { return }
         fetching = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "nakupko.stores")
@@ -495,7 +500,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     // Pravi prihod (obstal pri trgovini) zapišemo kot obisk; strežnik po minuti preveri, ali si še tam, in obvesti ostale.
     private func reportVisit(storeId id: String) {
-        guard let hh = household, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
+        // Brez privolitve člana obiska ne zapišemo (nič ne gre na strežnik).
+        guard let hh = household, hh.share, !hh.member.isEmpty, let store = stores.first(where: { $0.id == id }) else { return }
         if !mayBeOpen(store) { return }
         let now = Date().timeIntervalSince1970
         var sent = visitSent
@@ -590,17 +596,47 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         startArrivalWatch(Arrival(store: store, started: Date(), wantNear: wantNear, count: count))
     }
 
-    // Delovni čas v OpenStreetMap je pogosto zastarel (npr. Spar do 20h, v resnici do 21h):
-    // trgovino z vpisanim urnikom štejemo za zaprto šele uro po zapiranju in pol ure pred odprtjem.
-    // Brez vpisanega urnika (privzeti urnik verige) velja urnik točno, brez dodatnega časa.
+    // Delovni čas v OpenStreetMap je pogosto zastarel (npr. Spar do 20h, v resnici do 21h),
+    // zato imajo prednost uradni časi s strani trgovin (hours.json, osveženo vsako noč).
     private func mayBeOpen(_ store: GeoStore) -> Bool {
-        let now = Date()
-        let open = StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now)
-        // Brez dodatnega časa: privzeti urnik verige in drogerije (dm, Müller), ki se urnika držijo.
-        if (store.hours ?? "").isEmpty || store.chain == "dm" || store.chain == "muller" { return open != false }
-        return open != false
-            || StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now.addingTimeInterval(-60 * 60)) == true
-            || StoreRules.isOpen(hours: store.hours, chain: store.chain, at: now.addingTimeInterval(30 * 60)) == true
+        StoreRules.isOpen(hours: officialHours(store) ?? store.hours, chain: store.chain) != false
+    }
+
+    private struct OfficialStore: Decodable { let v: String; let lat: Double; let lon: Double; let h: String; let g: Int? }
+    private struct OfficialFile: Decodable { let trgovine: [OfficialStore] }
+    private lazy var official: [OfficialStore] = {
+        guard let data = defaults.data(forKey: "geo.hours"), let f = try? JSONDecoder().decode(OfficialFile.self, from: data) else { return [] }
+        return f.trgovine
+    }()
+    private func officialHours(_ s: GeoStore) -> String? {
+        guard let chain = s.chain else { return nil }
+        let here = CLLocation(latitude: s.lat, longitude: s.lon)
+        var best: (String, CLLocationDistance)?
+        for t in official where t.v == chain {
+            let d = here.distance(from: CLLocation(latitude: t.lat, longitude: t.lon))
+            // koordinate iz naslova so manj natančne
+            if d <= (t.g != nil ? 400 : 250), best == nil || d < best!.1 { best = (t.h, d) }
+        }
+        return best?.0
+    }
+    // Enkrat na dan prenesemo uradne odpiralne čase.
+    func refreshOfficial() {
+        let last = defaults.double(forKey: "geo.hoursAt")
+        guard Date().timeIntervalSince1970 - last > 20 * 3600,
+              let url = URL(string: "https://myedgeofficial.github.io/nakupko/hours.json") else { return }
+        var req = URLRequest(url: url)
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        req.timeoutInterval = 20
+        URLSession.shared.dataTask(with: req) { [weak self] data, resp, _ in
+            guard let self = self, (resp as? HTTPURLResponse)?.statusCode == 200, let data = data,
+                  let f = try? JSONDecoder().decode(OfficialFile.self, from: data), !f.trgovine.isEmpty else { return }
+            DispatchQueue.main.async {
+                self.defaults.set(data, forKey: "geo.hours")
+                self.defaults.set(Date().timeIntervalSince1970, forKey: "geo.hoursAt")
+                self.official = f.trgovine
+                self.log("odpiralni časi: \(f.trgovine.count) trgovin")
+            }
+        }.resume()
     }
 
     private func postNearNotification(id: String, store: GeoStore, count: Int) {
@@ -628,7 +664,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         for s in stores {
             guard let k = s.chain, k != c, (s.only ?? "").isEmpty, let cost = costs[k] else { continue }
             let d = here.distance(from: CLLocation(latitude: s.lat, longitude: s.lon))
-            guard d <= 2000, StoreRules.isOpen(hours: s.hours, chain: s.chain) != false else { continue }
+            guard d <= 2000, mayBeOpen(s) else { continue }
             let saving = mine - cost
             if saving >= max(1.5, mine * 0.05), best == nil || saving > best!.1 { best = (s, saving, d) }
         }
@@ -991,6 +1027,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func setConfig(_ call: CAPPluginCall) {
+        GeoManager.shared.refreshOfficial()
         let on = call.getBool("enabled") ?? false
         let radius = call.getDouble("radius") ?? 30
         let dwell = call.getDouble("dwell") ?? 15
@@ -1010,7 +1047,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         var hh: Household?
         if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String {
-            hh = Household(url: u, code: c, member: (h["member"] as? String) ?? "", name: (h["name"] as? String) ?? "")
+            hh = Household(url: u, code: c, member: (h["member"] as? String) ?? "", name: (h["name"] as? String) ?? "", share: (h["share"] as? Bool) ?? false)
         }
         DispatchQueue.main.async {
             if let u = dbUrl, !u.isEmpty { UserDefaults.standard.set(u, forKey: "geo.dbUrl") }

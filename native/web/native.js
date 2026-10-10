@@ -170,7 +170,7 @@
       if (!r.ok) throw new Error(r.status);
       return r.json();
     }).then(function (m) {
-      var others = Object.keys(m || {}).filter(function (k) { return k !== hh.member && m[k]; })
+      var others = Object.keys(m || {}).filter(function (k) { return k !== hh.member && m[k] && m[k].status !== "pending"; })
         .map(function (k) { return m[k].name || "Član"; });
       b.classList.remove("off");
       b.textContent = others.length ? "👥 Skupen seznam z: " + others.join(", ") : "👥 Skupen seznam · čakam, da se pridruži še kdo";
@@ -224,6 +224,8 @@
     lastSent = key;
     Geo.setConfig(cfg).catch(function () { lastSent = ""; });
   }
+  // household.js: sprememba skupnega seznama ali privolitve »sporoči, ko sem v trgovini«.
+  window.__nakupkoNativeSync = function () { setTimeout(sync, 0); hhBadge(); };
 
   // ---------- Seznam na zaklenjenem zaslonu med nakupovanjem ----------
   // Ko je odprt način »V trgovini«, iPhone pokaže preostale izdelke na zaklenjenem zaslonu.
