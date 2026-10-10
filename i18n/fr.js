@@ -161,6 +161,14 @@ NK_PACK("fr", function (h) {
     "Google Zemljevidi": "Google Maps",
     "Samodejno (po lokaciji)": "Automatique (selon la position)",
     "Jezik / Language": "Langue",
+    // »Rabiš kaj?« (household.js)
+    "Vprašanje poslano.": "Question envoyée.",
+    "Vprašaj znova": "Redemander",
+    "🙋 Rabiš kaj? Vprašaj ostale": "🙋 Besoin de quelque chose ? Demande aux autres",
+    "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.": "Besoin de quelque chose ? Ajoute des articles ou réponds que tu n'as besoin de rien.",
+    "Kaj rabiš? npr. mleko": "De quoi as-tu besoin ? ex. lait",
+    "✓ Dodaj na seznam": "✓ Ajouter à la liste",
+    "Ne rabim nič": "Je n'ai besoin de rien",
     // household.js
     "Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah.": "Les autres membres de la liste partagée doivent-ils être prévenus quand tu es au magasin ? Ils ne voient que le nom du magasin, pas ta position. Tu peux le désactiver à tout moment dans les Réglages.",
     "Sprejeto. Seznam je zdaj skupen.": "Accepté. La liste est maintenant partagée.",
@@ -269,6 +277,12 @@ NK_PACK("fr", function (h) {
     return s.replace(/manj kot dnevom/, "moins d'un jour").replace(/^1 dnevom$/, "1 jour").replace(/(\d+) dnevi/, "$1 jours");
   }
   var RULES = [
+    [/^🙋 (.+) je v trgovini ?(.*)$/, function (m) { return "🙋 " + m[1] + (m[2] ? " est chez " + m[2] : " est au magasin"); }],
+    [/^✓ (.+): dodano (.*)$/, "✓ $1 : ajouté $2"],
+    [/^✗ (.+): ne rabi nič$/, "✗ $1 : n'a besoin de rien"],
+    [/^👀 (.+): videno, izbira …$/, "👀 $1 : vu, choisit …"],
+    [/^⏳ (.+): še ni videno$/, "⏳ $1 : pas encore vu"],
+    [/^(.+) vidi, kaj si dodal\.$/, "$1 voit ce que tu as ajouté."],
     [/^(.+) se želi pridružiti skupnemu seznamu\. Sprejmeš\?$/, "$1 veut rejoindre la liste partagée. Accepter ?"],
     [/^(.+) se želi pridružiti skupnemu seznamu\.$/, "$1 veut rejoindre la liste partagée."],
     [/^(\d+) od (\d+) v košarici(?: · še ≈ (.+))?$/, function (m) { return m[1] + " sur " + m[2] + " dans le panier" + (m[3] ? " · reste ≈ " + m[3] : ""); }],

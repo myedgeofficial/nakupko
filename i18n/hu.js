@@ -161,6 +161,14 @@ NK_PACK("hu", function (h) {
     "Google Zemljevidi": "Google Térkép",
     "Samodejno (po lokaciji)": "Automatikus (hely alapján)",
     "Jezik / Language": "Nyelv",
+    // »Rabiš kaj?« (household.js)
+    "Vprašanje poslano.": "Kérdés elküldve.",
+    "Vprašaj znova": "Kérdezd újra",
+    "🙋 Rabiš kaj? Vprašaj ostale": "🙋 Kell valami? Kérdezd meg a többieket",
+    "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.": "Kell valami? Adj hozzá termékeket, vagy válaszold, hogy nem kell semmi.",
+    "Kaj rabiš? npr. mleko": "Mi kell? pl. tej",
+    "✓ Dodaj na seznam": "✓ Hozzáadás a listához",
+    "Ne rabim nič": "Nem kell semmi",
     // household.js
     "Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah.": "Kapjanak értesítést a közös lista többi tagjai, amikor boltban vagy? Csak a bolt nevét látják, a helyzetedet nem. Bármikor kikapcsolhatod a Beállításokban.",
     "Sprejeto. Seznam je zdaj skupen.": "Elfogadva. A lista most már közös.",
@@ -269,6 +277,12 @@ NK_PACK("hu", function (h) {
     return s.replace(/manj kot dnevom/, "kevesebb mint egy napja").replace(/^1 dnevom$/, "1 napja").replace(/(\d+) dnevi/, "$1 napja");
   }
   var RULES = [
+    [/^🙋 (.+) je v trgovini ?(.*)$/, function (m) { return "🙋 " + m[1] + (m[2] ? " most itt van: " + m[2] : " most boltban van"); }],
+    [/^✓ (.+): dodano (.*)$/, "✓ $1: hozzáadva $2"],
+    [/^✗ (.+): ne rabi nič$/, "✗ $1: nem kér semmit"],
+    [/^👀 (.+): videno, izbira …$/, "👀 $1: látta, választ …"],
+    [/^⏳ (.+): še ni videno$/, "⏳ $1: még nem látta"],
+    [/^(.+) vidi, kaj si dodal\.$/, "$1 látja, mit adtál hozzá."],
     [/^(.+) se želi pridružiti skupnemu seznamu\. Sprejmeš\?$/, "$1 csatlakozni szeretne a közös listához. Elfogadod?"],
     [/^(.+) se želi pridružiti skupnemu seznamu\.$/, "$1 csatlakozni szeretne a közös listához."],
     [/^(\d+) od (\d+) v košarici(?: · še ≈ (.+))?$/, function (m) { return m[1] + "/" + m[2] + " a kosárban" + (m[3] ? " · még ≈ " + m[3] : ""); }],

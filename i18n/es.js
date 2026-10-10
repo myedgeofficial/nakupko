@@ -161,6 +161,14 @@ NK_PACK("es", function (h) {
     "Google Zemljevidi": "Google Maps",
     "Samodejno (po lokaciji)": "Automático (según la ubicación)",
     "Jezik / Language": "Idioma",
+    // »Rabiš kaj?« (household.js)
+    "Vprašanje poslano.": "Pregunta enviada.",
+    "Vprašaj znova": "Preguntar de nuevo",
+    "🙋 Rabiš kaj? Vprašaj ostale": "🙋 ¿Necesitas algo? Pregunta a los demás",
+    "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.": "¿Necesitas algo? Añade productos o responde que no necesitas nada.",
+    "Kaj rabiš? npr. mleko": "¿Qué necesitas? p. ej. leche",
+    "✓ Dodaj na seznam": "✓ Añadir a la lista",
+    "Ne rabim nič": "No necesito nada",
     // household.js
     "Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah.": "¿Quieres que los demás de la lista compartida reciban un aviso cuando estés en una tienda? Solo ven el nombre de la tienda, no tu ubicación. Puedes desactivarlo cuando quieras en Ajustes.",
     "Sprejeto. Seznam je zdaj skupen.": "Aceptado. La lista ahora es compartida.",
@@ -269,6 +277,12 @@ NK_PACK("es", function (h) {
     return s.replace(/manj kot dnevom/, "menos de un día").replace(/^1 dnevom$/, "1 día").replace(/(\d+) dnevi/, "$1 días");
   }
   var RULES = [
+    [/^🙋 (.+) je v trgovini ?(.*)$/, function (m) { return "🙋 " + m[1] + (m[2] ? " está en " + m[2] : " está en la tienda"); }],
+    [/^✓ (.+): dodano (.*)$/, "✓ $1: añadido $2"],
+    [/^✗ (.+): ne rabi nič$/, "✗ $1: no necesita nada"],
+    [/^👀 (.+): videno, izbira …$/, "👀 $1: visto, eligiendo …"],
+    [/^⏳ (.+): še ni videno$/, "⏳ $1: aún no visto"],
+    [/^(.+) vidi, kaj si dodal\.$/, "$1 ve lo que has añadido."],
     [/^(.+) se želi pridružiti skupnemu seznamu\. Sprejmeš\?$/, "$1 quiere unirse a la lista compartida. ¿Aceptar?"],
     [/^(.+) se želi pridružiti skupnemu seznamu\.$/, "$1 quiere unirse a la lista compartida."],
     [/^(\d+) od (\d+) v košarici(?: · še ≈ (.+))?$/, function (m) { return m[1] + " de " + m[2] + " en la cesta" + (m[3] ? " · faltan ≈ " + m[3] : ""); }],

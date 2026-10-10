@@ -161,6 +161,14 @@ NK_PACK("de", function (h) {
     "Google Zemljevidi": "Google Maps",
     "Samodejno (po lokaciji)": "Automatisch (nach Standort)",
     "Jezik / Language": "Sprache",
+    // »Rabiš kaj?« (household.js)
+    "Vprašanje poslano.": "Frage gesendet.",
+    "Vprašaj znova": "Nochmal fragen",
+    "🙋 Rabiš kaj? Vprašaj ostale": "🙋 Brauchst du was? Frag die anderen",
+    "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.": "Brauchst du was? Füge Artikel hinzu oder antworte, dass du nichts brauchst.",
+    "Kaj rabiš? npr. mleko": "Was brauchst du? z. B. Milch",
+    "✓ Dodaj na seznam": "✓ Zur Liste hinzufügen",
+    "Ne rabim nič": "Ich brauche nichts",
     // household.js
     "Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah.": "Sollen die anderen auf der gemeinsamen Liste benachrichtigt werden, wenn du im Geschäft bist? Sie sehen nur den Namen des Geschäfts, nicht deinen Standort. Du kannst das jederzeit in den Einstellungen ausschalten.",
     "Sprejeto. Seznam je zdaj skupen.": "Angenommen. Die Liste ist jetzt gemeinsam.",
@@ -269,6 +277,12 @@ NK_PACK("de", function (h) {
     return s.replace(/manj kot dnevom/, "weniger als einem Tag").replace(/^1 dnevom$/, "1 Tag").replace(/(\d+) dnevi/, "$1 Tagen");
   }
   var RULES = [
+    [/^🙋 (.+) je v trgovini ?(.*)$/, function (m) { return "🙋 " + m[1] + (m[2] ? " ist bei " + m[2] : " ist im Geschäft"); }],
+    [/^✓ (.+): dodano (.*)$/, "✓ $1: hinzugefügt $2"],
+    [/^✗ (.+): ne rabi nič$/, "✗ $1: braucht nichts"],
+    [/^👀 (.+): videno, izbira …$/, "👀 $1: gesehen, wählt …"],
+    [/^⏳ (.+): še ni videno$/, "⏳ $1: noch nicht gesehen"],
+    [/^(.+) vidi, kaj si dodal\.$/, "$1 sieht, was du hinzugefügt hast."],
     [/^(.+) se želi pridružiti skupnemu seznamu\. Sprejmeš\?$/, "$1 möchte der gemeinsamen Liste beitreten. Annehmen?"],
     [/^(.+) se želi pridružiti skupnemu seznamu\.$/, "$1 möchte der gemeinsamen Liste beitreten."],
     [/^(\d+) od (\d+) v košarici(?: · še ≈ (.+))?$/, function (m) { return m[1] + " von " + m[2] + " im Korb" + (m[3] ? " · noch ≈ " + m[3] : ""); }],

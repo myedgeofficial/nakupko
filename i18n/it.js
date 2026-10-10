@@ -161,6 +161,14 @@ NK_PACK("it", function (h) {
     "Google Zemljevidi": "Google Maps",
     "Samodejno (po lokaciji)": "Automatica (in base alla posizione)",
     "Jezik / Language": "Lingua",
+    // »Rabiš kaj?« (household.js)
+    "Vprašanje poslano.": "Domanda inviata.",
+    "Vprašaj znova": "Chiedi di nuovo",
+    "🙋 Rabiš kaj? Vprašaj ostale": "🙋 Ti serve qualcosa? Chiedi agli altri",
+    "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.": "Ti serve qualcosa? Aggiungi prodotti o rispondi che non ti serve niente.",
+    "Kaj rabiš? npr. mleko": "Cosa ti serve? es. latte",
+    "✓ Dodaj na seznam": "✓ Aggiungi alla lista",
+    "Ne rabim nič": "Non mi serve niente",
     // household.js
     "Naj ostali na skupnem seznamu dobijo obvestilo, ko si v trgovini? Vidijo samo ime trgovine, ne tvoje lokacije. Izklopiš lahko kadarkoli v Nastavitvah.": "Vuoi che gli altri della lista condivisa ricevano una notifica quando sei in un negozio? Vedono solo il nome del negozio, non la tua posizione. Puoi disattivarlo in qualsiasi momento nelle Impostazioni.",
     "Sprejeto. Seznam je zdaj skupen.": "Accettato. Ora la lista è condivisa.",
@@ -269,6 +277,12 @@ NK_PACK("it", function (h) {
     return s.replace(/manj kot dnevom/, "meno di un giorno").replace(/^1 dnevom$/, "1 giorno").replace(/(\d+) dnevi/, "$1 giorni");
   }
   var RULES = [
+    [/^🙋 (.+) je v trgovini ?(.*)$/, function (m) { return "🙋 " + m[1] + (m[2] ? " è da " + m[2] : " è al negozio"); }],
+    [/^✓ (.+): dodano (.*)$/, "✓ $1: aggiunto $2"],
+    [/^✗ (.+): ne rabi nič$/, "✗ $1: non serve niente"],
+    [/^👀 (.+): videno, izbira …$/, "👀 $1: visto, sta scegliendo …"],
+    [/^⏳ (.+): še ni videno$/, "⏳ $1: non ancora visto"],
+    [/^(.+) vidi, kaj si dodal\.$/, "$1 vede cosa hai aggiunto."],
     [/^(.+) se želi pridružiti skupnemu seznamu\. Sprejmeš\?$/, "$1 vuole unirsi alla lista condivisa. Accetti?"],
     [/^(.+) se želi pridružiti skupnemu seznamu\.$/, "$1 vuole unirsi alla lista condivisa."],
     [/^(\d+) od (\d+) v košarici(?: · še ≈ (.+))?$/, function (m) { return m[1] + " di " + m[2] + " nel carrello" + (m[3] ? " · restano ≈ " + m[3] : ""); }],

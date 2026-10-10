@@ -175,7 +175,7 @@
       if (me && me.status === "ok") {
         set(STATUS_KEY, "ok");
         api.toast("Sprejet si. Seznam je zdaj skupen.");
-        connect(); announce(); askLoc(); nativeSync();
+        connect(); announce(); askLoc(); watchAsks(); nativeSync();
       } else if (!me) {  // prošnja je bila zapisana, zdaj je ni: zavrnjena
         api.toast("Prošnja za pridružitev ni bila sprejeta.");
         reset();
@@ -223,6 +223,8 @@
   function reset() {
     disconnect();
     if (mes) { mes.close(); mes = null; }
+    if (aes) { aes.close(); aes = null; }
+    asks = {};
     members = null; code = ""; dirty = {}; saveDirty();
     set(CODE_KEY, ""); set(STATUS_KEY, ""); set(LOC_KEY, "");
     renderCard(); nativeSync();
@@ -242,7 +244,7 @@
         disconnect(); code = c; dirty = {}; saveDirty();
         set(CODE_KEY, code); set(STATUS_KEY, me.status); set(LOC_KEY, "");
         watchMembers();
-        if (creator) { connect(); api.toast("Skupen seznam je ustvarjen."); }
+        if (creator) { connect(); watchAsks(); api.toast("Skupen seznam je ustvarjen."); }
         else api.toast("Prošnja poslana. Ko te sprejmejo, se seznam poveže.");
         renderCard(); nativeSync();
         return true;
@@ -263,6 +265,167 @@
     if (navigator.share) navigator.share({ text: text }).catch(function () {});
     else if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { api.toast("Koda kopirana."); });
   }
+
+  // ---------- »Rabiš kaj?«: vprašanje iz trgovine ostalim na seznamu ----------
+  // /h/{koda}/asks/{id} = {from, name, store, lang, at, answers: {član: {name, seen, ans: "added"|"none", items}}}
+  var ASK_MS = 30 * 60 * 1000;
+  var asks = {}, aes = null, askShown = {}, askKey = "";
+  function askUrl(id, sub) { return DB + "/h/" + code + "/asks" + (id ? "/" + id : "") + (sub || "") + ".json"; }
+  function fresh(a) { return a && a.at && Date.now() - a.at < ASK_MS; }
+  function watchAsks() {
+    if (aes) { aes.close(); aes = null; }
+    asks = {};
+    if (!code || pending() || !window.EventSource) return;
+    aes = new EventSource(askUrl());
+    function onData(kind) {
+      return function (e) {
+        var m;
+        try { m = JSON.parse(e.data); } catch (x) { return; }
+        if (!m) return;
+        var parts = m.path.split("/").filter(Boolean);
+        if (!parts.length) {
+          if (kind === "put") asks = m.data || {};
+          else Object.keys(m.data || {}).forEach(function (id) { if (m.data[id] === null) delete asks[id]; else asks[id] = m.data[id]; });
+        } else {
+          // Globlja sprememba (npr. answers/{član}/ans): popravimo samo to vejo.
+          var o = asks, last = parts.length - 1;
+          for (var i = 0; i < last; i++) { if (!o[parts[i]] || typeof o[parts[i]] !== "object") o[parts[i]] = {}; o = o[parts[i]]; }
+          if (m.data === null) delete o[parts[last]];
+          else if (kind === "patch" && typeof m.data === "object") { o[parts[last]] = o[parts[last]] || {}; Object.assign(o[parts[last]], m.data); }
+          else o[parts[last]] = m.data;
+        }
+        onAsks();
+      };
+    }
+    aes.addEventListener("put", onData("put"));
+    aes.addEventListener("patch", onData("patch"));
+  }
+  function myAsk() {
+    var best = null;
+    Object.keys(asks).forEach(function (id) { var a = asks[id]; if (a && a.from === member() && fresh(a) && (!best || a.at > best.a.at)) best = { id: id, a: a }; });
+    return best;
+  }
+  function inStore() { var sm = $("storeMode"); return sm && !sm.classList.contains("hidden"); }
+  function storeName() {
+    var st = api.activeStore ? api.activeStore() : null;
+    return (st && (st.short || st.name)) || "";
+  }
+  function sendAsk() {
+    var mine = myAsk();
+    // Prejšnje vprašanje zamenja novo (ostali vidijo le zadnje).
+    if (mine) fetch(askUrl(mine.id), { method: "DELETE" }).catch(function () {});
+    var a = { from: member(), name: myName() || "Član", store: storeName().slice(0, 40), lang: window.NK_LANG || "sl", at: { ".sv": "timestamp" } };
+    fetch(askUrl(), { method: "POST", body: JSON.stringify(a) }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      return r.json();
+    }).then(function (j) {
+      a.at = Date.now();
+      if (j && j.name) asks[j.name] = a;
+      api.toast("Vprašanje poslano.");
+      renderAsk();
+    }).catch(function () { api.toast("Ni povezave. Poskusi znova."); });
+  }
+  // Vrstica v načinu »V trgovini«: gumb ali odgovori ostalih.
+  function renderAsk() {
+    var box = $("smAsk");
+    if (!box) return;
+    var show = code && !pending() && inStore() && othersOk().length;
+    var mine = show ? myAsk() : null;
+    var lines = [];
+    if (mine) {
+      var ans = mine.a.answers || {};
+      othersOk().forEach(function (id) {
+        var r = ans[id], who = (r && r.name) || (members[id] && members[id].name) || "Član";
+        if (r && r.ans === "added") lines.push(["ok", "✓ " + who + ": dodano " + (r.items || []).join(", ")]);
+        else if (r && r.ans === "none") lines.push(["no", "✗ " + who + ": ne rabi nič"]);
+        else if (r && r.seen) lines.push(["seen", "👀 " + who + ": videno, izbira …"]);
+        else lines.push(["wait", "⏳ " + who + ": še ni videno"]);
+      });
+    }
+    var key = JSON.stringify([!!show, lines]);
+    if (key === askKey) return;
+    askKey = key;
+    box.innerHTML = "";
+    box.classList.toggle("hidden", !show);
+    if (!show) return;
+    lines.forEach(function (l) { var p = document.createElement("div"); p.className = "sm-ask-line " + l[0]; p.textContent = l[1]; box.appendChild(p); });
+    var b = document.createElement("button");
+    b.type = "button"; b.className = mine ? "link sm-ask-btn" : "ghost sm-ask-btn";
+    b.textContent = mine ? "Vprašaj znova" : "🙋 Rabiš kaj? Vprašaj ostale";
+    b.onclick = sendAsk;
+    box.appendChild(b);
+  }
+  // Prejemnik: vprašanje se odpre samo; odgovor je »Dodaj na seznam« ali »Ne rabim nič«.
+  function answer(id, data) {
+    data.name = myName() || "Član";
+    data.at = { ".sv": "timestamp" };
+    if (asks[id]) { asks[id].answers = asks[id].answers || {}; asks[id].answers[member()] = Object.assign(asks[id].answers[member()] || {}, data); }
+    return fetch(askUrl(id, "/answers/" + member()), { method: "PATCH", body: JSON.stringify(data) }).catch(function () {});
+  }
+  function showAsk(id) {
+    var a = asks[id];
+    if (!a || $("askSheet")) return;
+    askShown[id] = 1;
+    answer(id, { seen: { ".sv": "timestamp" } });
+    var wrap = document.createElement("div");
+    wrap.id = "askSheet"; wrap.className = "sheet-wrap"; wrap.setAttribute("role", "dialog"); wrap.setAttribute("aria-modal", "true");
+    var sh = document.createElement("div"); sh.className = "sheet ask-sheet"; wrap.appendChild(sh);
+    function el(tag, cls, text, parent) { var e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; (parent || sh).appendChild(e); return e; }
+    el("div", "sheet-grip");
+    el("h1", "", "🙋 " + (a.name || "Član") + " je v trgovini" + (a.store ? " " + a.store : ""));
+    el("p", "muted", "Rabiš kaj? Dodaj izdelke ali odgovori, da ne rabiš nič.");
+    var picked = [];
+    var chips = el("div", "ask-chips");
+    var form = el("form", "add-row");
+    form.setAttribute("autocomplete", "off");
+    var inp = document.createElement("input"); inp.type = "text"; inp.placeholder = "Kaj rabiš? npr. mleko"; form.appendChild(inp);
+    var addB = document.createElement("button"); addB.type = "submit"; addB.className = "ghost"; addB.textContent = "+"; form.appendChild(addB);
+    var ok = el("button", "primary full", "✓ Dodaj na seznam");
+    ok.type = "button";
+    var no = el("button", "ghost full", "Ne rabim nič");
+    no.type = "button";
+    function draw() {
+      chips.innerHTML = "";
+      picked.forEach(function (n, k) {
+        var c = document.createElement("button"); c.type = "button"; c.className = "chip on"; c.textContent = n;
+        c.onclick = function () { picked.splice(k, 1); draw(); };
+        chips.appendChild(c);
+      });
+      ok.disabled = !picked.length && !inp.value.trim();
+    }
+    inp.oninput = draw;
+    form.onsubmit = function (e) {
+      e.preventDefault();
+      inp.value.split(/[,;\n]/).map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (s) { s = s.charAt(0).toUpperCase() + s.slice(1); if (picked.indexOf(s) < 0) picked.push(s); });
+      inp.value = ""; draw(); inp.focus();
+    };
+    function close() { wrap.remove(); }
+    ok.onclick = function () {
+      form.onsubmit({ preventDefault: function () {} });
+      if (!picked.length) return;
+      picked.forEach(function (n) { api.add(n); });
+      answer(id, { ans: "added", items: picked.slice(0, 20) });
+      api.toast((a.name || "Član") + " vidi, kaj si dodal.");
+      close();
+    };
+    no.onclick = function () { answer(id, { ans: "none" }); close(); };
+    wrap.addEventListener("click", function (e) { if (e.target === wrap) close(); });
+    draw();
+    document.body.appendChild(wrap);
+  }
+  function onAsks() {
+    renderAsk();
+    if (document.hidden) return;
+    Object.keys(asks).forEach(function (id) {
+      var a = asks[id];
+      if (!fresh(a) || a.from === member() || askShown[id]) return;
+      var r = (a.answers || {})[member()];
+      if (r && r.ans) return;
+      showAsk(id);
+    });
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) onAsks(); });
+  setInterval(renderAsk, 1000);
 
   // ---------- Nastavitve ----------
   function renderCard() {
@@ -319,7 +482,7 @@
   // Telefon (native.js): dokler prošnja ni sprejeta, seznama ni; obisk trgovine pošlje le, če je član to dovolil.
   window.__nakupkoHousehold = function () { return code && DB && !pending() ? { url: DB, code: code, member: member(), name: myName() || "Član", share: locOn() } : null; };
   renderCard();
-  if (!pending()) { connect(); announce(); }
+  if (!pending()) { connect(); announce(); watchAsks(); }
   watchMembers();
   window.addEventListener("online", flush);
 
