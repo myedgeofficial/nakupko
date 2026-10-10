@@ -49,6 +49,9 @@ public class NakupkoGeoPlugin extends Plugin {
                 d.put("message", message);
                 notifyListeners("locationError", d);
             }
+            @Override public void onLiveDone() {
+                notifyListeners("liveDone", new JSObject());
+            }
         });
         geo.refresh();
     }
@@ -161,11 +164,18 @@ public class NakupkoGeoPlugin extends Plugin {
 
     @PluginMethod
     public void shopping(PluginCall call) {
-        JSONArray groups = call.getArray("groups", new JSArray());
         geo.shopping(Boolean.TRUE.equals(call.getBoolean("active", false)), call.getString("store", "Nakupovanje"),
-            groups, call.getInt("done", 0), call.getInt("total", 0), Boolean.TRUE.equals(call.getBoolean("updateOnly", false)));
+            call.getArray("items", new JSArray()), call.getInt("done", 0), call.getInt("total", 0), Boolean.TRUE.equals(call.getBoolean("updateOnly", false)));
         if (geo.shopShowing() && getActivity() != null) getActivity().runOnUiThread(this::askNotifications);
         call.resolve();
+    }
+
+    // Izdelki, odkljukani na zaklenjenem zaslonu: {ids: {id: true}}.
+    @PluginMethod
+    public void takeDone(PluginCall call) {
+        JSObject r = new JSObject();
+        try { r.put("ids", JSObject.fromJSONObject(geo.takeDone())); } catch (Exception e) { r.put("ids", new JSObject()); }
+        call.resolve(r);
     }
 
     @PluginMethod

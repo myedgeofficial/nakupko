@@ -13,6 +13,10 @@ import android.location.Location;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StrikethroughSpan;
+import android.widget.RemoteViews;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
@@ -48,6 +52,7 @@ final class GeoManager {
     interface Listener {
         void onPosition(Location loc);
         void onError(int code, String message);
+        default void onLiveDone() {}
     }
 
     static final String ACTION_GEOFENCE = "si.nakupko.app.GEOFENCE";
@@ -99,6 +104,7 @@ final class GeoManager {
         fused = LocationServices.getFusedLocationProviderClient(ctx);
         geofencing = LocationServices.getGeofencingClient(ctx);
         createChannels();
+        loadShop();
     }
 
     void setListener(Listener l) { listener = l; }
@@ -493,66 +499,203 @@ final class GeoManager {
     }
 
     // ---------- Seznam med nakupovanjem (stalno obvestilo, kot Live Activity na iPhonu) ----------
+    // Temna kartica z dvema stolpcema; tap na izdelek ga odkljuka kar na zaklenjenem zaslonu.
     // updateOnly: aplikacija ni v načinu »V trgovini« – obstoječi seznam samo osvežimo, nikoli ga ne odpremo ali zapremo.
+    static final String ACTION_ITEM_DONE = "si.nakupko.app.ITEM_DONE";
+    static final String EXTRA_ITEM = "item";
+    private static final int ROWS = 7;
     private boolean shopShowing = false;
     private String shopStore = "Nakupovanje";
-    private int shopDone = 0, shopTotal = 0;
-    private JSONArray shopGroups = new JSONArray();
+    private int shopOffset = 0; // kupljeno, preden je seznam prišel na telefon (npr. po ponovnem zagonu)
+    private JSONArray shopItems = new JSONArray(); // [{id,label,icon,done}]
+
+    private void loadShop() {
+        shopShowing = prefs.getBoolean("shopShowing", false);
+        shopStore = prefs.getString("shopStore", "Nakupovanje");
+        shopOffset = prefs.getInt("shopOffset", 0);
+        try { shopItems = new JSONArray(prefs.getString("shopItems", "[]")); } catch (Exception e) { shopItems = new JSONArray(); }
+    }
+
+    private void saveShop() {
+        prefs.edit().putBoolean("shopShowing", shopShowing).putString("shopStore", shopStore)
+            .putInt("shopOffset", shopOffset).putString("shopItems", shopItems.toString()).apply();
+    }
 
     boolean shopShowing() { return shopShowing; }
 
     // Ko uporabnik šele zdaj dovoli obvestila, seznam pokažemo takoj.
     void repostShopping() {
-        if (shopShowing && hasNotifications()) shopping(true, shopStore, shopGroups, shopDone, shopTotal, false);
+        if (shopShowing && hasNotifications()) renderShopping();
     }
-    void shopping(boolean active, String store, JSONArray groups, int done, int total, boolean updateOnly) {
+
+    synchronized void shopping(boolean active, String store, JSONArray items, int done, int total, boolean updateOnly) {
         if (!active) {
             shoppingFrom = null;
             shopShowing = false;
+            shopItems = new JSONArray();
+            shopOffset = 0;
+            saveShop();
             NotificationManagerCompat.from(ctx).cancel(SHOP_NOTIFICATION);
             return;
         }
-        if (updateOnly) {
-            if (!shopShowing) return;
-            int open = total;
-            // Kar je izginilo s seznama, je kupljeno; novi izdelki povečajo skupno število.
-            done = shopDone + Math.max(0, (shopTotal - shopDone) - open);
-            total = done + open;
-            store = shopStore;
+        if (updateOnly && !shopShowing) return;
+        if (!shopShowing) { shopItems = new JSONArray(); shopOffset = 0; }
+        JSONObject pending = pendingDone();
+        JSONObject old = new JSONObject();
+        for (int i = 0; i < shopItems.length(); i++) {
+            JSONObject o = shopItems.optJSONObject(i);
+            if (o != null) try { old.put(o.optString("id"), o); } catch (Exception ignored) {}
+        }
+        JSONArray next = new JSONArray();
+        JSONObject seen = new JSONObject();
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject in = items.optJSONObject(i);
+            if (in == null) continue;
+            String id = in.optString("id");
+            try {
+                JSONObject o = new JSONObject();
+                o.put("id", id);
+                o.put("label", in.optString("label", in.optString("name", "")));
+                o.put("icon", in.optString("icon", ""));
+                o.put("done", pending.has(id));
+                next.put(o);
+                seen.put(id, true);
+            } catch (Exception ignored) {}
+        }
+        // Kar je izginilo s seznama, je kupljeno: ostane prečrtano na koncu.
+        for (Iterator<String> it = old.keys(); it.hasNext(); ) {
+            String id = it.next();
+            if (seen.has(id)) continue;
+            JSONObject o = old.optJSONObject(id);
+            try { o.put("done", true); } catch (Exception ignored) {}
+            next.put(o);
+        }
+        shopItems = next;
+        if (!updateOnly) {
+            shopStore = store;
+            shopOffset = Math.max(0, done - doneCount());
         }
         shopShowing = true;
-        shopGroups = groups;
-        shopStore = store;
-        shopDone = done;
-        shopTotal = total;
+        saveShop();
         if (shoppingFrom == null) withLastLocation(loc -> { if (loc != null) shoppingFrom = loc; });
-        StringBuilder body = new StringBuilder();
-        for (int i = 0; i < groups.length(); i++) {
-            JSONObject g = groups.optJSONObject(i);
-            JSONArray items = g == null ? null : g.optJSONArray("items");
-            if (items == null || items.length() == 0) continue;
-            if (body.length() > 0) body.append('\n');
-            body.append(g.optString("icon", "🛒")).append(' ');
-            for (int k = 0; k < items.length(); k++) body.append(k > 0 ? ", " : "").append(items.optString(k));
+        renderShopping();
+    }
+
+    // Tap na izdelek na zaklenjenem zaslonu.
+    synchronized void markDone(String id) {
+        if (!shopShowing) loadShop();
+        for (int i = 0; i < shopItems.length(); i++) {
+            JSONObject o = shopItems.optJSONObject(i);
+            if (o != null && id.equals(o.optString("id"))) try { o.put("done", true); } catch (Exception ignored) {}
         }
-        String left = body.length() == 0 ? "Vse je v košarici ✓" : body.toString();
-        NotificationCompat.Builder n = new NotificationCompat.Builder(ctx, CH_SHOP)
+        JSONObject p = pendingDone();
+        try { p.put(id, true); } catch (Exception ignored) {}
+        prefs.edit().putString("liveDone", p.toString()).apply();
+        saveShop();
+        renderShopping();
+        Listener l = listener;
+        if (l != null) main.post(l::onLiveDone);
+    }
+
+    private JSONObject pendingDone() {
+        try { return new JSONObject(prefs.getString("liveDone", "{}")); } catch (Exception e) { return new JSONObject(); }
+    }
+
+    // Aplikacija prevzame izdelke, odkljukane na zaklenjenem zaslonu.
+    synchronized JSONObject takeDone() {
+        JSONObject p = pendingDone();
+        prefs.edit().remove("liveDone").apply();
+        return p;
+    }
+
+    private int doneCount() {
+        int n = 0;
+        for (int i = 0; i < shopItems.length(); i++) {
+            JSONObject o = shopItems.optJSONObject(i);
+            if (o != null && o.optBoolean("done")) n++;
+        }
+        return n;
+    }
+
+    private void renderShopping() {
+        List<JSONObject> open = new ArrayList<>(), bought = new ArrayList<>();
+        for (int i = 0; i < shopItems.length(); i++) {
+            JSONObject o = shopItems.optJSONObject(i);
+            if (o == null) continue;
+            (o.optBoolean("done") ? bought : open).add(o);
+        }
+        int done = bought.size() + shopOffset, total = shopItems.length() + shopOffset;
+        String count = done + "/" + total;
+        StringBuilder nextUp = new StringBuilder();
+        for (JSONObject o : open) {
+            if (nextUp.length() > 0) nextUp.append(", ");
+            nextUp.append(o.optString("label"));
+        }
+        String left = open.isEmpty() ? "Vse je v košarici ✓" : nextUp.toString();
+
+        RemoteViews small = new RemoteViews(ctx.getPackageName(), R.layout.shop_small);
+        small.setTextViewText(R.id.shop_title, "🛒 " + shopStore);
+        small.setTextViewText(R.id.shop_count, count);
+        small.setTextViewText(R.id.shop_next, left);
+
+        RemoteViews big = new RemoteViews(ctx.getPackageName(), R.layout.shop_big);
+        big.setTextViewText(R.id.shop_title, "🛒 " + shopStore);
+        big.setTextViewText(R.id.shop_count, count);
+        big.setProgressBar(R.id.shop_progress, Math.max(total, 1), done, false);
+        big.removeAllViews(R.id.shop_col1);
+        big.removeAllViews(R.id.shop_col2);
+        List<JSONObject> shown = new ArrayList<>(open);
+        shown.addAll(bought);
+        int max = ROWS * 2, n = Math.min(shown.size(), max);
+        int more = shown.size() - n;
+        if (more > 0) n = max - 1; // zadnje mesto: »+N«
+        more = shown.size() - n;
+        int perCol = Math.max(1, (n + (more > 0 ? 1 : 0) + 1) / 2);
+        for (int i = 0; i < n; i++) {
+            JSONObject o = shown.get(i);
+            RemoteViews row = new RemoteViews(ctx.getPackageName(), R.layout.shop_item);
+            boolean isDone = o.optBoolean("done");
+            String label = o.optString("label");
+            SpannableString s = new SpannableString((isDone ? "✓  " : "○  ") + label);
+            if (isDone) {
+                s.setSpan(new StrikethroughSpan(), 3, s.length(), 0);
+                s.setSpan(new ForegroundColorSpan(0xFF8E8A99), 0, s.length(), 0);
+            } else {
+                s.setSpan(new ForegroundColorSpan(0xFFB48CFF), 0, 1, 0);
+                row.setOnClickPendingIntent(R.id.shop_item, itemDone(o.optString("id")));
+            }
+            row.setTextViewText(R.id.shop_item, s);
+            big.addView(i < perCol ? R.id.shop_col1 : R.id.shop_col2, row);
+        }
+        if (more > 0) {
+            RemoteViews row = new RemoteViews(ctx.getPackageName(), R.layout.shop_item);
+            row.setTextViewText(R.id.shop_item, "+ še " + more);
+            big.addView(n < perCol ? R.id.shop_col1 : R.id.shop_col2, row);
+        }
+        big.setViewVisibility(R.id.shop_empty, shown.isEmpty() || open.isEmpty() ? android.view.View.VISIBLE : android.view.View.GONE);
+
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CH_SHOP)
             .setSmallIcon(R.drawable.ic_stat_nakupko)
             .setColor(0xFF8A3FFC)
-            .setContentTitle("🛒 " + store + " · " + done + "/" + total)
-            .setContentText(left.replace('\n', ' '))
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(left))
+            .setContentTitle("🛒 " + shopStore + " · " + count)
+            .setContentText(left)
+            .setStyle(new NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(small)
+            .setCustomBigContentView(big)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
-            .setProgress(Math.max(total, 1), done, false)
+            .setShowWhen(false)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openApp(null));
-        // Android 16: »Live Update« – seznam stalno na vrhu zaklenjenega zaslona in v vrstici stanja (kot Live Activity).
-        n.getExtras().putBoolean("android.requestPromotedOngoing", true);
-        post(SHOP_NOTIFICATION, n);
+        post(SHOP_NOTIFICATION, b);
+    }
+
+    private PendingIntent itemDone(String id) {
+        Intent i = new Intent(ctx, ShopItemReceiver.class).setAction(ACTION_ITEM_DONE).putExtra(EXTRA_ITEM, id);
+        return PendingIntent.getBroadcast(ctx, ("done:" + id).hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private void createChannels() {

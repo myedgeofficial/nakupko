@@ -319,6 +319,9 @@
     }).catch(function () {});
   }
 
+  // Android: izdelek odkljukan na zaklenjenem zaslonu, medtem ko je aplikacija odprta.
+  Geo.addListener("liveDone", function () { applyLiveDone(); });
+
   // Ena velikost za vse (tudi za starejše): stran je 12 % večja prek viewporta – postavitev se
   // prilagodi ožjemu zaslonu, zato se ne da premikati levo-desno. Izbire velikosti v aplikaciji ni.
   var VIEW_ZOOM = 1.12;
