@@ -1034,6 +1034,7 @@
     pendingBrand = null;
     pendingProduct = null;
     $("addInput").value = "";
+    $("paneList").classList.remove("typing");
     $("addQty").value = "1";
     $("brandPick").classList.add("hidden");
     $("suggest").classList.add("hidden");
@@ -2033,7 +2034,10 @@
   $("ftStores").addEventListener("click", function () { setPane("stores"); });
   $("storeSort").addEventListener("change", function (e) { storeSort = e.target.value; renderStoresPane(); });
 
+  // Predlogi in pogosti izdelki se pokažejo šele, ko začneš pisati (čistejši seznam).
+  function syncTyping() { $("paneList").classList.toggle("typing", !!$("addInput").value.trim()); }
   $("addInput").addEventListener("input", function () {
+    syncTyping();
     pendingProduct = null; pendingBrand = null; $("brandPick").classList.add("hidden"); selIdx = -1; renderSuggest();
   });
   $("addInput").addEventListener("keydown", function (e) {

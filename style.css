@@ -550,3 +550,6 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .ask-sheet .full + .full { margin-top: 8px; }
 .ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .ask-chips:empty { display: none; }
+
+/* Predlogi in pogosti izdelki šele med pisanjem */
+.pane-list:not(.typing) #recoBox, .pane-list:not(.typing) #quickBox { display: none; }
