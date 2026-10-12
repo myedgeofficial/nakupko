@@ -1091,21 +1091,22 @@
       // Druga raven: okus / vrsta znotraj znamke.
       box.appendChild(el("span", { class: "muted small", text: g.name + " – katera?" }));
       if (groups.length > 1) box.appendChild(el("button", { class: "chip ghosty", type: "button", onclick: function () { pendingGroup = null; pendingBrand = ""; pickMore = false; renderBrandPick(); } }, ["‹ Znamke"]));
-      var vs = g.variants.slice(), lastV = lastBrand.indexOf(g.name + " ") === 0 ? lastBrand.slice(g.name.length + 1) : "";
-      if (lastV && vs.indexOf(lastV) > 0) { vs.splice(vs.indexOf(lastV), 1); vs.unshift(lastV); }
+      var lastV = lastBrand.indexOf(g.name + " ") === 0 ? lastBrand.slice(g.name.length + 1) : "";
+      var vs = byPopularity(g.variants, function (v) { return v === lastV ? 1e6 : brandCount(p.name, g.name + " " + v, true); });
       if (pendingBrand === null || (pendingBrand !== g.name && pendingBrand.indexOf(g.name + " ") !== 0)) pendingBrand = lastV ? g.name + " " + lastV : g.name;
-      var vShown = !pickMore && vs.length > 9 ? vs.slice(0, 8) : vs;
+      var vShown = !pickMore && vs.length > 6 ? vs.slice(0, 5) : vs;
       vShown.forEach(function (v) { box.appendChild(chip(v, g.name + " " + v)); });
       if (vShown.length < vs.length) box.appendChild(moreChip());
       box.appendChild(chip("Katerakoli " + g.name, g.name));
     } else {
       box.appendChild(el("span", { class: "muted small", text: "Znamka za " + p.name + ":" }));
       var lastG = groups.filter(function (x) { return lastBrand === x.name || lastBrand.indexOf(x.name + " ") === 0; })[0];
-      if (lastG && groups.indexOf(lastG) > 0) { groups.splice(groups.indexOf(lastG), 1); groups.unshift(lastG); }
+      // Najprej najbolj priljubljene: zadnja izbrana, nato tiste, ki jih največ kupuješ, nato katalog (najbolj znane prve).
+      groups = byPopularity(groups, function (x) { return x === lastG ? 1e6 : brandCount(p.name, x.name, false); });
       if (pendingBrand === null) pendingBrand = lastG && !lastG.variants.length ? lastG.name : "";
       box.appendChild(chip("Katerakoli", ""));
       // Veliko znamk: najprej le najpogostejše (zadnja izbrana je prva), ostale pod »Več …«.
-      var gShown = !pickMore && groups.length > 7 ? groups.slice(0, 6) : groups;
+      var gShown = !pickMore && groups.length > 5 ? groups.slice(0, 4) : groups;
       gShown.forEach(function (x) {
         box.appendChild(chip(x.name + (x.variants.length ? " ›" : ""), x.name, x.variants.length ? function () { pendingGroup = x.name; pendingBrand = null; pickMore = false; renderBrandPick(); } : null));
       });
@@ -1129,6 +1130,21 @@
     $("addQty").value = "1";
     $("brandPick").classList.add("hidden");
     $("suggest").classList.add("hidden");
+  }
+  // Kolikokrat si kupil ta izdelek te znamke (exact: točno ta različica).
+  function brandCount(name, brand, exact) {
+    var key = norm(name), b = norm(brand), n = 0;
+    state.history.forEach(function (h) {
+      if (!h.brand || norm(h.name) !== key) return;
+      var hb = norm(h.brand);
+      if (hb === b || (!exact && hb.indexOf(b + " ") === 0)) n++;
+    });
+    return n;
+  }
+  // Stabilno razvrščanje: višja ocena naprej, sicer ostane vrstni red kataloga.
+  function byPopularity(list, score) {
+    return list.map(function (x, i) { return { x: x, s: score(x), i: i }; })
+      .sort(function (a, b) { return b.s - a.s || a.i - b.i; }).map(function (o) { return o.x; });
   }
   function lastBrandFor(name) {
     var key = norm(name);
