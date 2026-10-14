@@ -228,10 +228,20 @@ for (const p of catalog) {
 }
 
 // --- zagon (3 hkrati, vljudno do strežnika) ---
+// Časovna omejitev: če je vir počasen, po 100 min neha spraševati; manjkajoči izdelki obdržijo včerajšnje cene.
+const START = Date.now(), BUDGET = 100 * 60e3;
+const late = () => Date.now() - START > BUDGET;
+let lastLog = 0;
+function progress(what, i, n) {
+  if (Date.now() - lastLog < 5 * 60e3) return;
+  lastLog = Date.now();
+  console.log(`${what}: ${i}/${n}, ${Math.round((Date.now() - START) / 60e3)} min, uspešne ${stat.ok}, neuspešne ${stat.fail}`);
+}
 const results = [];
 let idx = 0;
 async function worker() {
-  while (idx < catalog.length) {
+  while (idx < catalog.length && !late()) {
+    progress("Izdelki", idx, catalog.length);
     const p = catalog[idx++];
     const r = await pricesFor(p);
     if (r) results.push(r);
@@ -242,7 +252,8 @@ await Promise.all([worker(), worker(), worker()]);
 const brandResults = [];
 let bidx = 0;
 async function brandWorker() {
-  while (bidx < brandJobs.length) {
+  while (bidx < brandJobs.length && !late()) {
+    progress("Znamke", bidx, brandJobs.length);
     const [p, g] = brandJobs[bidx++];
     const r = await brandPrices(p, g).catch(() => null);
     if (r) brandResults.push(r);
@@ -250,6 +261,7 @@ async function brandWorker() {
   }
 }
 await Promise.all([brandWorker(), brandWorker(), brandWorker()]);
+if (late()) console.log(`::warning::Vir je počasen: po ${BUDGET / 60e3} min ustavljeno (izdelki ${idx}/${catalog.length}, znamke ${bidx}/${brandJobs.length}); ostali obdržijo prejšnje cene.`);
 console.log(`Znamke: ${brandJobs.length} poizvedb, s cenami: ${brandResults.length}`);
 // povzetek na strani workflowa (preverjanje cen po znamkah)
 const brandShow = brandResults.filter((r) => /^(Red Bull|Monster|Coca-Cola|Milka|Barcaffe|Pepsi|Jana|Radenska)$/.test(r.znamka) || (r.znamka === "Ljubljanske mlekarne" && /Gauda|Mleko$|Jogurt/.test(r.ime))).slice(0, 15);

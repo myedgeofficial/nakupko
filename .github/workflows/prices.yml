@@ -31,7 +31,7 @@ concurrency:
 jobs:
   prices:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - name: Samo enkrat na dan, od 3h dalje (GitHub urnik zamuja)
@@ -53,6 +53,7 @@ jobs:
         if: steps.when.outputs.run == 'yes'
         env:
           PRICES_API: ${{ inputs.preizkus_alarma && 'https://www.polnakosarica.si/api/ni-tega' || '' }}
+        timeout-minutes: 120
         run: node scripts/update-prices.mjs
       - name: Cene v Avstriji, na Hrvaškem in Madžarskem
         if: steps.when.outputs.run == 'yes'
