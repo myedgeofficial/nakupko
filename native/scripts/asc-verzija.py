@@ -8,6 +8,7 @@ src = open(os.path.join(os.path.dirname(__file__), "testflight-external.py"), en
 exec(src.split("app = call(")[0])
 
 VERSION = os.environ.get("VERSION", "1.2")
+MIN_BUILD = os.environ.get("MIN_BUILD", "0")  # samo App Store gradnja (z oglasi), ne starejše TestFlight
 NEW = json.load(open(os.path.join(os.path.dirname(__file__), "..", "asc-slike", "novo-1.2.json"), encoding="utf-8"))
 
 app = call("GET", f"/apps?filter[bundleId]={BUNDLE_ID}")["data"][0]["id"]
@@ -44,7 +45,7 @@ for _ in range(140):
     pre = call("GET", f"/preReleaseVersions?filter[app]={app}&filter[version]={VERSION}&filter[platform]=IOS")["data"]
     if pre:
         bs = call("GET", f"/builds?filter[preReleaseVersion]={pre[0]['id']}&sort=-uploadedDate&limit=1")["data"]
-        if bs and bs[0]["attributes"]["processingState"] == "VALID":
+        if bs and bs[0]["attributes"]["version"] >= MIN_BUILD and bs[0]["attributes"]["processingState"] == "VALID":
             build = bs[0]
             break
         print("gradnja", bs[0]["attributes"]["version"] if bs else "-", bs[0]["attributes"]["processingState"] if bs else "")

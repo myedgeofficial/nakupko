@@ -20,4 +20,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           python3 -m pip install --quiet pyjwt cryptography
-          python3 scripts/asc-verzija.py
+          MIN_BUILD=202610141602 python3 scripts/asc-verzija.py
