@@ -2154,6 +2154,12 @@
     else if (e.key === "Escape") { $("suggest").classList.add("hidden"); }
   });
   $("addInput").addEventListener("blur", function () { setTimeout(function () { $("suggest").classList.add("hidden"); }, 150); });
+  // Prazno polje + tap na »+« → kurzor v polje (tipkovnica se odpre), ne nič.
+  document.querySelector("#addForm .addbtn").addEventListener("click", function (e) {
+    if (pendingProduct || $("addInput").value.trim()) return;
+    e.preventDefault();
+    $("addInput").focus();
+  });
   $("addForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var v = $("addInput").value.trim();
