@@ -1,5 +1,5 @@
-// Nakupko Plus: naročnina 0,99 €/mesec prek App Store (samo v iOS aplikaciji).
-// Samo v gradnji za App Store (window.NAKUPKO_RELEASE); testne gradnje na TestFlightu nimajo reklam ne naročnine.
+// Nakupko Plus: naročnina 0,99 €/mesec prek App Store (iPhone) oz. Google Play (Android).
+// Samo v gradnji za trgovino (window.NAKUPKO_RELEASE); testne gradnje (TestFlight, APK za prijatelje) nimajo reklam ne naročnine.
 // Način (NAKUPKO_PLUS_MODE):
 //   "ads"        – aplikacija je zastonj z reklamo spodaj, naročnina odstrani reklame (privzeto),
 //   "full"       – brez naročnine se pokaže le okno za naročnino (prvi teden je brezplačen, nastavi se v App Store Connect),
@@ -10,11 +10,12 @@
   "use strict";
   var Cap = window.Capacitor;
   if (!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) return;
-  if (Cap.getPlatform && Cap.getPlatform() !== "ios") return; // Android: ko bo aplikacija na Google Play
+  var ANDROID = !!(Cap.getPlatform && Cap.getPlatform() === "android");
   if (window.NAKUPKO_RELEASE !== true) return;
   var MODE = window.NAKUPKO_PLUS_MODE || "ads";
   // AdMob: ID oglasne enote za banner.
-  var AD_UNIT = window.NAKUPKO_AD_UNIT || "ca-app-pub-2170388618811750/6712528752";
+  // Android: Googlove preizkusne enote, dokler v AdMob (REMAKO) ni Android aplikacije.
+  var AD_UNIT = window.NAKUPKO_AD_UNIT || (ANDROID ? "ca-app-pub-3940256099942544/9214589741" : "ca-app-pub-2170388618811750/6712528752");
   var GRACE = 3 * 24 * 3600 * 1000; // brez povezave velja zadnja znana naročnina še 3 dni po izteku
 
   var Pay = {
@@ -85,7 +86,7 @@
     busy = true; render();
     Pay.restore().then(function (s) {
       busy = false; save(s);
-      if (!s.active) alert("Na tem Apple ID-ju ni aktivne naročnine.");
+      if (!s.active) alert(ANDROID ? "Na tem Google računu ni aktivne naročnine." : "Na tem Apple ID-ju ni aktivne naročnine.");
     }).catch(function () { busy = false; render(); });
   }
   function manage() { Pay.manage().then(save).catch(function () {}); }
@@ -121,8 +122,8 @@
       btn("plusRestore", "Obnovi nakup") +
       (MODE === "background" ? btn("plusLater", "Ne zdaj") : "") +
       '<p style="margin:14px auto 0;max-width:340px;font-size:12px;color:#8a8a96">' +
-      (trial ? "Po brezplačnem obdobju se naročnina" : "Naročnina se") + " vsak mesec samodejno podaljša, dokler je ne prekličeš najmanj 24 ur pred koncem obdobja v Nastavitvah → Apple ID → Naročnine. " +
-      '<a href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/" style="color:#8a8a96">Pogoji uporabe</a> · ' +
+      (trial ? "Po brezplačnem obdobju se naročnina" : "Naročnina se") + " vsak mesec samodejno podaljša, dokler je ne prekličeš " + (ANDROID ? "v Google Play → Plačila in naročnine → Naročnine. " : "najmanj 24 ur pred koncem obdobja v Nastavitvah → Apple ID → Naročnine. ") +
+      '<a href="' + (ANDROID ? "https://play.google.com/about/play-terms/" : "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") + '" style="color:#8a8a96">Pogoji uporabe</a> · ' +
       '<a href="zasebnost.html" style="color:#8a8a96">Zasebnost</a></p>';
     document.getElementById("plusBuy").onclick = buy;
     document.getElementById("plusRestore").onclick = restore;
@@ -201,7 +202,7 @@
 
   // ---------- Reklama čez cel zaslon: največ 2× na teden, ob 3. in 6. odprtju v tednu ----------
   // Ne ob samem odprtju: pokaže se ob naslednjem premoru (konec nakupa ali menjava zavihka).
-  var AD_INTER = window.NAKUPKO_AD_INTER || "ca-app-pub-2170388618811750/1341702444";
+  var AD_INTER = window.NAKUPKO_AD_INTER || (ANDROID ? "ca-app-pub-3940256099942544/1033173712" : "ca-app-pub-2170388618811750/1341702444");
   var OPEN_KEY = "nakupko-odprtja", AWAY = 10 * 60 * 1000;
   var inter = { ready: false, loading: false, listening: false }, openedAt = 0, hiddenAt = 0;
   function weekKey() {

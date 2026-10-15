@@ -8,6 +8,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(NakupkoGeoPlugin.class);
+        registerPlugin(NakupkoPayPlugin.class);
         super.onCreate(savedInstanceState);
         takeStore(getIntent());
     }

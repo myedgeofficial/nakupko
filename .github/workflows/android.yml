@@ -1,7 +1,8 @@
 name: Android aplikacija
 
 # PR: preveri, da se Android aplikacija zgradi.
-# main, veja android ali ročni zagon: zgradi APK (za prijatelje) in AAB (za Google Play)
+# main, veja android ali ročni zagon: zgradi APK (za prijatelje, brez reklam in naročnine)
+# in AAB (za Google Play, z reklamami AdMob in naročnino Nakupko Plus)
 # ter ju objavi na https://github.com/myedgeofficial/nakupko/releases/tag/android
 on:
   pull_request:
@@ -58,11 +59,15 @@ jobs:
         working-directory: native/android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ADMOB_APP_ID: ${{ vars.ANDROID_ADMOB_APP_ID || 'ca-app-pub-3940256099942544~3347511713' }}
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon testDebugUnitTest assembleRelease bundleRelease -PversionCode=${{ github.run_number }}
+          ./gradlew --no-daemon testDebugUnitTest assembleRelease -PversionCode=${{ github.run_number }} -PadmobAppId="$ADMOB_APP_ID"
           mkdir -p "$RUNNER_TEMP/out"
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/Nakupko.apk"
+          # Google Play: ista koda, a z reklamami in naročnino (window.NAKUPKO_RELEASE).
+          (cd .. && NAKUPKO_RELEASE=1 npm run sync:android)
+          ./gradlew --no-daemon bundleRelease -PversionCode=${{ github.run_number }} -PadmobAppId="$ADMOB_APP_ID"
           cp app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/out/Nakupko.aab"
           if [ "$HAS_KEY" != "true" ]; then
             echo "::warning::Ni podpisnega ključa (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD). APK je podpisan začasno: posodobitev ne bo šla čez staro različico, Google Play pa ga ne sprejme."
