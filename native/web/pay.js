@@ -14,7 +14,7 @@
   if (window.NAKUPKO_RELEASE !== true) return;
   var MODE = window.NAKUPKO_PLUS_MODE || "ads";
   // AdMob: ID oglasne enote za banner.
-  var AD_UNIT = window.NAKUPKO_AD_UNIT || "ca-app-pub-1387718701947622/2328125258";
+  var AD_UNIT = window.NAKUPKO_AD_UNIT || "ca-app-pub-2170388618811750/6712528752";
   var GRACE = 3 * 24 * 3600 * 1000; // brez povezave velja zadnja znana naročnina še 3 dni po izteku
 
   var Pay = {
@@ -201,7 +201,7 @@
 
   // ---------- Reklama čez cel zaslon: največ 2× na teden, ob 3. in 6. odprtju v tednu ----------
   // Ne ob samem odprtju: pokaže se ob naslednjem premoru (konec nakupa ali menjava zavihka).
-  var AD_INTER = window.NAKUPKO_AD_INTER || "ca-app-pub-1387718701947622/3310034439";
+  var AD_INTER = window.NAKUPKO_AD_INTER || "ca-app-pub-2170388618811750/1341702444";
   var OPEN_KEY = "nakupko-odprtja", AWAY = 10 * 60 * 1000;
   var inter = { ready: false, loading: false, listening: false }, openedAt = 0, hiddenAt = 0;
   function weekKey() {
