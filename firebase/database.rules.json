@@ -16,6 +16,11 @@
             "loc": { ".validate": "newData.isBoolean()" }
           }
         },
+        "asks": {
+          "$ask": {
+            ".validate": "newData.hasChildren(['from', 'at'])"
+          }
+        },
         "visits": {
           "$visit": {
             ".validate": "newData.hasChildren(['member', 'store'])"

@@ -97,7 +97,8 @@
       <label class="row">Apple Vendor number <input id="sVendor" inputmode="numeric" placeholder="npr. 93012345"></label>
       <p class="mute">App Store Connect → Payments and Financial Reports → številka levo zgoraj.</p>
       <label class="row">Način obdavčitve
-        <select id="sMode"><option value="norm">Normirani s.p. (4 %)</option><option value="custom">Svoj odstotek</option></select></label>
+        <select id="sMode"><option value="doo">d.o.o. (19 % od dobička)</option><option value="norm">Normirani s.p. (4 %)</option><option value="custom">Svoj odstotek</option></select></label>
+      <label class="row" id="sCostRow">Stroški podjetja na mesec (EUR) <input id="sCost" type="number" step="0.01" min="0" placeholder="npr. 150"></label>
       <label class="row" id="sPctRow" hidden>Davek v % prihodka <input id="sPct" type="number" step="0.1" min="0" max="60"></label>
       <h2 style="margin-top:14px">AdMob zaslužek (EUR)</h2>
       <p class="mute">Se prenese samodejno ob prijavi z Googlovim računom, ki ima dostop do AdMob. Ročni vnos velja samo za mesece brez samodejnih podatkov.</p>
@@ -180,9 +181,20 @@
       return ref.child("admob/napaka").set(firebase.auth().currentUser.email + ": " + e.message).catch(function () {});
     });
   }
+  // Privzeto d.o.o.: 19 % davka od dohodkov pravnih oseb na dobiček (prihodek − mesečni stroški).
+  function taxMode() {
+    var d = (data.rocno || {}).davek;
+    return d === "norm" || d === "custom" ? d : "doo";
+  }
   function taxPct() {
-    var s = data.rocno || {};
-    return s.davek === "custom" && isFinite(+s.odstotek) ? +s.odstotek : 4;
+    var s = data.rocno || {}, mode = taxMode();
+    if (mode === "doo") return 19;
+    return mode === "custom" && isFinite(+s.odstotek) ? +s.odstotek : 4;
+  }
+  function taxOf(rev) {
+    if (taxMode() !== "doo") return rev * taxPct() / 100;
+    var cost = +(data.rocno || {}).stroski || 0;
+    return Math.max(0, rev - cost) * 0.19;
   }
 
   function bars(el, axis, values, days) {
@@ -211,18 +223,20 @@
     var pct = taxPct(), keys = Object.keys(months).sort().reverse();
     var sum = { dl: 0, buys: 0, gross: 0, net: 0, ad: 0, rev: 0, tax: 0 };
     var rows = keys.map(function (m) {
-      var o = months[m], ad = +admob[m] || 0, rev = o.net + ad, tax = rev * pct / 100;
+      var o = months[m], ad = +admob[m] || 0, rev = o.net + ad, tax = taxOf(rev);
       sum.dl += o.dl; sum.buys += o.buys; sum.gross += o.gross; sum.net += o.net; sum.ad += ad; sum.rev += rev; sum.tax += tax;
       o.ad = ad; o.rev = rev; o.tax = tax;
       return "<tr><td>" + monthName(m) + "</td><td>" + int(o.dl) + "</td><td>" + int(o.buys) + "</td><td>" + eur(o.gross) + "</td><td>" + eur(o.net) +
         "</td><td>" + eur(ad) + "</td><td><b>" + eur(rev) + "</b></td><td>" + eur(tax) + "</td><td>" + eur(rev - tax) + "</td></tr>";
     });
-    $("months").innerHTML = "<tr><th>Mesec</th><th>Prenosi iPhone</th><th>Plačila Plus</th><th>Kupci plačali</th><th>Apple izplača</th><th>AdMob</th><th>Prihodek</th><th>Davek (" + pct.toLocaleString("sl-SI") + " %)</th><th>Ostane</th></tr>" +
+    $("months").innerHTML = "<tr><th>Mesec</th><th>Prenosi iPhone</th><th>Plačila Plus</th><th>Kupci plačali</th><th>Apple izplača</th><th>AdMob</th><th>Prihodek</th><th>Davek (" + pct.toLocaleString("sl-SI") + (taxMode() === "doo" ? " % dobička" : " %") + ")</th><th>Ostane</th></tr>" +
       rows.join("") + '<tr class="sum"><td>Skupaj</td><td>' + int(sum.dl) + "</td><td>" + int(sum.buys) + "</td><td>" + eur(sum.gross) + "</td><td>" + eur(sum.net) +
       "</td><td>" + eur(sum.ad) + "</td><td>" + eur(sum.rev) + "</td><td>" + eur(sum.tax) + "</td><td>" + eur(sum.rev - sum.tax) + "</td></tr>";
-    $("taxNote").textContent = (rocno.davek === "custom" ? "Davek je izračunan s tvojim odstotkom. " :
-      "Ocena za normirani s.p.: 80 % prihodka so priznani stroški, od ostalih 20 % se plača 20 % akontacije dohodnine, kar je 4 % prihodka. ") +
-      "»Kupci plačali« vključuje DDV in Applovo provizijo, »Apple izplača« je tvoj dejanski prihodek. Prispevki za socialno varnost niso všteti. Točen znesek naj potrdi računovodja.";
+    var mode = taxMode();
+    $("taxNote").textContent = (mode === "custom" ? "Davek je izračunan s tvojim odstotkom. Prispevki za socialno varnost niso všteti. " :
+      mode === "norm" ? "Ocena za normirani s.p.: 80 % prihodka so priznani stroški, od ostalih 20 % se plača 20 % akontacije dohodnine, kar je 4 % prihodka. Prispevki za socialno varnost niso všteti. " :
+      "Ocena za d.o.o.: 19 % davka od dohodkov pravnih oseb od dobička (prihodek minus stroški " + eur(+rocno.stroski || 0) + " na mesec, vpišeš jih v Nastavitvah). Davek se obračuna letno; plača in izplačilo dobička lastnici nista všteta. ") +
+      "»Kupci plačali« vključuje DDV in Applovo provizijo, »Apple izplača« je dejanski prihodek. Točen znesek naj potrdi računovodja.";
 
     // Ploščice.
     var andDl = (data.android || {}).prenosi || 0;
@@ -273,9 +287,11 @@
   function fillSettings() {
     var s = data.rocno || {}, admob = s.admob || {};
     $("sVendor").value = s.vendor || "";
-    $("sMode").value = s.davek === "custom" ? "custom" : "norm";
+    $("sMode").value = taxMode();
     $("sPct").value = s.odstotek != null ? s.odstotek : "";
+    $("sCost").value = s.stroski != null ? s.stroski : "";
     $("sPctRow").hidden = $("sMode").value !== "custom";
+    $("sCostRow").hidden = $("sMode").value !== "doo";
     var ms = [], d = new Date(), start = "2026-10";
     for (var m = ljDay(d).slice(0, 7); m >= start; ) {
       ms.push(m);
@@ -288,12 +304,12 @@
     }).join("");
   }
 
-  $("sMode").onchange = function () { $("sPctRow").hidden = this.value !== "custom"; };
+  $("sMode").onchange = function () { $("sPctRow").hidden = this.value !== "custom"; $("sCostRow").hidden = this.value !== "doo"; };
   $("sSave").onclick = function () {
     var admob = {};
     Array.prototype.forEach.call(document.querySelectorAll("#sAdmob input"), function (i) { if (i.value !== "") admob[i.dataset.m] = Math.round(+i.value * 100) / 100; });
     var vendorChanged = ($("sVendor").value.trim() !== String((data.rocno || {}).vendor || ""));
-    var v = { vendor: $("sVendor").value.trim(), davek: $("sMode").value, odstotek: $("sPct").value === "" ? null : +$("sPct").value, admob: admob };
+    var v = { vendor: $("sVendor").value.trim(), davek: $("sMode").value, odstotek: $("sPct").value === "" ? null : +$("sPct").value, stroski: $("sCost").value === "" ? null : +$("sCost").value, admob: admob };
     $("sMsg").textContent = "Shranjujem …";
     ref.child("rocno").set(v).then(function () {
       $("sMsg").textContent = "Shranjeno.";

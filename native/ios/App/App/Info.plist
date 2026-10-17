@@ -51,6 +51,10 @@
 	<array>
 		<string>arm64</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Nakupko uporabi kamero, ko želiš izdelek na seznamu slikati (da veš, katerega točno kupiti).</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Nakupko odpre tvoje slike, ko želiš izdelku na seznamu priložiti sliko.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Nakupko uporabi lokacijo, da najde trgovine v bližini in ob prihodu v trgovino odpre nakupovalni seznam.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
@@ -71,7 +75,7 @@
 		<string>location</string>
 	</array>
 	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-1387718701947622~8306286802</string>
+	<string>ca-app-pub-2170388618811750~7232323377</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
