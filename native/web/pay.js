@@ -200,58 +200,72 @@
       .then(function () { ad.busy = false; if ((!!st && !active()) !== ad.shown) renderAds(); });
   }
 
-  // ---------- Reklama čez cel zaslon: največ 2× na teden, ob 3. in 6. odprtju v tednu ----------
-  // Ne ob samem odprtju: pokaže se ob naslednjem premoru (konec nakupa ali menjava zavihka).
+  // ---------- Reklama čez cel zaslon: ob vsakem 3. odprtju aplikacije ----------
+  // Odprtje = zagon ali vrnitev v aplikacijo po 3+ minutah. Pokaže se nekaj sekund po odprtju
+  // (ko je seznam že na zaslonu in se ga nihče ne dotika) ali prej ob premoru (menjava zavihka, konec nakupa).
   var AD_INTER = window.NAKUPKO_AD_INTER || (ANDROID ? "ca-app-pub-3940256099942544/1033173712" : "ca-app-pub-2170388618811750/1341702444");
-  var OPEN_KEY = "nakupko-odprtja", AWAY = 10 * 60 * 1000;
-  var inter = { ready: false, loading: false, listening: false }, openedAt = 0, hiddenAt = 0;
-  function weekKey() {
-    var d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); // ponedeljek
-    return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
-  }
+  var OPEN_KEY = "nakupko-odprtja", AWAY = 3 * 60 * 1000, EVERY = 3, SHOW_AFTER = 4000;
+  var inter = { ready: false, loading: false, listening: false, fails: 0 }, openedAt = 0, hiddenAt = 0, touchedAt = 0, showTimer = 0;
   function opens() {
     var o = null;
     try { o = JSON.parse(localStorage.getItem(OPEN_KEY) || "null"); } catch (e) { o = null; }
-    if (!o || o.week !== weekKey()) o = { week: weekKey(), n: 0, pending: false };
+    if (!o || typeof o.n !== "number") o = { n: 0, pending: false };
     return o;
   }
   function saveOpens(o) { try { localStorage.setItem(OPEN_KEY, JSON.stringify(o)); } catch (e) { /* nič */ } }
   function countOpen() {
     var o = opens();
     o.n++;
-    if (o.n === 3 || o.n === 6) o.pending = true;
+    if (o.n % EVERY === 0) o.pending = true;
     saveOpens(o);
     openedAt = Date.now();
-    if (o.pending) prepareInter();
+    if (o.pending) { prepareInter(); scheduleInter(SHOW_AFTER); }
   }
-  function interWanted() { return MODE === "ads" && !!AD_INTER && !!st && st.product === true && !active() && opens().pending; }
+  // Isti pogoj kot pri bannerju: ni naročnika Plus.
+  function interWanted() { return MODE === "ads" && !!AD_INTER && !!st && !active() && opens().pending; }
   function prepareInter() {
     if (!interWanted() || inter.ready || inter.loading) return;
     if (!inter.listening) {
       inter.listening = true;
       Ads.addListener("interstitialAdDismissed", function () { inter.ready = false; });
-      Ads.addListener("interstitialAdFailedToShow", function () { inter.ready = false; });
+      Ads.addListener("interstitialAdFailedToShow", function () { inter.ready = false; prepareInter(); });
     }
     inter.loading = true;
     startAds()
       .then(function () { return Ads.call("prepareInterstitial", { adId: AD_INTER }); })
-      .then(function () { inter.ready = true; }, function () { inter.ready = false; })
+      .then(function () { inter.ready = true; inter.fails = 0; scheduleInter(500); }, function () {
+        inter.ready = false;
+        // Ni oglasa (slaba povezava, AdMob še nima oglasa): poskusimo znova čez nekaj časa.
+        if (inter.fails < 4) setTimeout(prepareInter, 15000 * Math.pow(2, inter.fails++));
+      })
       .then(function () { inter.loading = false; });
   }
+  function scheduleInter(ms) {
+    clearTimeout(showTimer);
+    showTimer = setTimeout(maybeShowInter, ms);
+  }
   function maybeShowInter() {
-    if (!inter.ready || !interWanted() || Date.now() - openedAt < 5000) return;
+    if (!interWanted() || document.visibilityState !== "visible") return;
+    if (!inter.ready) { prepareInter(); return; }
+    var now = Date.now();
+    // Ne takoj ob odprtju in ne med tipkanjem/dotikom (da nihče ne klikne na oglas po nesreči).
+    var kb = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if (now - openedAt < SHOW_AFTER || now - touchedAt < 1500 || kb) { scheduleInter(1500); return; }
     var o = opens(); o.pending = false; saveOpens(o);
     inter.ready = false;
-    Ads.call("showInterstitial", {}).catch(function () {});
+    Ads.call("showInterstitial", {}).catch(function () { o.pending = true; saveOpens(o); prepareInter(); });
   }
   function watchBreaks() {
+    ["touchstart", "keydown"].forEach(function (ev) {
+      document.addEventListener(ev, function () { touchedAt = Date.now(); }, { capture: true, passive: true });
+    });
     document.addEventListener("click", function (e) {
-      if (e.target && e.target.closest && e.target.closest(".tabs button")) setTimeout(maybeShowInter, 300);
+      if (e.target && e.target.closest && e.target.closest(".tabs button")) { touchedAt = 0; scheduleInter(300); }
     }, true);
     var sm = document.getElementById("storeMode"), wasOpen = false;
     if (sm && window.MutationObserver) new MutationObserver(function () {
       var open = !sm.classList.contains("hidden");
-      if (wasOpen && !open) setTimeout(maybeShowInter, 600);
+      if (wasOpen && !open) { touchedAt = 0; scheduleInter(600); }
       wasOpen = open;
     }).observe(sm, { attributes: true, attributeFilter: ["class"] });
   }
@@ -268,7 +282,8 @@
   window.addEventListener("load", function () { countOpen(); watchBreaks(); render(); refresh(); });
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState !== "visible") { hiddenAt = Date.now(); return; }
-    if (hiddenAt && Date.now() - hiddenAt > AWAY) countOpen(); // vrnitev po 10+ minutah šteje kot novo odprtje
+    if (hiddenAt && Date.now() - hiddenAt > AWAY) countOpen(); // vrnitev po 3+ minutah šteje kot novo odprtje
+    else if (opens().pending) { openedAt = Date.now(); scheduleInter(SHOW_AFTER); }
     refresh();
   });
   // Način »background«: okno pokažemo, ko nekdo vklopi zaznavanje trgovine.
