@@ -9,7 +9,7 @@ exec(src.split("app = call(")[0])
 
 VERSION = os.environ.get("VERSION", "1.2")
 MIN_BUILD = os.environ.get("MIN_BUILD", "0")  # samo App Store gradnja (z oglasi), ne starejše TestFlight
-NEW = json.load(open(os.path.join(os.path.dirname(__file__), "..", "asc-slike", "novo-1.2.json"), encoding="utf-8"))
+NEW = json.load(open(os.path.join(os.path.dirname(__file__), "..", "asc-slike", f"novo-{VERSION}.json"), encoding="utf-8"))
 
 app = call("GET", f"/apps?filter[bundleId]={BUNDLE_ID}")["data"][0]["id"]
 vers = call("GET", f"/apps/{app}/appStoreVersions?filter[platform]=IOS&limit=10")["data"]
