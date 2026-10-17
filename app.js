@@ -742,6 +742,9 @@
   }
   // V tujini pišemo cene samo, kjer jih imamo (Avstrija, Hrvaška, Madžarska).
   function abroad() { var c = state.storesCache && state.storesCache.country; return !!c && c !== "SI"; }
+  // Zneskov (cen) uporabniku ne kažemo, dokler cene niso zanesljive; aplikacija jih računa v ozadju
+  // samo za priporočilo najcenejše trgovine.
+  var SHOW_PRICES = window.NAKUPKO_SHOW_PRICES === true;
   function pricesOff() { return state.settings.pricePref === "none" || (abroad() && !foreignOn()); }
   function pref2() { if (abroad()) return null; var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
   // trgovine, ki jih uporabnik sploh obiskuje (prva + druga izbira); null = vse
@@ -781,7 +784,7 @@
   var X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   // Cena v vrstici: cena za kos/pakiranje z enoto (»2,49 € / 250 g«), meso in sir na kg; akcija posebej.
   function priceChip(it, storeCtx) {
-    if (pricesOff()) return null;
+    if (!SHOW_PRICES || pricesOff()) return null;
     var chain = null, p = null;
     if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it, chain); if (p.price == null) p = null; }
     if (!p) { p = prefPrice(it); if (p) chain = p.chain; }
@@ -1584,7 +1587,7 @@
     $("smBar").style.width = (total ? Math.round(done.length / total * 100) : 100) + "%";
     var sum = 0;
     open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it, activeStore.chain) : null; if (!p || p.price == null) p = prefPrice(it); if (p) sum += p.price * (it.qty || 1); });
-    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && !pricesOff() ? " · še ≈ " + eur(sum) : "");
+    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && SHOW_PRICES && !pricesOff() ? " · še ≈ " + eur(sum) : "");
     $("smReco").innerHTML = ""; // v trgovini brez predlogov (moteče)
   }
 
@@ -1606,6 +1609,14 @@
     $("heroCount").parentNode.classList.toggle("long", open.length > 99);
     $("heroSide").classList.toggle("hidden", pricesOff());
     if (pricesOff()) return;
+    if (!SHOW_PRICES) { // samo priporočilo: najcenejša trgovina za seznam, brez zneska
+      var best = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length; })[0] : null;
+      $("heroSide").classList.toggle("hidden", !best);
+      $("heroLabel").textContent = "Najceneje";
+      $("heroTotal").textContent = best ? CHAIN_BY_KEY[best.c].name : "–";
+      $("heroBest").textContent = "";
+      return;
+    }
     $("heroLabel").textContent = "Ocena košarice";
     if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = ""; return; }
     // »≈ 10,61 €« in pod njim trgovina v oklepaju: najcenejša ali tvoje trgovine (npr. Hofer/Lidl).
@@ -1679,13 +1690,13 @@
           chainLogo(r.c),
           el("div", { class: "sname-wrap" }, [
             el("div", { class: "stname", text: c.name }),
-            isBest ? el("div", { class: "stag", text: "Najceneje" }) : el("div", { class: "stag m", text: "+" + eur(r.sum - best.sum) }),
+            isBest ? el("div", { class: "stag", text: "Najceneje" }) : SHOW_PRICES ? el("div", { class: "stag m", text: "+" + eur(r.sum - best.sum) }) : null,
             r.near ? el("div", { class: "sdist", text: fmtDist(r.near.d) }) : null,
-            r.missing ? el("div", { class: "sdist" }, [r.missing + " ", el("span", { text: "brez cene" })]) : null
+            SHOW_PRICES && r.missing ? el("div", { class: "sdist" }, [r.missing + " ", el("span", { text: "brez cene" })]) : null
           ])
         ]),
         el("div", { class: "sbot" }, [
-          el("div", null, [el("div", { class: "sk", text: "Skupaj" }), el("div", { class: "sv" + (tot.length > 8 ? " long" : ""), text: tot })]),
+          SHOW_PRICES ? el("div", null, [el("div", { class: "sk", text: "Skupaj" }), el("div", { class: "sv" + (tot.length > 8 ? " long" : ""), text: tot })]) : el("div"),
           el("button", { class: "spin", type: "button", "aria-label": "Pokaži pot", onclick: function () { openChainMap(r.c); } },
             [svgEl('<path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/>')])
         ])
@@ -2053,7 +2064,7 @@
       box.appendChild(el("div", { class: "trip-main split" }, [
         el("div", { class: "trip-title", text: "Splača se iti v dve trgovini" }),
         el("div", { class: "trip-stores" }, [storeLabel(p.a), el("b", { text: "+" }), storeLabel(p.b)]),
-        el("div", { class: "trip-sub", text: "Sta " + fmtDist(p.gap) + " narazen. Prihraniš ≈ " + eur(plan.saving) + " (" + eur(p.cost) + " namesto " + eur(plan.singleCost) + " samo v trgovini " + CHAIN_BY_KEY[plan.single.s.chain].name + ")." })
+        SHOW_PRICES && el("div", { class: "trip-sub", text: "Sta " + fmtDist(p.gap) + " narazen. Prihraniš ≈ " + eur(plan.saving) + " (" + eur(p.cost) + " namesto " + eur(plan.singleCost) + " samo v trgovini " + CHAIN_BY_KEY[plan.single.s.chain].name + ")." })
       ]));
       var lists = el("div", { class: "trip-lists" }, [
         el("div", null, [el("b", { text: CHAIN_BY_KEY[p.a.s.chain].name + ": " }), plan.listA.join(", ") || "–"]),
@@ -2071,7 +2082,7 @@
     box.appendChild(el("div", { class: "trip-main" }, [
       el("div", { class: "trip-title", text: "Pojdi v eno trgovino" }),
       el("div", { class: "trip-stores" }, [storeLabel(s)]),
-      el("div", { class: "trip-sub", text: sub })
+      SHOW_PRICES ? el("div", { class: "trip-sub", text: sub }) : null
     ]));
     box.appendChild(routeButton(s.s));
   }

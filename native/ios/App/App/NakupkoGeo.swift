@@ -670,8 +670,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         guard let b = best else { return nil }
         let km = b.2 < 1000 ? "\(Int((b.2 / 10).rounded() * 10)) m" : String(format: "%.1f km", b.2 / 1000).replacingOccurrences(of: ".", with: ",")
-        let eur = String(format: "%.2f", b.1).replacingOccurrences(of: ".", with: ",")
-        return L10n.t("cheaper", [b.0.name, km, eur + " €"])
+        return L10n.t("cheaper", [b.0.name, km]) // brez zneska: cene so le okvirne
     }
 
     private func startArrivalWatch(_ a: Arrival) {
