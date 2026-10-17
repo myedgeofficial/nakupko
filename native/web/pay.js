@@ -15,7 +15,7 @@
   var MODE = window.NAKUPKO_PLUS_MODE || "ads";
   // AdMob: ID oglasne enote za banner.
   // Android: Googlove preizkusne enote, dokler v AdMob (REMAKO) ni Android aplikacije.
-  var AD_UNIT = window.NAKUPKO_AD_UNIT || (ANDROID ? "ca-app-pub-3940256099942544/9214589741" : "ca-app-pub-2170388618811750/6712528752");
+  var AD_UNIT = window.NAKUPKO_AD_UNIT || (ANDROID ? "ca-app-pub-2170388618811750/3308835321" : "ca-app-pub-2170388618811750/6712528752");
   var GRACE = 3 * 24 * 3600 * 1000; // brez povezave velja zadnja znana naročnina še 3 dni po izteku
 
   var Pay = {
@@ -203,7 +203,7 @@
   // ---------- Reklama čez cel zaslon: ob vsakem 3. odprtju aplikacije ----------
   // Odprtje = zagon ali vrnitev v aplikacijo po 3+ minutah. Pokaže se nekaj sekund po odprtju
   // (ko je seznam že na zaslonu in se ga nihče ne dotika) ali prej ob premoru (menjava zavihka, konec nakupa).
-  var AD_INTER = window.NAKUPKO_AD_INTER || (ANDROID ? "ca-app-pub-3940256099942544/1033173712" : "ca-app-pub-2170388618811750/1341702444");
+  var AD_INTER = window.NAKUPKO_AD_INTER || (ANDROID ? "ca-app-pub-2170388618811750/7056508648" : "ca-app-pub-2170388618811750/1341702444");
   var OPEN_KEY = "nakupko-odprtja", AWAY = 3 * 60 * 1000, EVERY = 3, SHOW_AFTER = 4000;
   var inter = { ready: false, loading: false, listening: false, fails: 0 }, openedAt = 0, hiddenAt = 0, touchedAt = 0, showTimer = 0;
   function opens() {

@@ -59,7 +59,7 @@ jobs:
         working-directory: native/android
         env:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ADMOB_APP_ID: ${{ vars.ANDROID_ADMOB_APP_ID || 'ca-app-pub-3940256099942544~3347511713' }}
+          ADMOB_APP_ID: ${{ vars.ANDROID_ADMOB_APP_ID || 'ca-app-pub-2170388618811750~4504787919' }}
         run: |
           chmod +x gradlew
           ./gradlew --no-daemon testDebugUnitTest assembleRelease -PversionCode=${{ github.run_number }} -PadmobAppId="$ADMOB_APP_ID"
