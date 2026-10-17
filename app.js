@@ -1272,7 +1272,7 @@
     var sum = 0;
     open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it, activeStore.chain) : null; if (!p || p.price == null) p = prefPrice(it); if (p) sum += p.price * (it.qty || 1); });
     $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && !pricesOff() ? " · še ≈ " + eur(sum) : "");
-    renderRecoInto($("smReco"), activeStore);
+    $("smReco").innerHTML = ""; // v trgovini brez predlogov (moteče)
   }
 
   // ---------- Cene: primerjava, tabela, uvoz ----------
