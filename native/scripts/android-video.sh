@@ -4,6 +4,14 @@ set -x
 mkdir -p "$OUT"
 PKG=si.nakupko.app
 n=0
+# Celoten logcat od začetka (da vidimo, zakaj se emulator kdaj znova zažene).
+adb logcat -v time > "$OUT/full-logcat.txt" 2>&1 &
+# Po ponovnem zagonu emulatorja počakaj, da je spet pripravljen.
+ready() {
+  timeout 240 adb wait-for-device || return 1
+  for i in $(seq 1 60); do [ "$(timeout 10 adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ] && return 0; sleep 3; done
+  return 1
+}
 shot() { n=$((n+1)); f=$(printf "%02d-%s" $n "$1"); adb exec-out screencap -p > "$OUT/$f.png"; timeout 20 adb exec-out uiautomator dump /dev/tty 2>/dev/null | sed 's/UI hierchary dumped.*//' > "$OUT/$f.xml"; }
 # Tapni prvi element, katerega besedilo ali opis ustreza regularnemu izrazu.
 tap() {
@@ -69,12 +77,21 @@ for i in $(seq 1 40); do
 done
 echo "DONE=$DONE"
 sleep 5; shot nazaj
+# Prvi del posnetka takoj shrani (razlaga + »Allow all the time«), preden gre kaj narobe.
+timeout 20 adb shell pkill -INT screenrecord; sleep 3; timeout 20 tail --pid=$REC -f /dev/null; kill $REC 2>/dev/null
+ready; timeout 60 adb pull /sdcard/v1.mp4 "$OUT/v1.mp4"
+ready
+adb shell screenrecord --bit-rate 8000000 --time-limit 175 /sdcard/v1b.mp4 &
+REC=$!
+timeout 20 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1; sleep 6
 # Izdelki na seznamu
 # Polje »What do you need to buy?« (WebView besedila ne pokaže uiautomatorju, zato koordinate).
-for it in Milk Bread Eggs; do adb shell input tap 480 700; sleep 1; adb shell input text "$it"; adb shell input keyevent 66; sleep 2; done
-adb shell input keyevent KEYCODE_BACK; sleep 2; shot seznam
+for it in Milk Bread Eggs; do timeout 15 adb shell input tap 480 700; sleep 1; timeout 15 adb shell input text "$it"; timeout 15 adb shell input keyevent 66; sleep 2; done
+timeout 15 adb shell input keyevent KEYCODE_BACK; sleep 2; shot seznam
+timeout 20 adb shell pkill -INT screenrecord; sleep 3; timeout 20 tail --pid=$REC -f /dev/null; kill $REC 2>/dev/null
+ready; timeout 60 adb pull /sdcard/v1b.mp4 "$OUT/v1b.mp4"
 # Aplikacija zaprta, telefon gre v trgovino (drugi posnetek)
-adb shell pkill -INT screenrecord; sleep 3; timeout 20 tail --pid=$REC -f /dev/null; kill $REC 2>/dev/null; adb pull /sdcard/v1.mp4 "$OUT/v1.mp4"
+ready
 adb shell screenrecord --bit-rate 8000000 --time-limit 175 /sdcard/v2.mp4 &
 REC=$!
 adb shell input keyevent KEYCODE_HOME; sleep 4
@@ -84,10 +101,11 @@ shot vTrgovini
 adb shell cmd statusbar expand-notifications; sleep 6; shot obvestilo
 adb shell cmd statusbar collapse; sleep 3
 adb shell pkill -INT screenrecord; sleep 3; timeout 20 tail --pid=$REC -f /dev/null; kill $REC 2>/dev/null
-adb pull /sdcard/v2.mp4 "$OUT/v2.mp4"
-printf "file '%s'\nfile '%s'\n" "$OUT/v1.mp4" "$OUT/v2.mp4" > /tmp/list.txt
+ready; timeout 60 adb pull /sdcard/v2.mp4 "$OUT/v2.mp4"
+: > /tmp/list.txt
+for v in v1 v1b v2; do [ -s "$OUT/$v.mp4" ] && printf "file '%s'\n" "$OUT/$v.mp4" >> /tmp/list.txt; done
 timeout 300 ffmpeg -y -f concat -safe 0 -i /tmp/list.txt -vf "scale=720:-2" -c:v libx264 -preset fast -crf 26 "$OUT/nakupko-lokacija.mp4" || cp "$OUT/v1.mp4" "$OUT/nakupko-lokacija.mp4"
-adb shell dumpsys location | grep -i -A3 geofence | head -40 > "$OUT/geofence.txt" || true
-adb logcat -d | grep -i "nakupko\|geofenc\|FATAL\|ANR in\|system_server\|lowmemory\|lmkd" | tail -400 > "$OUT/logcat.txt" || true
+timeout 30 adb shell dumpsys location | grep -i -A3 geofence | head -40 > "$OUT/geofence.txt" || true
+timeout 30 adb logcat -d | grep -i "nakupko\|geofenc\|FATAL\|ANR in\|system_server\|lowmemory\|lmkd" | tail -400 > "$OUT/logcat.txt" || true
 ls -la "$OUT"
 exit 0

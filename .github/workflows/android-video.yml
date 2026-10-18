@@ -34,7 +34,7 @@ jobs:
         run: gh release download android -p Nakupko.apk -D "$RUNNER_TEMP"
 
       - name: Posnemi
-        timeout-minutes: 18
+        timeout-minutes: 22
         uses: reactivecircus/android-emulator-runner@v2
         env:
           APK: ${{ runner.temp }}/Nakupko.apk
@@ -55,5 +55,6 @@ jobs:
         run: |
           ls -la "$RUNNER_TEMP/video" || true
           gh release delete android-video --cleanup-tag --yes || true
+          find "$RUNNER_TEMP/video" -type f -size 0 -delete || true
           gh release create android-video "$RUNNER_TEMP"/video/* --target "$GITHUB_SHA" --prerelease \
             --title "Nakupko Android video (gradnja ${{ github.run_number }})" --notes "Video za Google Play prijavo lokacije v ozadju."
