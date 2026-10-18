@@ -28,7 +28,7 @@ import org.json.JSONArray;
 )
 public class NakupkoGeoPlugin extends Plugin {
     private GeoManager geo;
-    private boolean askedExtra, askedNotifications;
+    private boolean askedExtra, askedNotifications, alwaysRequested;
 
     @Override
     public void load() {
@@ -79,11 +79,12 @@ public class NakupkoGeoPlugin extends Plugin {
             if (geo.shopShowing()) askNotifications();
             return;
         }
+        // Lokacijo »Vedno« vprašamo le, ko uporabnik v oknu z razlago stisne »Vklopi zdaj« (requestAlways),
+        // ker Google Play zahteva razlago pred sistemskim vprašanjem.
         if (!geo.hasBackground() && Build.VERSION.SDK_INT >= 29 && geo.backgroundDeclared()) {
-            if (askedExtra) return;
+            if (askedExtra || !alwaysRequested) return;
             askedExtra = true;
             // Android 11+ odpre stran z dovoljenji, kjer mora uporabnik sam izbrati »Vedno dovoli«.
-            Toast.makeText(getContext(), "Izberi »Vedno dovoli«, da te Nakupko opozori v trgovini.", Toast.LENGTH_LONG).show();
             ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 7010);
             return;
         }
@@ -99,6 +100,7 @@ public class NakupkoGeoPlugin extends Plugin {
 
     @PluginMethod
     public void requestAlways(PluginCall call) {
+        alwaysRequested = true;
         askedExtra = false;
         getActivity().runOnUiThread(this::askExtraPermissions);
         call.resolve();

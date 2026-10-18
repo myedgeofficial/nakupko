@@ -362,12 +362,26 @@
   var isIOS = !Cap.getPlatform || Cap.getPlatform() === "ios";
   var gateLater = false, askedAlways = false;
   try { askedAlways = localStorage.getItem("nakupko-asked-always") === "1"; } catch (e) { /* nič */ }
+  // Okno za lokacijo »Vedno« v jeziku aplikacije. Google Play zahteva jasno razlago (lokacija tudi,
+  // ko je aplikacija zaprta) PREDEN Android vpraša za dovoljenje.
+  // [naslov, razlaga, navodilo, lokacija, Vedno (iOS), Vedno (Android), natančna, vklopljeno, obvestila, dovoli, gumb, kasneje]
+  var GATE = {
+    sl: ["Vklopi lokacijo »Vedno«", "Nakupko uporablja tvojo lokacijo, da zazna, ko prideš v trgovino, in ti takrat pokaže nakupovalni seznam, tudi ko je aplikacija zaprta ali je ne uporabljaš. Lokacija ostane na tvojem telefonu.", "Stisni gumb, nato izberi:", "Lokacija", "Vedno", "Vedno dovoli", "Natančna lokacija", "vklopljeno", "Obvestila", "Dovoli obvestila", "Vklopi zdaj", "Kasneje"],
+    en: ["Turn on location »Always«", "Nakupko uses your location to detect when you arrive at a store and show your shopping list, even when the app is closed or not in use. Your location stays on your phone.", "Tap the button, then choose:", "Location", "Always", "Allow all the time", "Precise location", "on", "Notifications", "Allow notifications", "Turn on now", "Later"],
+    de: ["Standort »Immer« einschalten", "Nakupko verwendet deinen Standort, um zu erkennen, wann du ein Geschäft betrittst, und zeigt dir dann deine Einkaufsliste, auch wenn die App geschlossen ist oder nicht verwendet wird. Dein Standort bleibt auf deinem Handy.", "Tippe auf die Schaltfläche und wähle:", "Standort", "Immer", "Immer zulassen", "Genauer Standort", "an", "Mitteilungen", "Mitteilungen erlauben", "Jetzt einschalten", "Später"],
+    hr: ["Uključi lokaciju »Uvijek«", "Nakupko koristi tvoju lokaciju da prepozna kad uđeš u trgovinu i tada ti pokaže popis za kupnju, čak i kad je aplikacija zatvorena ili se ne koristi. Lokacija ostaje na tvom mobitelu.", "Pritisni gumb, zatim odaberi:", "Lokacija", "Uvijek", "Dopusti cijelo vrijeme", "Precizna lokacija", "uključeno", "Obavijesti", "Dopusti obavijesti", "Uključi sada", "Kasnije"],
+    it: ["Attiva la posizione »Sempre«", "Nakupko usa la tua posizione per capire quando entri in un negozio e mostrarti la lista della spesa, anche quando l'app è chiusa o non in uso. La posizione resta sul tuo telefono.", "Tocca il pulsante, poi scegli:", "Posizione", "Sempre", "Consenti sempre", "Posizione esatta", "attiva", "Notifiche", "Consenti notifiche", "Attiva ora", "Più tardi"],
+    hu: ["Helymeghatározás: »Mindig«", "A Nakupko a helyadataidat használja, hogy felismerje, amikor belépsz egy boltba, és megmutassa a bevásárlólistádat, akkor is, ha az alkalmazás be van zárva vagy nincs használatban. A helyadatok a telefonodon maradnak.", "Koppints a gombra, majd válaszd:", "Hely", "Mindig", "Engedélyezés mindig", "Pontos hely", "be", "Értesítések", "Értesítések engedélyezése", "Bekapcsolás most", "Később"],
+    fr: ["Activer la position »Toujours«", "Nakupko utilise ta position pour savoir quand tu entres dans un magasin et t'afficher ta liste de courses, même lorsque l'application est fermée ou non utilisée. Ta position reste sur ton téléphone.", "Appuie sur le bouton, puis choisis :", "Position", "Toujours", "Toujours autoriser", "Position exacte", "activée", "Notifications", "Autoriser les notifications", "Activer maintenant", "Plus tard"],
+    es: ["Activa la ubicación »Siempre«", "Nakupko usa tu ubicación para saber cuándo entras en una tienda y mostrarte tu lista de la compra, incluso cuando la app está cerrada o no se está usando. Tu ubicación se queda en tu móvil.", "Pulsa el botón y elige:", "Ubicación", "Siempre", "Permitir todo el tiempo", "Ubicación precisa", "activada", "Notificaciones", "Permitir notificaciones", "Activar ahora", "Más tarde"]
+  };
+  function gt() { return GATE[window.NK_LANG] || GATE.en; }
   function missingOf(s) {
-    var m = [];
-    // Google Play gradnja Androida lokacije »Vedno« nima (s.background === false).
-    if (s.authorization !== "always" && s.background !== false) m.push("Lokacija: <b>Vedno</b>");
-    if (s.precise === false) m.push("Natančna lokacija: <b>vklopljeno</b>");
-    if (!s.notifications) m.push("Obvestila: <b>Dovoli obvestila</b>");
+    var m = [], t = gt();
+    // Google Play gradnja Androida brez lokacije »Vedno« (s.background === false) tega ne sprašuje.
+    if (s.authorization !== "always" && s.background !== false) m.push(t[3] + ": <b>" + (isIOS ? t[4] : t[5]) + "</b>");
+    if (s.precise === false) m.push(t[6] + ": <b>" + t[7] + "</b>");
+    if (!s.notifications) m.push(t[8] + ": <b>" + t[9] + "</b>");
     return m;
   }
   function fixPermissions(s) {
@@ -390,16 +404,17 @@
       g.style.cssText = "position:fixed;inset:0;z-index:9999;background:#fff;display:flex;flex-direction:column;justify-content:center;padding:32px 24px calc(32px + env(safe-area-inset-bottom));text-align:center;color:#1b1b1f;font-size:17px;line-height:1.45";
       document.body.appendChild(g);
     }
+    var t = gt();
     g.innerHTML =
       '<div style="font-size:56px;margin-bottom:8px">📍</div>' +
-      '<h2 style="margin:0 0 10px;font-size:24px">Vklopi lokacijo »Vedno«</h2>' +
-      '<p style="margin:0 0 18px;color:#5b5b66">Samo tako ti Nakupko pokaže seznam, ko prideš v trgovino, tudi ko je aplikacija zaprta.</p>' +
+      '<h2 style="margin:0 0 10px;font-size:24px">' + t[0] + '</h2>' +
+      '<p style="margin:0 0 18px;color:#5b5b66">' + t[1] + '</p>' +
       '<div style="background:#f4f1fb;border-radius:16px;padding:14px 16px;margin:0 auto 22px;text-align:left;max-width:340px">' +
-      '<div style="color:#5b5b66;font-size:15px;margin-bottom:6px">Stisni gumb, nato izberi:</div>' +
+      '<div style="color:#5b5b66;font-size:15px;margin-bottom:6px">' + t[2] + '</div>' +
       missing.map(function (m) { return '<div style="margin:4px 0">• ' + m + '</div>'; }).join("") +
       '</div>' +
-      '<button id="gateGo" type="button" style="border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:linear-gradient(135deg,#9923FC,#4837FB 55%,#1482FC);color:#fff;width:100%;max-width:340px;margin:0 auto">Vklopi zdaj</button>' +
-      '<button id="gateLater" type="button" style="border:0;background:none;color:#8a8a96;padding:16px;font-size:15px;margin-top:6px">Kasneje</button>';
+      '<button id="gateGo" type="button" style="border:0;border-radius:16px;padding:16px;font-size:18px;font-weight:700;background:linear-gradient(135deg,#9923FC,#4837FB 55%,#1482FC);color:#fff;width:100%;max-width:340px;margin:0 auto">' + t[10] + '</button>' +
+      '<button id="gateLater" type="button" style="border:0;background:none;color:#8a8a96;padding:16px;font-size:15px;margin-top:6px">' + t[11] + '</button>';
     document.getElementById("gateGo").onclick = function () { fixPermissions(s); };
     document.getElementById("gateLater").onclick = function () { gateLater = true; g.remove(); };
   }
