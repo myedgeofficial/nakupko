@@ -364,7 +364,8 @@
   try { askedAlways = localStorage.getItem("nakupko-asked-always") === "1"; } catch (e) { /* nič */ }
   function missingOf(s) {
     var m = [];
-    if (s.authorization !== "always") m.push("Lokacija: <b>Vedno</b>");
+    // Google Play gradnja Androida lokacije »Vedno« nima (s.background === false).
+    if (s.authorization !== "always" && s.background !== false) m.push("Lokacija: <b>Vedno</b>");
     if (s.precise === false) m.push("Natančna lokacija: <b>vklopljeno</b>");
     if (!s.notifications) m.push("Obvestila: <b>Dovoli obvestila</b>");
     return m;

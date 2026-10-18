@@ -67,7 +67,7 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/Nakupko.apk"
           # Google Play: ista koda, a z reklamami in naročnino (window.NAKUPKO_RELEASE).
           (cd .. && NAKUPKO_RELEASE=1 npm run sync:android)
-          ./gradlew --no-daemon bundleRelease -PversionCode=${{ github.run_number }} -PadmobAppId="$ADMOB_APP_ID"
+          ./gradlew --no-daemon bundleRelease -PversionCode=${{ github.run_number }} -PadmobAppId="$ADMOB_APP_ID" -PnoBackground
           cp app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/out/Nakupko.aab"
           if [ "$HAS_KEY" != "true" ]; then
             echo "::warning::Ni podpisnega ključa (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD). APK je podpisan začasno: posodobitev ne bo šla čez staro različico, Google Play pa ga ne sprejme."

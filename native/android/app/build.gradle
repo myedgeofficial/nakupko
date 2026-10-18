@@ -12,7 +12,9 @@ android {
         versionName "1.3." + (project.findProperty("versionCode") ?: "1")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // AdMob ID Android aplikacije (REMAKO); privzeto Googlov preizkusni ID.
-        manifestPlaceholders = [admobAppId: (project.findProperty("admobAppId") ?: "ca-app-pub-2170388618811750~4504787919")]
+        // -PnoBackground: brez lokacije »Vedno« (Google Play jo dovoli šele po posebnem pregledu z videom).
+        manifestPlaceholders = [admobAppId: (project.findProperty("admobAppId") ?: "ca-app-pub-2170388618811750~4504787919"),
+                                bgPermission: project.hasProperty("noBackground") ? "si.nakupko.app.permission.NO_BACKGROUND" : "android.permission.ACCESS_BACKGROUND_LOCATION"]
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61

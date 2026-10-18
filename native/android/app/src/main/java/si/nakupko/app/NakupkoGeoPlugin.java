@@ -79,7 +79,7 @@ public class NakupkoGeoPlugin extends Plugin {
             if (geo.shopShowing()) askNotifications();
             return;
         }
-        if (!geo.hasBackground() && Build.VERSION.SDK_INT >= 29) {
+        if (!geo.hasBackground() && Build.VERSION.SDK_INT >= 29 && geo.backgroundDeclared()) {
             if (askedExtra) return;
             askedExtra = true;
             // Android 11+ odpre stran z dovoljenji, kjer mora uporabnik sam izbrati »Vedno dovoli«.

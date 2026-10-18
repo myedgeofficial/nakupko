@@ -118,6 +118,15 @@ final class GeoManager {
         return Build.VERSION.SDK_INT < 29 || granted(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
     }
 
+    // Ali gradnja sploh vsebuje lokacijo »Vedno« (Google Play gradnja je nima).
+    boolean backgroundDeclared() {
+        try {
+            String[] req = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), PackageManager.GET_PERMISSIONS).requestedPermissions;
+            if (req != null) for (String r : req) if (Manifest.permission.ACCESS_BACKGROUND_LOCATION.equals(r)) return true;
+        } catch (Exception ignored) {}
+        return false;
+    }
+
     boolean hasNotifications() {
         return Build.VERSION.SDK_INT < 33 || granted(Manifest.permission.POST_NOTIFICATIONS);
     }
@@ -173,6 +182,7 @@ final class GeoManager {
         try {
             o.put("enabled", enabled());
             o.put("authorization", !hasLocation() ? "notDetermined" : hasBackground() ? "always" : "whenInUse");
+            o.put("background", Build.VERSION.SDK_INT < 29 || backgroundDeclared());
             o.put("precise", granted(Manifest.permission.ACCESS_FINE_LOCATION));
             o.put("notifications", hasNotifications());
             o.put("regions", enabled() && hasBackground() ? prefs.getInt("regions", 0) : 0);
