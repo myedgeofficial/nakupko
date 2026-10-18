@@ -34,6 +34,7 @@ jobs:
         run: gh release download android -p Nakupko.apk -D "$RUNNER_TEMP"
 
       - name: Posnemi
+        timeout-minutes: 18
         uses: reactivecircus/android-emulator-runner@v2
         env:
           APK: ${{ runner.temp }}/Nakupko.apk
@@ -43,8 +44,6 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
-          ram-size: 4096M
-          heap-size: 512M
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash native/scripts/android-video.sh

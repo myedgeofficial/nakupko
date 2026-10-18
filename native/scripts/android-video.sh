@@ -4,11 +4,11 @@ set -x
 mkdir -p "$OUT"
 PKG=si.nakupko.app
 n=0
-shot() { n=$((n+1)); f=$(printf "%02d-%s" $n "$1"); adb exec-out screencap -p > "$OUT/$f.png"; adb exec-out uiautomator dump /dev/tty 2>/dev/null | sed 's/UI hierchary dumped.*//' > "$OUT/$f.xml"; }
+shot() { n=$((n+1)); f=$(printf "%02d-%s" $n "$1"); adb exec-out screencap -p > "$OUT/$f.png"; timeout 20 adb exec-out uiautomator dump /dev/tty 2>/dev/null | sed 's/UI hierchary dumped.*//' > "$OUT/$f.xml"; }
 # Tapni prvi element, katerega besedilo ali opis ustreza regularnemu izrazu.
 tap() {
   for i in 1 2 3 4 5 6; do
-    adb exec-out uiautomator dump /dev/tty 2>/dev/null > /tmp/ui.xml
+    timeout 20 adb exec-out uiautomator dump /dev/tty 2>/dev/null > /tmp/ui.xml
     xy=$(python3 - "$1" <<'PY'
 import re, sys
 x = open("/tmp/ui.xml", encoding="utf-8", errors="ignore").read()
@@ -47,7 +47,7 @@ sleep 10; shot zagon
 # Samodejno skozi uvod in dovoljenja; okno z razlago (Turn on now) mora priti pred »Allow all the time«.
 DONE=0
 for i in $(seq 1 40); do
-  adb exec-out uiautomator dump /dev/tty 2>/dev/null > /tmp/ui.xml
+  timeout 20 adb exec-out uiautomator dump /dev/tty 2>/dev/null > /tmp/ui.xml
   if grep -q 'text="Wait"' /tmp/ui.xml; then tap '^Wait ?$'; continue; fi
   # Sistemska stran z dovoljenji (Android 11+): izberi »Allow all the time« in se vrni.
   if grep -q 'package="com.google.android.permissioncontroller"' /tmp/ui.xml && grep -q 'Allow all the time' /tmp/ui.xml; then
@@ -71,7 +71,7 @@ sleep 5; shot nazaj
 for it in Milk Bread Eggs; do adb shell input tap 480 700; sleep 1; adb shell input text "$it"; adb shell input keyevent 66; sleep 2; done
 adb shell input keyevent KEYCODE_BACK; sleep 2; shot seznam
 # Aplikacija zaprta, telefon gre v trgovino (drugi posnetek)
-adb shell pkill -INT screenrecord; sleep 3; wait $REC; adb pull /sdcard/v1.mp4 "$OUT/v1.mp4"
+adb shell pkill -INT screenrecord; sleep 3; timeout 20 tail --pid=$REC -f /dev/null; kill $REC 2>/dev/null; adb pull /sdcard/v1.mp4 "$OUT/v1.mp4"
 adb shell screenrecord --bit-rate 8000000 --time-limit 175 /sdcard/v2.mp4 &
 REC=$!
 adb shell input keyevent KEYCODE_HOME; sleep 4
@@ -80,10 +80,10 @@ for i in $(seq 1 15); do adb emu geo fix $SLON $SLAT; sleep 4; done
 shot vTrgovini
 adb shell cmd statusbar expand-notifications; sleep 6; shot obvestilo
 adb shell cmd statusbar collapse; sleep 3
-kill -INT $REC 2>/dev/null; adb shell pkill -INT screenrecord; sleep 3; wait $REC
+adb shell pkill -INT screenrecord; sleep 3; timeout 20 tail --pid=$REC -f /dev/null; kill $REC 2>/dev/null
 adb pull /sdcard/v2.mp4 "$OUT/v2.mp4"
 printf "file '%s'\nfile '%s'\n" "$OUT/v1.mp4" "$OUT/v2.mp4" > /tmp/list.txt
-ffmpeg -y -f concat -safe 0 -i /tmp/list.txt -vf "scale=720:-2" -c:v libx264 -preset fast -crf 26 "$OUT/nakupko-lokacija.mp4" || cp "$OUT/v1.mp4" "$OUT/nakupko-lokacija.mp4"
+timeout 300 ffmpeg -y -f concat -safe 0 -i /tmp/list.txt -vf "scale=720:-2" -c:v libx264 -preset fast -crf 26 "$OUT/nakupko-lokacija.mp4" || cp "$OUT/v1.mp4" "$OUT/nakupko-lokacija.mp4"
 adb shell dumpsys location | grep -i -A3 geofence | head -40 > "$OUT/geofence.txt" || true
 adb logcat -d | grep -i "nakupko\|geofenc\|FATAL\|ANR in\|system_server\|lowmemory\|lmkd" | tail -400 > "$OUT/logcat.txt" || true
 ls -la "$OUT"
