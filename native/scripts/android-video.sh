@@ -61,15 +61,14 @@ for i in $(seq 1 40); do
   if grep -q 'text="Allow"' /tmp/ui.xml; then tap '^Allow ?$'; continue; fi
   if grep -q "care about prices" /tmp/ui.xml; then tap "care about prices"; continue; fi
   if grep -q 'Younger' /tmp/ui.xml; then tap 'Younger'; continue; fi
-  if [ $DONE = 1 ] && grep -q 'What do you need to buy' /tmp/ui.xml; then break; fi
+  if [ $DONE = 1 ] && grep -q 'package="si.nakupko.app"' /tmp/ui.xml; then break; fi
   sleep 3; shot korak$i
 done
 echo "DONE=$DONE"
 sleep 5; shot nazaj
 # Izdelki na seznamu
-if tap "What do you need to buy"; then
-  for it in Milk Bread Eggs; do adb shell input text "$it"; adb shell input keyevent 66; sleep 2; done
-fi
+# Polje »What do you need to buy?« (WebView besedila ne pokaže uiautomatorju, zato koordinate).
+for it in Milk Bread Eggs; do adb shell input tap 480 700; sleep 1; adb shell input text "$it"; adb shell input keyevent 66; sleep 2; done
 adb shell input keyevent KEYCODE_BACK; sleep 2; shot seznam
 # Aplikacija zaprta, telefon gre v trgovino (drugi posnetek)
 adb shell pkill -INT screenrecord; sleep 3; wait $REC; adb pull /sdcard/v1.mp4 "$OUT/v1.mp4"
@@ -86,6 +85,6 @@ adb pull /sdcard/v2.mp4 "$OUT/v2.mp4"
 printf "file '%s'\nfile '%s'\n" "$OUT/v1.mp4" "$OUT/v2.mp4" > /tmp/list.txt
 ffmpeg -y -f concat -safe 0 -i /tmp/list.txt -vf "scale=720:-2" -c:v libx264 -preset fast -crf 26 "$OUT/nakupko-lokacija.mp4" || cp "$OUT/v1.mp4" "$OUT/nakupko-lokacija.mp4"
 adb shell dumpsys location | grep -i -A3 geofence | head -40 > "$OUT/geofence.txt" || true
-adb logcat -d | grep -i "nakupko\|geofenc\|chromium" | tail -300 > "$OUT/logcat.txt" || true
+adb logcat -d | grep -i "nakupko\|geofenc\|FATAL\|ANR in\|system_server\|lowmemory\|lmkd" | tail -400 > "$OUT/logcat.txt" || true
 ls -la "$OUT"
 exit 0
