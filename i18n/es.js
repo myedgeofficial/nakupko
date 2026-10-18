@@ -53,6 +53,8 @@ NK_PACK("es", function (h) {
     "Velikost prikaza": "Tamaño de la pantalla",
     "Več možnosti": "Más opciones",
     "Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).": "Ubicaciones: © colaboradores de OpenStreetMap. Horarios orientativos. Iconos de productos: Microsoft Fluent Emoji (MIT).",
+    "Okvirno najceneje": "Aprox. la más barata",
+    "Najcenejša trgovina je le okvirna ocena iz javno dostopnih cen, ki niso nujno točne ali aktualne. Dejanske cene, akcije in zaloga v trgovini se lahko razlikujejo. Nakupko za razlike ne odgovarja.": "La tienda más barata es solo una estimación orientativa basada en precios públicos, que pueden ser inexactos o no estar actualizados. Los precios reales, ofertas y existencias en la tienda pueden variar. Nakupko no se hace responsable de las diferencias.",
     "Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.": "Los precios son orientativos y pueden diferir de los de la tienda. No sabemos si un producto está disponible.",
     "Vse": "Todo",
     "Vse kupljeno": "Todo comprado",
