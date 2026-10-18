@@ -86,8 +86,13 @@ REC=$!
 timeout 20 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1; sleep 6
 # Izdelki na seznamu
 # Polje »What do you need to buy?« (WebView besedila ne pokaže uiautomatorju, zato koordinate).
+# Brez zaslonske tipkovnice: emulator se je sesul, ko se je tipkovnica skrivala. Črke gredo kot tipke.
+for ime in $(timeout 15 adb shell ime list -s | tr -d '\r'); do timeout 15 adb shell ime disable "$ime"; done
+timeout 15 adb shell pm disable-user --user 0 com.google.android.inputmethod.latin
+timeout 15 adb shell pm disable-user --user 0 com.android.inputmethod.latin
+sleep 2
 for it in Milk Bread Eggs; do timeout 15 adb shell input tap 480 700; sleep 1; timeout 15 adb shell input text "$it"; timeout 15 adb shell input keyevent 66; sleep 2; done
-timeout 15 adb shell input keyevent KEYCODE_BACK; sleep 2; shot seznam
+sleep 3; shot seznam
 timeout 20 adb shell pkill -INT screenrecord; sleep 3; timeout 20 tail --pid=$REC -f /dev/null; kill $REC 2>/dev/null
 ready; timeout 60 adb pull /sdcard/v1b.mp4 "$OUT/v1b.mp4"
 # Aplikacija zaprta, telefon gre v trgovino (drugi posnetek)
