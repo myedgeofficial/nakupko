@@ -39,33 +39,45 @@ adb shell cmd location set-location-enabled true
 adb install -r "$APK"
 geo $HLAT $HLON
 
-adb shell screenrecord --bit-rate 8000000 --time-limit 170 /sdcard/v1.mp4 &
+adb shell screenrecord --bit-rate 8000000 --time-limit 175 /sdcard/v1.mp4 &
 REC=$!
 sleep 2
 adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1
-sleep 12; shot zagon
-# Uvodni izbori, dovoljenje za lokacijo med uporabo
-tap "While using the app|Only this time" && shot medUporabo
-sleep 5; shot poDovoljenju
-tap "Allow$" ; sleep 3; shot obvestila
-sleep 8; shot razlaga
-tap "Turn on now|Vklopi zdaj" ; sleep 4; shot nastavitve
-tap "Allow all the time" ; sleep 2; shot vedno
-adb shell input keyevent KEYCODE_BACK; sleep 5; shot nazaj
+sleep 10; shot zagon
+# Samodejno skozi uvod in dovoljenja; okno z razlago (Turn on now) mora priti pred »Allow all the time«.
+DONE=0
+for i in $(seq 1 30); do
+  adb exec-out uiautomator dump /dev/tty 2>/dev/null > /tmp/ui.xml
+  if grep -q 'text="Wait"' /tmp/ui.xml; then tap '^Wait ?$'; continue; fi
+  if grep -q 'Allow all the time' /tmp/ui.xml; then sleep 3; shot nastavitve; tap 'Allow all the time'; sleep 2; shot vedno; adb shell input keyevent KEYCODE_BACK; DONE=1; break; fi
+  if grep -q 'Turn on now' /tmp/ui.xml; then shot razlaga; sleep 6; tap 'Turn on now'; sleep 3; continue; fi
+  if grep -q 'While using the app' /tmp/ui.xml; then shot sistemsko; tap 'While using the app'; continue; fi
+  if grep -q 'text="Allow"' /tmp/ui.xml; then tap '^Allow ?$'; continue; fi
+  if grep -q "care about prices" /tmp/ui.xml; then tap "care about prices"; continue; fi
+  if grep -q 'Younger' /tmp/ui.xml; then tap 'Younger'; continue; fi
+  sleep 3; shot korak$i
+done
+echo "DONE=$DONE"
+sleep 5; shot nazaj
 # Izdelki na seznamu
-if tap "What do you need|Kaj moraš kupiti|Add"; then
+if tap "What do you need to buy"; then
   for it in Milk Bread Eggs; do adb shell input text "$it"; adb shell input keyevent 66; sleep 2; done
 fi
 adb shell input keyevent KEYCODE_BACK; sleep 2; shot seznam
-# Aplikacija zaprta, telefon gre v trgovino
+# Aplikacija zaprta, telefon gre v trgovino (drugi posnetek)
+adb shell pkill -INT screenrecord; sleep 3; wait $REC; adb pull /sdcard/v1.mp4 "$OUT/v1.mp4"
+adb shell screenrecord --bit-rate 8000000 --time-limit 175 /sdcard/v2.mp4 &
+REC=$!
 adb shell input keyevent KEYCODE_HOME; sleep 4
 for i in $(seq 1 6); do adb emu geo fix $(python3 -c "print($SLON, $HLAT-($HLAT-$SLAT)*$i/6)"); sleep 4; done
 for i in $(seq 1 15); do adb emu geo fix $SLON $SLAT; sleep 4; done
 shot vTrgovini
 adb shell cmd statusbar expand-notifications; sleep 6; shot obvestilo
 adb shell cmd statusbar collapse; sleep 3
-wait $REC
-adb pull /sdcard/v1.mp4 "$OUT/nakupko-lokacija.mp4"
+kill -INT $REC 2>/dev/null; adb shell pkill -INT screenrecord; sleep 3; wait $REC
+adb pull /sdcard/v2.mp4 "$OUT/v2.mp4"
+printf "file '%s'\nfile '%s'\n" "$OUT/v1.mp4" "$OUT/v2.mp4" > /tmp/list.txt
+ffmpeg -y -f concat -safe 0 -i /tmp/list.txt -vf "scale=720:-2" -c:v libx264 -preset fast -crf 26 "$OUT/nakupko-lokacija.mp4" || cp "$OUT/v1.mp4" "$OUT/nakupko-lokacija.mp4"
 adb shell dumpsys location | grep -i -A3 geofence | head -40 > "$OUT/geofence.txt" || true
 adb logcat -d | grep -i "nakupko\|geofenc\|chromium" | tail -300 > "$OUT/logcat.txt" || true
 ls -la "$OUT"
