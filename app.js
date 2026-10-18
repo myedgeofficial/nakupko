@@ -1612,7 +1612,7 @@
     if (!SHOW_PRICES) { // samo priporočilo: najcenejša trgovina za seznam, brez zneska
       var best = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length; })[0] : null;
       $("heroSide").classList.toggle("hidden", !best);
-      $("heroLabel").textContent = "Najceneje";
+      $("heroLabel").textContent = "Okvirno najceneje";
       $("heroTotal").textContent = best ? CHAIN_BY_KEY[best.c].name : "–";
       $("heroBest").textContent = "";
       return;

@@ -54,6 +54,8 @@ NK_PACK("en", function (h) {
     "Velikost prikaza": "Display size",
     "Več možnosti": "More options",
     "Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).": "Locations: © OpenStreetMap contributors. Opening hours are for information only. Product icons: Microsoft Fluent Emoji (MIT).",
+    "Okvirno najceneje": "Roughly cheapest",
+    "Najcenejša trgovina je le okvirna ocena iz javno dostopnih cen, ki niso nujno točne ali aktualne. Dejanske cene, akcije in zaloga v trgovini se lahko razlikujejo. Nakupko za razlike ne odgovarja.": "The cheapest store is only a rough estimate based on publicly available prices, which may be inaccurate or out of date. Actual prices, offers and stock in the store may differ. Nakupko is not responsible for any differences.",
     "Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.": "Prices are approximate and may differ from the prices in the store. We don't know whether an item is in stock.",
     "Vse": "All",
     "Vse kupljeno": "All bought",
