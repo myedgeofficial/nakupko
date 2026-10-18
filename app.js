@@ -549,6 +549,9 @@
   }
   // V tujini pišemo cene samo, kjer jih imamo (Avstrija, Hrvaška, Madžarska).
   function abroad() { var c = state.storesCache && state.storesCache.country; return !!c && c !== "SI"; }
+  // Zneskov (cen) uporabniku ne kažemo, dokler cene niso zanesljive; aplikacija jih računa v ozadju
+  // samo za priporočilo najcenejše trgovine.
+  var SHOW_PRICES = window.NAKUPKO_SHOW_PRICES === true;
   function pricesOff() { return state.settings.pricePref === "none" || (abroad() && !foreignOn()); }
   function pref2() { if (abroad()) return null; var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
   // trgovine, ki jih uporabnik sploh obiskuje (prva + druga izbira); null = vse
@@ -587,7 +590,7 @@
   var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
   var X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   function priceChip(it, storeCtx) {
-    if (pricesOff()) return null;
+    if (!SHOW_PRICES || pricesOff()) return null;
     var q = it.qty || 1, chain = null, p = null;
     if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it, chain); if (p.price == null) p = null; }
     if (!p) { p = prefPrice(it); if (p) chain = p.chain; }
@@ -1271,7 +1274,7 @@
     $("smBar").style.width = (total ? Math.round(done.length / total * 100) : 100) + "%";
     var sum = 0;
     open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it, activeStore.chain) : null; if (!p || p.price == null) p = prefPrice(it); if (p) sum += p.price * (it.qty || 1); });
-    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && !pricesOff() ? " · še ≈ " + eur(sum) : "");
+    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && SHOW_PRICES && !pricesOff() ? " · še ≈ " + eur(sum) : "");
     $("smReco").innerHTML = ""; // v trgovini brez predlogov (moteče)
   }
 
@@ -1292,6 +1295,14 @@
     $("heroCount").textContent = open.length;
     $("heroSide").classList.toggle("hidden", pricesOff());
     if (pricesOff()) return;
+    if (!SHOW_PRICES) { // samo priporočilo: najcenejša trgovina za seznam, brez zneska
+      var top = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length; })[0] : null;
+      $("heroSide").classList.toggle("hidden", !top);
+      $("heroLabel").textContent = "Okvirno najceneje";
+      $("heroTotal").textContent = top ? CHAIN_BY_KEY[top.c].name : "–";
+      $("heroBest").textContent = "";
+      return;
+    }
     $("heroLabel").textContent = pref().chains ? "Košarica · " + pref().short : "Ocena košarice";
     if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = "Dodaj izdelke na seznam"; return; }
     if (pref().chains) {
@@ -1634,7 +1645,7 @@
       box.appendChild(el("div", { class: "trip-main split" }, [
         el("div", { class: "trip-title", text: "Splača se iti v dve trgovini" }),
         el("div", { class: "trip-stores" }, [storeLabel(p.a), el("b", { text: "+" }), storeLabel(p.b)]),
-        el("div", { class: "trip-sub", text: "Sta " + fmtDist(p.gap) + " narazen. Prihraniš ≈ " + eur(plan.saving) + " (" + eur(p.cost) + " namesto " + eur(plan.singleCost) + " samo v trgovini " + CHAIN_BY_KEY[plan.single.s.chain].name + ")." })
+        SHOW_PRICES && el("div", { class: "trip-sub", text: "Sta " + fmtDist(p.gap) + " narazen. Prihraniš ≈ " + eur(plan.saving) + " (" + eur(p.cost) + " namesto " + eur(plan.singleCost) + " samo v trgovini " + CHAIN_BY_KEY[plan.single.s.chain].name + ")." })
       ]));
       var lists = el("div", { class: "trip-lists" }, [
         el("div", null, [el("b", { text: CHAIN_BY_KEY[p.a.s.chain].name + ": " }), plan.listA.join(", ") || "–"]),
@@ -1652,7 +1663,7 @@
     box.appendChild(el("div", { class: "trip-main" }, [
       el("div", { class: "trip-title", text: "Pojdi v eno trgovino" }),
       el("div", { class: "trip-stores" }, [storeLabel(s)]),
-      el("div", { class: "trip-sub", text: sub })
+      SHOW_PRICES ? el("div", { class: "trip-sub", text: sub }) : null
     ]));
     box.appendChild(el("a", { class: "mini trip-go", href: mapsLink(s.s), target: "_blank", rel: "noopener" }, ["Pokaži pot"]));
   }
