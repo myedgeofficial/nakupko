@@ -33,10 +33,13 @@ echo "Trgovina: $SLAT $SLON"
 [ -z "$SLAT" ] && SLAT=51.5136 && SLON=-0.1365
 HLAT=$(python3 -c "print($SLAT+0.012)"); HLON=$SLON
 
+# Počasen emulator: brez oken »isn't responding«, malo počakaj, da se zaganjalnik umiri.
+adb shell settings put global hide_error_dialogs 1
 adb shell settings put system screen_off_timeout 1800000
 adb shell svc power stayon true
 adb shell cmd location set-location-enabled true
 adb install -r "$APK"
+sleep 30; adb shell input keyevent KEYCODE_HOME; sleep 5
 geo $HLAT $HLON
 
 adb shell screenrecord --bit-rate 8000000 --time-limit 175 /sdcard/v1.mp4 &
