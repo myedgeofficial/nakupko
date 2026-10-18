@@ -46,15 +46,22 @@ adb shell monkey -p $PKG -c android.intent.category.LAUNCHER 1
 sleep 10; shot zagon
 # Samodejno skozi uvod in dovoljenja; okno z razlago (Turn on now) mora priti pred »Allow all the time«.
 DONE=0
-for i in $(seq 1 30); do
+for i in $(seq 1 40); do
   adb exec-out uiautomator dump /dev/tty 2>/dev/null > /tmp/ui.xml
   if grep -q 'text="Wait"' /tmp/ui.xml; then tap '^Wait ?$'; continue; fi
-  if grep -q 'Allow all the time' /tmp/ui.xml; then sleep 3; shot nastavitve; tap 'Allow all the time'; sleep 2; shot vedno; adb shell input keyevent KEYCODE_BACK; DONE=1; break; fi
-  if grep -q 'Turn on now' /tmp/ui.xml; then shot razlaga; sleep 6; tap 'Turn on now'; sleep 3; continue; fi
+  # Sistemska stran z dovoljenji (Android 11+): izberi »Allow all the time« in se vrni.
+  if grep -q 'package="com.google.android.permissioncontroller"' /tmp/ui.xml && grep -q 'Allow all the time' /tmp/ui.xml; then
+    sleep 2; shot nastavitve; tap '^Allow all the time ?$'; sleep 2; shot vedno; adb shell input keyevent KEYCODE_BACK; DONE=1; sleep 3; continue
+  fi
+  if grep -q 'Turn on now' /tmp/ui.xml; then
+    if [ $DONE = 1 ]; then tap '^Later ?$'; continue; fi
+    shot razlaga; sleep 6; tap 'Turn on now'; sleep 3; continue
+  fi
   if grep -q 'While using the app' /tmp/ui.xml; then shot sistemsko; tap 'While using the app'; continue; fi
   if grep -q 'text="Allow"' /tmp/ui.xml; then tap '^Allow ?$'; continue; fi
   if grep -q "care about prices" /tmp/ui.xml; then tap "care about prices"; continue; fi
   if grep -q 'Younger' /tmp/ui.xml; then tap 'Younger'; continue; fi
+  if [ $DONE = 1 ] && grep -q 'What do you need to buy' /tmp/ui.xml; then break; fi
   sleep 3; shot korak$i
 done
 echo "DONE=$DONE"
