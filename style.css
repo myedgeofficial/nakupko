@@ -551,8 +551,9 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .ask-chips:empty { display: none; }
 
-/* Predlogi in pogosti izdelki šele med pisanjem */
-.pane-list:not(.typing) #recoBox, .pane-list:not(.typing) #quickBox { display: none; }
+/* »Morda potrebuješ« šele med pisanjem; »Pogosto kupuješ« nikoli (seznam mora ostati pregleden). */
+.pane-list:not(.typing) #recoBox { display: none; }
+#quickBox { display: none !important; }
 
 /* Slika izdelka */
 .added-photo { display: flex; gap: 7px; margin-top: 7px; }
