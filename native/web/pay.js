@@ -201,10 +201,11 @@
   }
 
   // ---------- Reklama čez cel zaslon: ob vsakem 3. odprtju aplikacije ----------
-  // Odprtje = zagon ali vrnitev v aplikacijo po 3+ minutah. Pokaže se nekaj sekund po odprtju
+  // Odprtje = zagon ali vrnitev v aplikacijo po 3+ minutah (ponovno nalaganje strani, npr. ob menjavi jezika,
+  // ni novo odprtje). Prvi dan po namestitvi reklame čez cel zaslon ni nikoli. Pokaže se nekaj sekund po odprtju
   // (ko je seznam že na zaslonu in se ga nihče ne dotika) ali prej ob premoru (menjava zavihka, konec nakupa).
   var AD_INTER = window.NAKUPKO_AD_INTER || (ANDROID ? "ca-app-pub-2170388618811750/7056508648" : "ca-app-pub-2170388618811750/1341702444");
-  var OPEN_KEY = "nakupko-odprtja", AWAY = 3 * 60 * 1000, EVERY = 3, SHOW_AFTER = 4000;
+  var OPEN_KEY = "nakupko-odprtja", AWAY = 3 * 60 * 1000, EVERY = 3, SHOW_AFTER = 4000, FIRST_DAY = 24 * 3600 * 1000;
   var inter = { ready: false, loading: false, listening: false, fails: 0 }, openedAt = 0, hiddenAt = 0, touchedAt = 0, showTimer = 0;
   function opens() {
     var o = null;
@@ -214,15 +215,22 @@
   }
   function saveOpens(o) { try { localStorage.setItem(OPEN_KEY, JSON.stringify(o)); } catch (e) { /* nič */ } }
   function countOpen() {
-    var o = opens();
-    o.n++;
-    if (o.n % EVERY === 0) o.pending = true;
+    var o = opens(), now = Date.now();
+    if (!o.first) o.first = now;
+    if (!o.last || now - o.last > AWAY) {
+      o.n++;
+      if (o.n % EVERY === 0 && now - o.first > FIRST_DAY) o.pending = true;
+    }
+    o.last = now;
     saveOpens(o);
-    openedAt = Date.now();
+    openedAt = now;
     if (o.pending) { prepareInter(); scheduleInter(SHOW_AFTER); }
   }
   // Isti pogoj kot pri bannerju: ni naročnika Plus.
-  function interWanted() { return MODE === "ads" && !!AD_INTER && !!st && !active() && opens().pending; }
+  function interWanted() {
+    var ob = document.getElementById("onboard"); // nikoli med uvodnimi vprašanji
+    return MODE === "ads" && !!AD_INTER && !!st && !active() && opens().pending && !(ob && !ob.classList.contains("hidden"));
+  }
   function prepareInter() {
     if (!interWanted() || inter.ready || inter.loading) return;
     if (!inter.listening) {
@@ -281,7 +289,7 @@
   Pay.addListener("change", function (s) { save(s); });
   window.addEventListener("load", function () { countOpen(); watchBreaks(); render(); refresh(); });
   document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState !== "visible") { hiddenAt = Date.now(); return; }
+    if (document.visibilityState !== "visible") { hiddenAt = Date.now(); var o = opens(); o.last = hiddenAt; saveOpens(o); return; }
     if (hiddenAt && Date.now() - hiddenAt > AWAY) countOpen(); // vrnitev po 3+ minutah šteje kot novo odprtje
     else if (opens().pending) { openedAt = Date.now(); scheduleInter(SHOW_AFTER); }
     refresh();
