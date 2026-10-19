@@ -153,7 +153,11 @@ async function apple(vendor, out, errors) {
           "filter[vendorNumber]": vendor, "filter[reportDate]": day, "filter[version]": version
         });
         break;
-      } catch (e) { if (!/version/i.test(e.message)) { errors.narocnine = e.message; break; } }
+      } catch (e) {
+        // Apple za račun brez prodanih naročnin vrne »Invalid vendor number«, čeprav prodajna poročila delajo.
+        if (/invalid vendor/i.test(e.message)) { rows = []; break; }
+        if (!/version/i.test(e.message)) { errors.narocnine = e.message; break; }
+      }
     }
     if (rows === null) continue;
     const n = { datum: day, placljive: 0, brezplacne: 0, drzave: {} };
