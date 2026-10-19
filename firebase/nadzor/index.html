@@ -247,7 +247,7 @@
       "»Kupci plačali« vključuje DDV in Applovo provizijo, »Apple izplača« je dejanski prihodek. Točen znesek naj potrdi računovodja.";
 
     var appleOk = !!apple.poAplikacijah, najdene = apple.najdene || {};
-    var cm = months[month], am = admob[month] || { nakupko: 0, popravko: 0, nPrik: 0, pPrik: 0 }, adOn = !!(data.admob || {}).osvezeno;
+    var cm = months[month], am = admob[month] || { nakupko: 0, popravko: 0, nPrik: 0, pPrik: 0 }, adOn = !!((data.admob || {}).osvezeno && (data.admob || {}).racun);
 
     // Nakupko.
     var nIos = sumField(nDays, "prenosi"), nPlay = playOf("nakupko"), apk = (data.android || {}).prenosi || 0;
@@ -303,8 +303,8 @@
     var p = data.povzetek || {};
     $("when").textContent = p.osvezeno ? new Date(p.osvezeno).toLocaleString("sl-SI") : "še nikoli";
     var a0 = data.admob || {};
-    $("adState").textContent = a0.osvezeno ? "Povezan (" + (a0.racun || "") + (a0.kdo ? ", " + a0.kdo : "") + "), osveženo " + new Date(a0.osvezeno).toLocaleString("sl-SI") + "." : "AdMob še ni povezan.";
-    $("adConnect").textContent = a0.osvezeno ? "Poveži AdMob znova" : "Poveži AdMob";
+    $("adState").textContent = a0.osvezeno && a0.racun ? "Povezan (" + (a0.racun || "") + (a0.kdo ? ", " + a0.kdo : "") + "), osveženo " + new Date(a0.osvezeno).toLocaleString("sl-SI") + "." : "AdMob še ni povezan.";
+    $("adConnect").textContent = a0.osvezeno && a0.racun ? "Poveži AdMob znova" : "Poveži AdMob";
     $("playHelp").innerHTML = "Play Console → <b>Users and permissions</b> → <b>Invite new users</b> → e-pošta <b>" + esc(p.racun || "(prikaže se po prvem osveževanju)") +
       "</b> → zavihek Account permissions: obkljukaj <b>View app information and download bulk reports</b> → Invite. Google rabi do 24 ur, da začne delovati." +
       (data.play ? " ✓ Povezano (" + esc(data.play.vedro) + ")." : " Če ne dela, v Play Console → Download reports → Statistics → <b>Copy Cloud Storage URI</b> in ga prilepi spodaj.");
