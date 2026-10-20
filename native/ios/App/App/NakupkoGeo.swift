@@ -65,8 +65,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private let refetchDistance: CLLocationDistance = 2500
     // Isto trgovino znova javimo po 3 minutah (GPS na robu parkirišča niha), partnerja pa po 45.
     private let renotifyAfter: TimeInterval = 3 * 60
-    // Obvestilo »trgovina je blizu«: največ enkrat na 15 minut (za vse trgovine skupaj), lahko izklopljeno.
-    private let nearEvery: TimeInterval = 15 * 60
+    // Obvestilo »trgovina je blizu«: največ enkrat na 30 minut (za vse trgovine skupaj), lahko izklopljeno.
+    private let nearEvery: TimeInterval = 30 * 60
     private let visitAgainAfter: TimeInterval = 45 * 60
 
     var onPosition: (([String: Any]) -> Void)?

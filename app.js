@@ -549,10 +549,15 @@
     }
     state.usage[key] = (state.usage[key] || 0) + 1;
     state.usageNames[key] = (CATALOG_BY_KEY[key] || {}).name || name;
+    if (!(opts && opts.silent)) justAdded = { id: target.id };
     save();
     renderAll();
+    justAdded = null;
     if (!(opts && opts.silent)) {
       var msg = "Dodano: " + name + (brand ? " (" + brand + ")" : "");
+      // Vidno potrdilo: kratek utrip števca na zavihku Seznam (+ rahel tresljaj, kjer gre).
+      replay($("countOpen"), "bump");
+      try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* nič */ }
       toast(msg);
       // Obvestilo tudi takoj pod iskalnikom: spodnjega toasta tipkovnica pogosto zakrije.
       var note = $("addedNote");
@@ -562,12 +567,20 @@
         note.appendChild(el("span", { text: "✓ " + msg }));
         if (!target.photo) note.appendChild(el("span", { class: "added-photo" }, photoButtons(target)));
         note.classList.remove("hidden");
+        replay(note, "pop");
         clearTimeout(addedTimer);
         addedTimer = setTimeout(function () { note.classList.add("hidden"); }, target.photo ? 3000 : 7000);
       }
     }
   }
   var addedTimer = null;
+  var justAdded = null; // zadnji dodan izdelek: v seznamu za trenutek zasveti
+  function replay(node, cls) {
+    if (!node) return;
+    node.classList.remove(cls);
+    void node.offsetWidth; // animacija steče znova tudi ob hitrem zaporednem dodajanju
+    node.classList.add(cls);
+  }
 
   // ---------- Slika izdelka ----------
   // Uporabnik lahko izdelek slika ali priloži sliko (npr. točno ta jogurt). Slika se pomanjša
@@ -854,7 +867,8 @@
       ]),
       check
     ]);
-    var li = el("li", { class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") }, [
+    var fresh = justAdded && justAdded.id === it.id;
+    var li = el("li", { class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") + (fresh ? " just-added" : "") }, [
       del,
       row,
       pickOpen === it.id ? storePicker(it) : null

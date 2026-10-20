@@ -37,25 +37,65 @@
     if (c && c !== "XX") return countryLang(c);
     return supported((navigator.languages && navigator.languages[0]) || navigator.language) || "en";
   }
+  // V samodejnem načinu jezik ne preklopi sam, ko greš v drugo državo: aplikacija enkrat vpraša
+  // (ALKEY = jezik, ki ga uporabnik trenutno ima; ASKKEY = država, za katero smo že vprašali).
+  var ALKEY = "nakupko-lang-auto", ASKKEY = "nakupko-lang-asked";
   var saved = get(KEY);
   var MODE = saved && PACKS[saved] ? saved : "auto";
-  var LANG = MODE === "auto" ? autoLang() : MODE;
+  var LANG = MODE !== "auto" ? MODE : (supported(get(ALKEY)) ||
+    supported((navigator.languages && navigator.languages[0]) || navigator.language) || autoLang());
+  if (MODE === "auto" && get(ALKEY) !== LANG) set(ALKEY, LANG);
   window.NK_LANG = LANG;
   window.NK_LANG_MODE = MODE;
   window.NK_LANGS = PACKS;
   window.NK_SET_LANG = function (l) {
     set(KEY, l === "auto" ? null : l);
+    // »Samodejno« izbere jezik države, kjer si zdaj.
+    set(ALKEY, l === "auto" ? autoLang() : null);
+    if (l === "auto") set(ASKKEY, country());
     location.reload();
   };
-  // Aplikacija je ugotovila državo: v samodejnem načinu po potrebi preklopi jezik (stran se naloži znova).
-  // canReload = false (npr. med nakupovanjem): jezik se zamenja ob naslednjem odprtju.
+  var ASK = {
+    sl: "V katerem jeziku želiš Nakupko?", en: "Which language do you want for Nakupko?",
+    de: "In welcher Sprache möchtest du Nakupko?", hr: "Na kojem jeziku želiš Nakupko?",
+    it: "In quale lingua vuoi Nakupko?", hu: "Milyen nyelven szeretnéd a Nakupkót?",
+    fr: "Dans quelle langue veux-tu Nakupko ?", es: "¿En qué idioma quieres Nakupko?"
+  };
+  function askLang(c, other) {
+    if (document.getElementById("langAsk")) return;
+    var box = document.createElement("div");
+    box.id = "langAsk"; box.className = "lang-ask"; box.setAttribute("role", "dialog");
+    var card = document.createElement("div"); card.className = "lang-ask-card";
+    var h = document.createElement("b"); h.textContent = ASK[LANG] || ASK.en;
+    var sub = document.createElement("span"); sub.className = "muted small";
+    sub.textContent = other !== LANG && ASK[other] ? ASK[other] : "";
+    card.appendChild(h); card.appendChild(sub);
+    [[LANG, true], [other, false]].forEach(function (o) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = o[1] ? "lang-ask-keep" : "lang-ask-switch";
+      b.textContent = PACKS[o[0]] || o[0];
+      b.onclick = function () {
+        set(ASKKEY, c);
+        box.remove();
+        if (!o[1]) { set(ALKEY, other); location.reload(); }
+      };
+      card.appendChild(b);
+    });
+    box.appendChild(card);
+    document.body.appendChild(box);
+  }
+  // Aplikacija je ugotovila državo. Če ima druga država drug jezik, enkrat vprašamo, ali jezik
+  // ohraniš ali zamenjaš (prej je preklopil sam: v Italiji je bilo naenkrat vse v italijanščini).
+  // canReload = false (npr. med nakupovanjem): vprašamo ob naslednjem odprtju.
   window.NK_COUNTRY = function (c, canReload) {
     if (!c || c === "XX") return false;
     if (get(CKEY) !== c) set(CKEY, c);
     if (MODE !== "auto") return false;
-    if ((countryLang(c) || "en") === LANG || !canReload) return false;
-    location.reload();
-    return true;
+    var other = countryLang(c) || "en";
+    if (other === LANG) { set(ASKKEY, c); return false; }
+    if (get(ASKKEY) === c || !canReload || !document.body) return false;
+    askLang(c, other);
+    return false;
   };
   window.NK_T = function (s) { return s; };
   if (LANG === "sl") return;
