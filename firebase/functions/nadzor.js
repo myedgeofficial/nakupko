@@ -230,7 +230,7 @@ async function play(bucketSetting, out, errors) {
     if (ok) { out.play = Object.assign(res, { vedro: b }); return; }
   }
   errors.play = lastErr === "403" ? "Google Play še ni dovolil branja poročil. Dodaj račun strežnika v Play Console (glej Nastavitve)." :
-    lastErr === "404" ? "Vedra s poročili Google Play ni. V Nastavitve vpiši »Cloud Storage URI« iz Play Console → Prenos poročil." : lastErr;
+    lastErr === "404" ? "Google Play še ni pripravil poročil o prenosih (aplikacije so nove). Pokažejo se sami, ko jih Google ustvari." : lastErr;
 }
 
 // AdMob: z osvežilnim žetonom (enkrat poveže lastnik AdMob računa) prenese zaslužek po mesecih in aplikacijah.
