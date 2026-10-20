@@ -233,7 +233,14 @@ async function pages(v, urls, filter) {
       const ad = ld.address || {};
       if (!addr && (ad.streetAddress || typeof ad === "string")) addr = strip(typeof ad === "string" ? ad : [ad.streetAddress, ad.postalCode, ad.addressLocality].filter(Boolean).join(", ")).replace(/\s+/g, " ").trim();
     }
-    const text = strip(html);
+    if (process.env.JAGER_DEBUG) {
+    const i = html.indexOf("BISTRICA OB DRAVI");
+    console.log("JAGERHTML>>>" + html.slice(Math.max(0, i - 3000), i + 6000).replace(/\s+/g, " ") + "<<<");
+    const q = '[out:json][timeout:120];area["ISO3166-1"="SI"][admin_level=2]->.s;(nwr(area.s)["name"~"jager",i];nwr(area.s)["brand"~"jager",i];nwr(area.s)["operator"~"jager",i];);out center tags;';
+    const o = await getJson("https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(q), { headers: { "user-agent": UA } });
+    for (const e of (o && o.elements) || []) console.log("JAGEROSM", e.type + "/" + e.id, JSON.stringify(e.tags), e.lat || (e.center && e.center.lat), e.lon || (e.center && e.center.lon));
+  }
+  const text = strip(html);
     if (!week) {
       // le del strani okoli »odpiralni čas« (da ne poberemo ur iz noge strani)
       const i = text.search(/odpiraln|delovni [čc]as/i);
@@ -273,6 +280,13 @@ async function eurospin() {
 async function jager() {
   const html = await getText("https://www.trgovinejager.com/Poslovalnice/");
   if (!html) return console.log("Jager: ni podatkov");
+  if (process.env.JAGER_DEBUG) {
+    const i = html.indexOf("BISTRICA OB DRAVI");
+    console.log("JAGERHTML>>>" + html.slice(Math.max(0, i - 3000), i + 6000).replace(/\s+/g, " ") + "<<<");
+    const q = '[out:json][timeout:120];area["ISO3166-1"="SI"][admin_level=2]->.s;(nwr(area.s)["name"~"jager",i];nwr(area.s)["brand"~"jager",i];nwr(area.s)["operator"~"jager",i];);out center tags;';
+    const o = await getJson("https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(q), { headers: { "user-agent": UA } });
+    for (const e of (o && o.elements) || []) console.log("JAGEROSM", e.type + "/" + e.id, JSON.stringify(e.tags), e.lat || (e.center && e.center.lat), e.lon || (e.center && e.center.lon));
+  }
   const text = strip(html);
   // bloki se začnejo z »JAGER ...« in vsebujejo naslov s poštno številko
   const blocks = text.split(/(?=JAGER\s)/).slice(1);

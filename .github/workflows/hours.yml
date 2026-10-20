@@ -25,6 +25,8 @@ jobs:
           node-version: 22
       - name: Poberi odpiralne čase
         run: node scripts/update-hours.mjs
+        env:
+          JAGER_DEBUG: ${{ github.ref != 'refs/heads/main' && '1' || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: hours
