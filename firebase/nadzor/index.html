@@ -43,6 +43,7 @@
   h2.sec { font-size: 18px; margin: 22px 0 10px; }
   .err.big { font-size: 14px; }
   .err.big div { background: #fdecea; border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; }
+  .err.big div.info { background: #eef2f7; color: var(--mute); }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -308,8 +309,11 @@
     $("playHelp").innerHTML = "Play Console → <b>Users and permissions</b> → <b>Invite new users</b> → e-pošta <b>" + esc(p.racun || "(prikaže se po prvem osveževanju)") +
       "</b> → zavihek Account permissions: obkljukaj <b>View app information and download bulk reports</b> → Invite. Google rabi do 24 ur, da začne delovati." +
       (data.play ? " ✓ Povezano (" + esc(data.play.vedro) + ")." : " Če ne dela, v Play Console → Download reports → Statistics → <b>Copy Cloud Storage URI</b> in ga prilepi spodaj.");
-    var e = p.napake || {};
+    var e = Object.assign({}, p.napake || {});
+    var info = "";
+    if (e.play && /še ni pripravil/.test(e.play)) { info = e.play; delete e.play; }
     $("errs").innerHTML = Object.keys(e).map(function (k) { return "<div><b>" + (ERR_NAMES[k] || k) + ":</b> " + esc(e[k]) + "</div>"; }).join("");
+    if (info) $("errs").innerHTML += '<div class="info"><b>Google Play:</b> ' + esc(info) + "</div>";
     if (e.apple && /Vendor/.test(e.apple) || e.admob && /Poveži/.test(e.admob)) $("settings").open = true;
   }
 
