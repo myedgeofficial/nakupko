@@ -130,7 +130,7 @@
       });
   }
 
-  // ---------- Stikalo »Obvestilo, ko je trgovina blizu« (največ 1× na 15 min) ----------
+  // ---------- Stikalo »Obvestilo, ko je trgovina blizu« (največ 1× na 30 min) ----------
   var NEAR_KEY = "nakupko.nearNotify";
   function nearNotifyOn() { try { return localStorage.getItem(NEAR_KEY) !== "0"; } catch (e) { return true; } }
   function nearSwitch() {
@@ -139,7 +139,7 @@
     var r = document.createElement("div");
     r.className = "set-row";
     r.innerHTML = '<div class="set-text"><b>Obvestilo »trgovina je blizu«</b>' +
-      '<span class="muted small">Ko greš mimo trgovine. Največ enkrat na 15 minut. Seznam ob prihodu v trgovino deluje tudi brez tega.</span></div>' +
+      '<span class="muted small">Ko greš mimo trgovine. Največ enkrat na 30 minut. Seznam ob prihodu v trgovino deluje tudi brez tega.</span></div>' +
       '<button id="btnNear" class="switch" type="button" role="switch" aria-label="Obvestilo trgovina je blizu"></button>';
     row.parentNode.insertBefore(r, row);
     var b = document.getElementById("btnNear");
@@ -542,7 +542,7 @@
   function fixedDetection() {
     var api = window.__nakupko, st = api && api.state && api.state().settings;
     if (!st) return;
-    st.radius = 75; st.delay = 10;
+    st.radius = 60; st.delay = 10;
   }
 
   function showBackgroundStatus() {
