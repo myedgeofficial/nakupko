@@ -180,7 +180,8 @@ input[type=text], input[type=search], textarea {
 .added-note { margin: 9px 2px 0; padding: 9px 13px; border-radius: 14px; background: var(--violet-soft); font-weight: 800; color: var(--violet); }
 /* Potrdilo ob dodajanju: obvestilo se pokaže, števec utripne, nov izdelek v seznamu za trenutek zasveti. */
 .added-note.pop { animation: nk-pop .32s ease-out; }
-.badge.bump { animation: nk-bump .45s ease-out; }
+.badge.bump, #heroCount.bump { animation: nk-bump .45s ease-out; }
+#heroCount { display: inline-block; }
 .list li.item.just-added { animation: nk-new 1.4s ease-out; }
 @keyframes nk-pop { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes nk-bump { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
@@ -189,7 +190,7 @@ input[type=text], input[type=search], textarea {
   20% { opacity: 1; transform: none; box-shadow: 0 0 0 3px var(--violet); }
   100% { box-shadow: 0 0 0 0 transparent; }
 }
-@media (prefers-reduced-motion: reduce) { .added-note.pop, .badge.bump, .list li.item.just-added { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .added-note.pop, .badge.bump, #heroCount.bump, .list li.item.just-added { animation: none; } }
 
 /* ---------- Zavihka SEZNAM / TRGOVINE (kot mapa) ---------- */
 .ftabs { display: flex; gap: 5.5px; align-items: flex-end; margin: 14px 0 0; position: relative; z-index: 1; }
