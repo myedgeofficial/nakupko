@@ -283,7 +283,7 @@ async function jager() {
     const table = (c.match(/contact-working-hours[\s\S]*?<\/table>/) || [""])[0];
     const week = table ? parseDayText(strip(table)) : null;
     const h = week ? toOsm(week.map((d) => d || [])) : null;
-    if (shown++ < 3 || process.env.JAGER_DEBUG) console.log("  vzorec jager |", name, "|", addr, "|", h);
+    if (shown++ < 3) console.log("  vzorec jager |", name, "|", addr, "|", h);
     // Le trgovine z živili (brez železokrivnice, servisa in skladišča).
     if (addr && !/skladi|servis|železo|zelezo/i.test(name)) add("jager", { lat: null, lon: null, a: addr, h, n: name });
   }
@@ -314,19 +314,6 @@ async function geocode() {
   dbg.push("geokodiranje " + asked + ", najdeno " + JSON.stringify(geoHits));
 }
 
-if (process.env.JAGER_DEBUG) {
-  await jager();
-  const out = [];
-  for (const t of all) {
-    const q = t.a.replace(/,\s*(\d{4})\s/, ", $1 ");
-    const n = await getJson("https://nominatim.openstreetmap.org/search?format=json&countrycodes=si&limit=1&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 2);
-    const r = n && n[0];
-    out.push({ n: t.n, a: t.a, h: t.h, lat: r ? +(+r.lat).toFixed(5) : null, lon: r ? +(+r.lon).toFixed(5) : null, what: r ? r.class + "/" + r.type + "/" + (r.name || "") : "" });
-    await sleep(1100);
-  }
-  console.log("JAGERJSON" + JSON.stringify(out));
-  process.exit(0);
-}
 for (const [name, fn] of [["spar", spar], ["lidl", lidl], ["hofer", hofer], ["mercator", mercator], ["tus", tus], ["eurospin", eurospin], ["jager", jager]]) {
   const t0 = Date.now();
   try { await fn(); } catch (e) { console.log(name, "napaka:", String(e).slice(0, 200)); }

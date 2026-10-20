@@ -435,7 +435,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         fetching = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "nakupko.stores")
         // Najprej država (is_in): zunaj Slovenije spremljamo vse trgovine z živili, ne le slovenskih verig.
-        let q = "[out:json][timeout:20];is_in(\(loc.coordinate.latitude),\(loc.coordinate.longitude))->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
+        let q = "[out:json][timeout:20];is_in(\(loc.coordinate.latitude),\(loc.coordinate.longitude))->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
         var req = URLRequest(url: URL(string: "https://overpass-api.de/api/interpreter")!)
         req.httpMethod = "POST"
         req.timeoutInterval = 25
@@ -467,11 +467,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                     }
                     // Samo verige in dežurne trgovine, kot v aplikaciji.
                     guard let kind = StoreRules.kind(text: text, hours: hours) else { return nil }
+                    // Nakupovalni center le, če je Jager center (kot v app.js).
+                    if (tags["shop"] as? String) == "mall" && kind.chain != "jager" { return nil }
                     return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
                                     chain: kind.chain, duty: kind.duty, hours: hours, only: kind.chain.flatMap { StoreRules.only[$0] })
                 }
                 guard !list.isEmpty else { return }
-                self.stores = list
+                // Poslovalnice Jager iz uradnega seznama (dodala jih je aplikacija) ostanejo.
+                self.stores = list + self.stores.filter { $0.id.hasPrefix("uradno/") }
                 self.lastFetch = loc
                 self.refreshRegions(around: loc)
             }
