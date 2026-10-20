@@ -284,7 +284,8 @@ async function jager() {
     const week = table ? parseDayText(strip(table)) : null;
     const h = week ? toOsm(week.map((d) => d || [])) : null;
     if (shown++ < 3 || process.env.JAGER_DEBUG) console.log("  vzorec jager |", name, "|", addr, "|", h);
-    if (addr) add("jager", { lat: null, lon: null, a: addr, h, n: name });
+    // Le trgovine z živili (brez železokrivnice, servisa in skladišča).
+    if (addr && !/skladi|servis|železo|zelezo/i.test(name)) add("jager", { lat: null, lon: null, a: addr, h, n: name });
   }
 }
 
@@ -315,22 +316,15 @@ async function geocode() {
 
 if (process.env.JAGER_DEBUG) {
   await jager();
-  const sample = all.slice(0, 4);
-  for (const t of sample) {
-    const q = t.a;
-    const p = await get("https://photon.komoot.io/api/?limit=1&bbox=13.3,45.4,16.7,46.9&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
-    console.log("GEO photon", q, p && p.status, p && (await p.text()).slice(0, 300));
-    const n = await get("https://nominatim.openstreetmap.org/search?format=json&countrycodes=si&limit=1&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
-    console.log("GEO nominatim", q, n && n.status, n && (await n.text()).slice(0, 300));
-    await sleep(1200);
+  const out = [];
+  for (const t of all) {
+    const q = t.a.replace(/,\s*(\d{4})\s/, ", $1 ");
+    const n = await getJson("https://nominatim.openstreetmap.org/search?format=json&countrycodes=si&limit=1&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 2);
+    const r = n && n[0];
+    out.push({ n: t.n, a: t.a, h: t.h, lat: r ? +(+r.lat).toFixed(5) : null, lon: r ? +(+r.lon).toFixed(5) : null, what: r ? r.class + "/" + r.type + "/" + (r.name || "") : "" });
+    await sleep(1100);
   }
-  const oq = '[out:json][timeout:120];area["ISO3166-1"="SI"][admin_level=2]->.s;(nwr(area.s)["name"~"jager",i];nwr(area.s)["brand"~"jager",i];);out center tags;';
-  for (const u of ["https://overpass.kumi.systems/api/interpreter", "https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]) {
-    const o = await getJson(u, { method: "POST", body: "data=" + encodeURIComponent(oq), headers: { "user-agent": UA, "content-type": "application/x-www-form-urlencoded" } }, 1);
-    if (!o) continue;
-    for (const e of o.elements || []) console.log("JAGEROSM", e.type + "/" + e.id, JSON.stringify(e.tags), e.lat || (e.center && e.center.lat), e.lon || (e.center && e.center.lon));
-    break;
-  }
+  console.log("JAGERJSON" + JSON.stringify(out));
   process.exit(0);
 }
 for (const [name, fn] of [["spar", spar], ["lidl", lidl], ["hofer", hofer], ["mercator", mercator], ["tus", tus], ["eurospin", eurospin], ["jager", jager]]) {
