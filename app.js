@@ -556,7 +556,7 @@
     if (!(opts && opts.silent)) {
       var msg = "Dodano: " + name + (brand ? " (" + brand + ")" : "");
       // Vidno potrdilo: kratek utrip števca na zavihku Seznam (+ rahel tresljaj, kjer gre).
-      replay($("countOpen"), "bump");
+      replay($("countOpen"), "bump"); replay($("heroCount"), "bump");
       try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* nič */ }
       toast(msg);
       // Obvestilo tudi takoj pod iskalnikom: spodnjega toasta tipkovnica pogosto zakrije.
