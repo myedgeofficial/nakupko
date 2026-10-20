@@ -1341,13 +1341,62 @@
     renderTrip();
   }
 
+  // Poslovalnice Jager (uradni seznam trgovinejager.com, lokacija po naslovu): mnoge v OpenStreetMap
+  // niso vpisane kot trgovina, zato jih dodamo, kadar v bližini ni nobenega Jagra iz OSM.
+  // Brez poslovalnic, katerih naslova ni bilo mogoče natančno najti (Kozje, Mestinje, Mirna, Mozirje,
+  // Podčetrtek, Poljčane, Sladki Vrh, Vransko); te se zaznajo, če so v OSM.
+  var JAGER_STORES = [
+    { a: "K železnici 1, 2345 Bistrica ob Dravi", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.5565, lon: 15.55599 },
+    { a: "Bistrica ob Sotli 4a, 3256 Bistrica ob Sotli", h: "Mo-Fr 07:00-18:00; Sa 07:00-17:00; Su off", lat: 46.05575, lon: 15.66167 },
+    { a: "Braslovče 2a, 3314 Braslovče", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.28575, lon: 15.04136 },
+    { a: "Ipavčeva ulica 25, 3000 Celje", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.23966, lon: 15.25851 },
+    { a: "Moškanjci 24a, 2272 Gorišnica", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.4163, lon: 15.99891 },
+    { a: "Miklavška cesta 60, Hoče", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.50139, lon: 15.6594 },
+    { a: "Tovarniška cesta 8, 2325 Kidričevo", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.40342, lon: 15.79919 },
+    { a: "Kostrivnica 1a, 3241 Kostrivnica", h: "Mo-Fr 07:30-16:00; Sa 07:30-13:00; Su off", lat: 46.2621, lon: 15.58575 },
+    { a: "Aškerčeva 1a, 8270 Krško", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 45.95488, lon: 15.49819 },
+    { a: "Kranjčeva ulica 61, 9220 Lendava", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.55636, lon: 16.46159 },
+    { a: "Ormoška cesta 44a, 9240 Ljutomer", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.51424, lon: 16.20377 },
+    { a: "Loka pri Žusmu 11, 3223 Loka pri Žusmu", h: "Mo-Fr 08:00-15:00; Sa 08:00-13:00; Su off", lat: 46.17358, lon: 15.50394 },
+    { a: "Majšperk 66a, 2322 Majšperk", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.34655, lon: 15.73869 },
+    { a: "Ulica Kraljeviča Marka 19, Maribor", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.55817, lon: 15.66484 },
+    { a: "Kamenice 3, 9233 Odranci", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.58361, lon: 16.28249 },
+    { a: "Hardek 34i, 2270 Ormož", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.40939, lon: 16.15733 },
+    { a: "Pišece 25/b, 8255 Pišece", h: "Mo-Fr 07:00-18:00; Sa 07:00-17:00; Su off", lat: 45.99196, lon: 15.61931 },
+    { a: "Ptujska cesta 4, 2331 Pragersko", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.39733, lon: 15.65476 },
+    { a: "Latkova vas 214 b, 3312 Prebold", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.25262, lon: 15.09326 },
+    { a: "Zagrebška cesta 34, 2251 Ptuj", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.40896, lon: 15.8651 },
+    { a: "Boračevska cesta 3, 9252 Radenci", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.64268, lon: 16.03504 },
+    { a: "Pohorska ulica 25, Maribor", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.53767, lon: 15.60436 },
+    { a: "Ceste 10, 3252 Rogatec", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.22394, lon: 15.70217 },
+    { a: "Na Livadi 14, 3250 Rogaška Slatina", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.23119, lon: 15.65197 },
+    { a: "Prvomajska ul. 29, 3250 Rogaška Slatina", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.24364, lon: 15.62645 },
+    { a: "Mariborska cesta 54, 2352 Selnica ob Dravi", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.54876, lon: 15.48342 },
+    { a: "Sladka Gora 4a, Šmarje pri Jelšah", h: "Mo-Fr 08:00-15:00; Sa 08:00-13:00; Su off", lat: 46.26575, lon: 15.55176 },
+    { a: "Cesta k Dravi 8a, 2241 Spodnji Duplek", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.50091, lon: 15.74963 },
+    { a: "Starše 78b, 2205 Starše", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.46787, lon: 15.76389 },
+    { a: "Trnovska vas 44, 2254 Trnovska vas", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.51997, lon: 15.88712 },
+    { a: "Industrijska ulica 4A, 9224 Turnišče", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.62329, lon: 16.31755 },
+    { a: "Cesta Simona Blatnika 7, 3320 Velenje", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.36523, lon: 15.10027 },
+    { a: "Maistrova ulica 19, 2212 Šentilj", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.67575, lon: 15.65678 },
+    { a: "Cesta pod Rifnikom 24, 3230 Šentjur", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.20811, lon: 15.39979 },
+    { a: "Kolodvorska ulica 2a, 3240 Šmarje pri Jelšah", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.22993, lon: 15.51968 }
+  ];
+  function missingJager(p, list) {
+    return JAGER_STORES.filter(function (j) {
+      if (distM(p, j) > 3000) return false;
+      return !list.some(function (s) { return s.chain === "jager" && distM(s, j) < 250; });
+    }).map(function (j) {
+      return { id: "uradno/jager/" + j.lat + "," + j.lon, name: "Jager, " + j.a, short: "Jager", chain: "jager", duty: false, lat: j.lat, lon: j.lon, hours: j.h };
+    });
+  }
   var OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
   function fetchStores(p, force) {
     if (fetching && !force) return;
     fetching = true;
     // Najprej država (is_in), nato trgovine.
     var q = "[out:json][timeout:20];is_in(" + p.lat + "," + p.lon + ")->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(" +
-      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist|tobacco|kiosk|newsagent)$\"](around:3000," + p.lat + "," + p.lon + ");" +
+      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist|tobacco|kiosk|newsagent)$\"](around:3000," + p.lat + "," + p.lon + ");" +
       "nwr[\"amenity\"=\"fuel\"](around:3000," + p.lat + "," + p.lon + ");" +
       ");out center tags 250;";
     var tryAt = function (i) {
@@ -1381,6 +1430,8 @@
               return fs;
             }
             var kind = storeKind([t.brand, t.name, t.operator].join(" "), t.opening_hours);
+            // Nakupovalni center šteje le, če je Jager center (trgovina z živili v njem ni posebej vpisana).
+            if (t.shop === "mall" && kind !== "jager") return null;
             if (!kind && t.amenity === "fuel") kind = "bencinska";
             if (!kind) return null;
             var chain = kind === "duty" ? null : kind;
@@ -1390,6 +1441,7 @@
             var addr = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
             return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || defHours || "" };
           }).filter(Boolean);
+          if (!tuj) stores = stores.concat(missingJager(p, stores));
           applyOfficial(stores);
           lastFetchPos = { lat: p.lat, lon: p.lon };
           state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now(), country: ctry };
