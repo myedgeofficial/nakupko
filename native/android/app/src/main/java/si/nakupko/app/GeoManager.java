@@ -300,7 +300,7 @@ final class GeoManager {
             JSONArray list = new JSONArray();
             try {
                 // Najprej država (is_in): zunaj Slovenije spremljamo vse trgovine z živili, ne le slovenskih verig.
-                String q = String.format(Locale.US, "[out:json][timeout:20];is_in(%f,%f)->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,%f,%f););out center tags 150;",
+                String q = String.format(Locale.US, "[out:json][timeout:20];is_in(%f,%f)->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|chemist)$\"](around:5000,%f,%f););out center tags 150;",
                     loc.getLatitude(), loc.getLongitude(), loc.getLatitude(), loc.getLongitude());
                 HttpURLConnection c = (HttpURLConnection) new URL("https://overpass-api.de/api/interpreter").openConnection();
                 c.setRequestMethod("POST");
@@ -340,6 +340,8 @@ final class GeoManager {
                         ? (shop.matches("supermarket|convenience|grocery|discount") ? new StoreRules.Kind(null, false) : null)
                         : StoreRules.kind(text, hours);
                     if (kind == null) continue;
+                    // Nakupovalni center le, če je Jager center (kot v app.js).
+                    if ("mall".equals(shop) && !"jager".equals(kind.chain)) continue;
                     String name = tags.optString("name", tags.optString("brand", tags.optString("operator", "Trgovina")));
                     JSONObject s = new JSONObject();
                     s.put("id", e.optString("type", "n") + "/" + e.optLong("id"));
@@ -357,6 +359,12 @@ final class GeoManager {
             main.post(() -> {
                 fetching = false;
                 if (result.length() > 0) {
+                    // Poslovalnice Jager iz uradnega seznama (dodala jih je aplikacija) ostanejo.
+                    JSONArray old = json("stores");
+                    for (int i = 0; old != null && i < old.length(); i++) {
+                        JSONObject s = old.optJSONObject(i);
+                        if (s != null && s.optString("id").startsWith("uradno/")) result.put(s);
+                    }
                     prefs.edit().putString("stores", result.toString()).apply();
                     setLastFetch(loc);
                     refreshRegions(loc, done);
