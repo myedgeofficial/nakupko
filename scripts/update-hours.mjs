@@ -269,31 +269,22 @@ async function eurospin() {
   await pages("eurospin", urls, (u) => /prodajna-mesta\/.+/.test(u));
 }
 
-// --- Jager: ena stran z vsemi poslovalnicami ---
+// --- Jager: ena stran z vsemi poslovalnicami (kartica na poslovalnico: ime, naslov, tabela z urnikom) ---
 async function jager() {
   const html = await getText("https://www.trgovinejager.com/Poslovalnice/");
   if (!html) return console.log("Jager: ni podatkov");
-  if (process.env.JAGER_DEBUG) {
-    const i = html.indexOf("BISTRICA OB DRAVI");
-    console.log("JAGERHTML>>>" + html.slice(Math.max(0, i - 3000), i + 6000).replace(/\s+/g, " ") + "<<<");
-    const q = '[out:json][timeout:120];area["ISO3166-1"="SI"][admin_level=2]->.s;(nwr(area.s)["name"~"jager",i];nwr(area.s)["brand"~"jager",i];nwr(area.s)["operator"~"jager",i];);out center tags;';
-    const o = await getJson("https://overpass-api.de/api/interpreter", { method: "POST", body: "data=" + encodeURIComponent(q), headers: { "user-agent": UA, "content-type": "application/x-www-form-urlencoded" } });
-    for (const e of (o && o.elements) || []) console.log("JAGEROSM", e.type + "/" + e.id, JSON.stringify(e.tags), e.lat || (e.center && e.center.lat), e.lon || (e.center && e.center.lon));
-    process.exit(0);
-  }
-  const text = strip(html);
-  // bloki se začnejo z »JAGER ...« in vsebujejo naslov s poštno številko
-  const blocks = text.split(/(?=JAGER\s)/).slice(1);
-  dbg.push("jager blokov " + blocks.length);
+  const cards = html.split(/<div class="serviserji dealermore"/).slice(1);
+  dbg.push("jager kartic " + cards.length);
   let shown = 0;
-  for (const b of blocks) {
-    const one = b.replace(/\s+/g, " ");
-    const m = one.match(/^JAGER\s.*?[-–]\s*[A-ZČŠŽ .]+?\s+([A-ZČŠŽ](?:[a-zčšž]|\s[a-zčšž])[^0-9]*?\s\d+[a-zA-Z]?)\s+(\d{4})\s+([A-ZČŠŽ][a-zčšž]+(?:\s(?:ob|na|pri|v|(?!Pon|Tor|Sre|Čet|Pet|Sob|Ned|Odpiral|Delovn)[A-ZČŠŽ][a-zčšž]+))*)/);
-    const week = parseDayText(b.slice(0, 600));
-    const addr = m ? (m[1].trim() + ", " + m[2] + " " + m[3].trim()) : "";
+  for (const c of cards) {
+    const name = ((c.match(/<h4[^>]*>([^<]+)<\/h4>/) || [])[1] || "").replace(/\s+/g, " ").trim();
+    const g = c.match(/class="gadresa">\s*<span>([^<]*)<\/span>\s*<span>([^<]*)<\/span>/);
+    const addr = g ? g[1].replace(/,\s*$/, "").trim() + ", " + g[2].trim() : "";
+    const table = (c.match(/contact-working-hours[\s\S]*?<\/table>/) || [""])[0];
+    const week = table ? parseDayText(strip(table)) : null;
     const h = week ? toOsm(week.map((d) => d || [])) : null;
-    if (shown++ < 2 || (!h && shown < 6)) { console.log("  vzorec jager |", addr, "|", h); dbg.push("jager vzorec | " + addr + " | " + h + " | " + b.slice(0, 450).replace(/\s+/g, " ")); }
-    if (addr) add("jager", { lat: null, lon: null, a: addr, h, n: addr });
+    if (shown++ < 3 || process.env.JAGER_DEBUG) console.log("  vzorec jager |", name, "|", addr, "|", h);
+    if (addr) add("jager", { lat: null, lon: null, a: addr, h, n: name });
   }
 }
 
@@ -322,7 +313,26 @@ async function geocode() {
   dbg.push("geokodiranje " + asked + ", najdeno " + JSON.stringify(geoHits));
 }
 
-if (process.env.JAGER_DEBUG) await jager();
+if (process.env.JAGER_DEBUG) {
+  await jager();
+  const sample = all.slice(0, 4);
+  for (const t of sample) {
+    const q = t.a;
+    const p = await get("https://photon.komoot.io/api/?limit=1&bbox=13.3,45.4,16.7,46.9&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
+    console.log("GEO photon", q, p && p.status, p && (await p.text()).slice(0, 300));
+    const n = await get("https://nominatim.openstreetmap.org/search?format=json&countrycodes=si&limit=1&q=" + encodeURIComponent(q), { headers: { "user-agent": UA } }, 1);
+    console.log("GEO nominatim", q, n && n.status, n && (await n.text()).slice(0, 300));
+    await sleep(1200);
+  }
+  const oq = '[out:json][timeout:120];area["ISO3166-1"="SI"][admin_level=2]->.s;(nwr(area.s)["name"~"jager",i];nwr(area.s)["brand"~"jager",i];);out center tags;';
+  for (const u of ["https://overpass.kumi.systems/api/interpreter", "https://overpass-api.de/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]) {
+    const o = await getJson(u, { method: "POST", body: "data=" + encodeURIComponent(oq), headers: { "user-agent": UA, "content-type": "application/x-www-form-urlencoded" } }, 1);
+    if (!o) continue;
+    for (const e of o.elements || []) console.log("JAGEROSM", e.type + "/" + e.id, JSON.stringify(e.tags), e.lat || (e.center && e.center.lat), e.lon || (e.center && e.center.lon));
+    break;
+  }
+  process.exit(0);
+}
 for (const [name, fn] of [["spar", spar], ["lidl", lidl], ["hofer", hofer], ["mercator", mercator], ["tus", tus], ["eurospin", eurospin], ["jager", jager]]) {
   const t0 = Date.now();
   try { await fn(); } catch (e) { console.log(name, "napaka:", String(e).slice(0, 200)); }
