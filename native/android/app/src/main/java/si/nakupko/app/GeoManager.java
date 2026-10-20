@@ -138,7 +138,7 @@ final class GeoManager {
     // ---------- Shranjene nastavitve ----------
     boolean enabled() { return prefs.getBoolean("enabled", false); }
 
-    private float radius() { return Math.max(prefs.getFloat("radius", 75), 75); }
+    private float radius() { return Math.max(prefs.getFloat("radius", 60), 60); }
 
     private JSONArray json(String key) {
         try { return new JSONArray(prefs.getString(key, "[]")); } catch (Exception e) { return new JSONArray(); }
@@ -253,7 +253,7 @@ final class GeoManager {
     void refreshRegions(Location loc, Runnable done) {
         if (!enabled() || !hasLocation() || !hasBackground()) { if (done != null) done.run(); return; }
         // Android geofence je natančen na ~100 m, zato manjši polmer ne pomaga.
-        float r = Math.min(Math.max(radius(), 100), 300);
+        float r = Math.min(Math.max(radius(), 85), 300);
         JSONArray stores = json("stores");
         List<Object[]> near = new ArrayList<>();
         for (int i = 0; i < stores.length(); i++) {
