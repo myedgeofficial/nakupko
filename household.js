@@ -231,10 +231,10 @@
   }
 
   // Nov seznam: ustvarjalec je takoj član. Obstoječi seznam: prošnja, ki jo mora nekdo s seznama sprejeti.
-  function join(c, creator) {
+  function join(c, creator, quiet) {
     c = cleanCode(c);
     if (c.length < 10) { api.toast("Koda ima 10 znakov."); return Promise.resolve(false); }
-    if (!myName()) askName();
+    if (!myName() && !quiet) askName();
     var me = { name: myName() || "Član", lang: window.NK_LANG || "sl", status: creator ? "ok" : "pending", at: { ".sv": "timestamp" } };
     var check = creator ? Promise.resolve(true) : fetch(DB + "/h/" + c + "/members.json?shallow=true", { cache: "no-store" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (m) { return !!(m && Object.keys(m).length); });
     return check.then(function (exists) {
@@ -244,7 +244,7 @@
         disconnect(); code = c; dirty = {}; saveDirty();
         set(CODE_KEY, code); set(STATUS_KEY, me.status); set(LOC_KEY, "");
         watchMembers();
-        if (creator) { connect(); watchAsks(); api.toast("Skupen seznam je ustvarjen."); }
+        if (creator) { connect(); watchAsks(); if (!quiet) api.toast("Skupen seznam je ustvarjen."); }
         else api.toast("Prošnja poslana. Ko te sprejmejo, se seznam poveže.");
         renderCard(); nativeSync();
         return true;
@@ -485,6 +485,23 @@
   if (!pending()) { connect(); announce(); watchAsks(); }
   watchMembers();
   window.addEventListener("online", flush);
+
+  // Spletna stran nakupko.com (QR »Poveži s telefonom«, nakupko://povezi?k=PARKODA): splet dobi isti seznam.
+  // Telefon zapiše kodo seznama na /h/{PARKODA}/link, splet jo prebere in se poveže na /h/{koda}/items.
+  // Če seznam še ni skupen, ga ustvarimo (izdelki s telefona gredo zraven).
+  window.__nakupkoLinkWeb = function (pair) {
+    pair = cleanCode(pair);
+    if (pair.length !== 10) return;
+    if (pending()) { api.toast("Najprej počakaj, da te sprejmejo v skupen seznam."); return; }
+    var ready = code ? Promise.resolve(true) : join(newCode(), true, true);
+    ready.then(function (ok) {
+      if (!ok || !code) return;
+      return fetch(DB + "/h/" + pair + "/link.json", { method: "PUT", body: JSON.stringify({ c: code, at: { ".sv": "timestamp" } }) }).then(function (r) {
+        if (!r.ok) throw new Error(r.status);
+        api.toast("✓ Splet je povezan. Seznam je zdaj isti na telefonu in na nakupko.com.");
+      });
+    }).catch(function () { api.toast("Ni povezave. Poskusi znova."); });
+  };
 
   // Povezava ?dom=KODA iz sporočila.
   var m = /[?&]dom=([A-Za-z0-9-]+)/.exec(location.search);

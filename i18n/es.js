@@ -224,6 +224,8 @@ NK_PACK("es", function (h) {
     "Sprejet si. Seznam je zdaj skupen.": "Te han aceptado. La lista ahora es compartida.",
     "Prošnja za pridružitev ni bila sprejeta.": "Tu solicitud para unirte no fue aceptada.",
     "Seznama s to kodo ni.": "No hay ninguna lista con este código.",
+    "Najprej počakaj, da te sprejmejo v skupen seznam.": "Espera primero a que te acepten en la lista compartida.",
+    "✓ Splet je povezan. Seznam je zdaj isti na telefonu in na nakupko.com.": "✓ Web conectada. La lista ahora es la misma en tu móvil y en nakupko.com.",
     "Skupen seznam je ustvarjen.": "Lista compartida creada.",
     "Prošnja poslana. Ko te sprejmejo, se seznam poveže.": "Solicitud enviada. La lista se conecta cuando te acepten.",
     "Prekličeš prošnjo za pridružitev?": "¿Cancelar tu solicitud para unirte?",
