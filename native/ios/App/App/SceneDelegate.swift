@@ -11,14 +11,24 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
 
-        if connectionOptions.urlContexts.contains(where: { $0.url.scheme == "nakupko" }) { GeoManager.shared.pendingStoreId = "live" }
+        if let id = SceneDelegate.pending(connectionOptions.urlContexts) { GeoManager.shared.pendingStoreId = id }
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
         // »Odpri seznam« na zaklenjenem zaslonu (nakupko://seznam): native.js odpre nakupovanje.
-        if URLContexts.contains(where: { $0.url.scheme == "nakupko" }) { GeoManager.shared.pendingStoreId = "live" }
+        // Seznam s spletne strani nakupko.com (nakupko://dodaj?i=Mleko|Kruh): native.js doda izdelke.
+        if let id = SceneDelegate.pending(URLContexts) { GeoManager.shared.pendingStoreId = id }
         SceneDelegateProxy.shared.scene(scene, openURLContexts: URLContexts)
+    }
+
+    static func pending(_ contexts: Set<UIOpenURLContext>) -> String? {
+        guard let url = contexts.first(where: { $0.url.scheme == "nakupko" })?.url else { return nil }
+        if url.host == "dodaj" {
+            let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "i" })?.value ?? ""
+            return items.isEmpty ? nil : "import:" + items
+        }
+        return "live"
     }
 
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {

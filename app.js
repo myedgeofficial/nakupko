@@ -534,14 +534,18 @@
     var key = norm(name);
     var existing = state.items.find(function (i) { return norm(i.name) === key && !i.done && (i.brand || "") === (brand || ""); });
     var target = existing;
+    var amt = opts && opts.amt;
     if (existing) {
-      existing.qty = (existing.qty || 1) + (qty || 1);
+      // Količina iz recepta (npr. 400 g) se prišteje, sicer gre kos več.
+      if (amt) existing.amt = sumAmt(existing.amt, amt);
+      else existing.qty = (existing.qty || 1) + (qty || 1);
     } else {
       var prod = CATALOG_BY_KEY[key];
       target = {
         id: uid(), name: prod ? prod.name : name, brand: brand || "", qty: qty || 1,
         cat: prod ? prod.cat : "Drugo", done: false, addedAt: Date.now()
       };
+      if (amt) target.amt = sumAmt(null, amt);
       // Slika, ki jo je uporabnik zadnjič dodal temu izdelku (isti izdelek in znamka), pride spet zraven.
       var memo = (state.photoMemo || {})[photoKey(target)];
       if (memo) target.photo = memo.p;
@@ -847,6 +851,27 @@
   try { localStorage.removeItem("nakupko-img"); delete state.imgCache; } catch (e) { /* nič */ }
 
   function qtyText(q) { return q && q !== 1 ? String(q).replace(".", ",") + "x" : ""; }
+  // Količine iz receptov: { g: 400, kos: 2 } → »400 g + 2 kos«.
+  var AMT_U = { g: ["g", "g"], ml: ["ml", "ml"], kg: ["kg", "kg"], l: ["l", "l"], kos: ["kos", "pc"], strok: ["str.", "clove"], "žlica": ["žl.", "tbsp"], "žlička": ["žlič.", "tsp"], "šopek": ["šop.", "bunch"], list: ["list.", "leaf"], "pločevinka": ["ploč.", "can"], kozarec: ["koz.", "jar"], vrečka: ["vreč.", "bag"], rezina: ["rez.", "slice"], zavitek: ["zav.", "pack"] };
+  function sumAmt(a, b) {
+    var out = {};
+    [a, b].forEach(function (m) { Object.keys(m || {}).forEach(function (u) { var v = +m[u]; if (v > 0) out[u] = Math.round(((out[u] || 0) + v) * 10) / 10; }); });
+    return out;
+  }
+  function parseAmt(s) {
+    var m = {};
+    String(s || "").split("+").forEach(function (a) { var t = a.trim().split(/\s+/); if (+t[0] > 0 && t[1]) m[t[1]] = (m[t[1]] || 0) + +t[0]; });
+    return Object.keys(m).length ? m : null;
+  }
+  function amtText(m) {
+    var en = (window.NK_LANG || "sl") !== "sl";
+    return Object.keys(m || {}).map(function (u) {
+      var v = m[u], uu = u;
+      if (u === "g" && v >= 1000) { v = v / 1000; uu = "kg"; } if (u === "ml" && v >= 1000) { v = v / 1000; uu = "l"; }
+      var n = String(Math.round(v * 10) / 10);
+      return (en ? n : n.replace(".", ",")) + " " + (AMT_U[uu] ? AMT_U[uu][en ? 1 : 0] : uu);
+    }).join(" + ");
+  }
   function itemRow(it, big, storeCtx) {
     var meta = itemMeta(it);
     var check = el("button", { class: "check", type: "button", "aria-label": it.done ? "Označi kot nekupljeno" : "Označi kot kupljeno",
@@ -857,7 +882,7 @@
     del.innerHTML = X_SVG;
     // Tap na ime: izbira trgovine za ta izdelek.
     var tag = it.store ? el("span", { class: "store-tag" }, [CHAIN_BY_KEY[it.store] ? chainDot(it.store) : null, storeKeyName(it.store)]) : null;
-    var q = qtyText(it.qty);
+    var q = it.amt && Object.keys(it.amt).length ? amtText(it.amt) + (it.qty > 1 ? " · " + qtyText(it.qty) : "") : qtyText(it.qty);
     var row = el("div", { class: "irow" }, [
       thumbFor(it),
       el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { pickOpen = pickOpen === it.id ? null : it.id; renderAll(); } }, [
@@ -2205,16 +2230,18 @@
     if (!e.target.closest || !e.target.closest("#listBar .dd")) setFilterMenu(false);
     if (swipedRow && (!e.target.closest || !e.target.closest("li.item.swiped"))) closeSwipe();
   });
-  // Zavihka nad seznamom: SEZNAM / TRGOVINE.
+  // Zavihki nad seznamom: SEZNAM / RECEPTI / TRGOVINE.
   function setPane(p) {
-    var stores_ = p === "stores";
-    $("ftList").classList.toggle("on", !stores_); $("ftList").setAttribute("aria-selected", String(!stores_));
-    $("ftStores").classList.toggle("on", stores_); $("ftStores").setAttribute("aria-selected", String(stores_));
-    $("paneList").classList.toggle("hidden", stores_);
-    $("paneStores").classList.toggle("hidden", !stores_);
-    if (stores_) renderStoresPane();
+    [["list", "ftList", "paneList"], ["recipes", "ftRecipes", "paneRecipes"], ["stores", "ftStores", "paneStores"]].forEach(function (x) {
+      var on = x[0] === p;
+      $(x[1]).classList.toggle("on", on); $(x[1]).setAttribute("aria-selected", String(on));
+      $(x[2]).classList.toggle("hidden", !on);
+    });
+    if (p === "stores") renderStoresPane();
+    if (p === "recipes" && window.NK_RECEPTI) window.NK_RECEPTI.show();
   }
   $("ftList").addEventListener("click", function () { setPane("list"); });
+  $("ftRecipes").addEventListener("click", function () { setPane("recipes"); });
   $("ftStores").addEventListener("click", function () { setPane("stores"); });
   $("storeSort").addEventListener("change", function (e) { storeSort = e.target.value; renderStoresPane(); });
 
@@ -2421,7 +2448,7 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n) { addItem(n, "", 1, { silent: true }); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
+  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n, amt) { var a = typeof amt === "string" ? parseAmt(amt) : amt; addItem(n, "", 1, a ? { silent: true, amt: a } : { silent: true }); }, amtText: amtText, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
     // Klik na obvestilo »trgovina je blizu«: odpremo prav to trgovino, brez čakanja na GPS v aplikaciji.
     var list = stores.concat((state.storesCache && state.storesCache.list) || []);
     var st = list.filter(function (x) { return x.id === id; })[0] || lastNearStore || null;
