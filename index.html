@@ -75,6 +75,7 @@
 
       <div class="ftabs" role="tablist">
         <button id="ftList" class="ftab on" type="button" role="tab" aria-selected="true" aria-controls="paneList"><span>Seznam</span> <span id="countOpen" class="badge">0</span></button>
+        <button id="ftRecipes" class="ftab" type="button" role="tab" aria-selected="false" aria-controls="paneRecipes"><span>Recepti</span></button>
         <button id="ftStores" class="ftab" type="button" role="tab" aria-selected="false" aria-controls="paneStores"><span>Trgovine</span></button>
       </div>
 
@@ -102,6 +103,14 @@
           <div class="card-head"><h2>Pogosto kupuješ</h2></div>
           <div id="quick" class="chips"></div>
         </div>
+      </div>
+
+      <div id="paneRecipes" class="panel pane-recipes hidden" role="tabpanel">
+        <div class="rsearch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="rq" type="search" autocomplete="off" placeholder="Poišči jed ali sestavino" aria-label="Poišči jed ali sestavino">
+        </div>
+        <div id="rflow"></div>
       </div>
 
       <div id="paneStores" class="panel pane-stores hidden" role="tabpanel">
@@ -276,6 +285,8 @@
   <script src="i18n.js"></script>
   <script src="store-detect.js"></script>
   <script src="app.js"></script>
+  <script src="ikone-jedi.js"></script>
+  <script src="recepti.js"></script>
   <script src="household.js"></script>
   <script src="aktivni.js"></script>
 </body>
