@@ -202,10 +202,11 @@
 
   // ---------- Reklama čez cel zaslon: ob vsakem 3. odprtju aplikacije ----------
   // Odprtje = zagon ali vrnitev v aplikacijo po 3+ minutah (ponovno nalaganje strani, npr. ob menjavi jezika,
-  // ni novo odprtje). Prvi dan po namestitvi reklame čez cel zaslon ni nikoli. Pokaže se nekaj sekund po odprtju
-  // (ko je seznam že na zaslonu in se ga nihče ne dotika) ali prej ob premoru (menjava zavihka, konec nakupa).
+  // ni novo odprtje). Prvi dan po namestitvi reklame čez cel zaslon ni nikoli. Ne pokaže se ob odprtju, ampak šele
+  // po ~45 s uporabe, ob prvem premoru (menjava zavihka, konec nakupa ali ko se zaslona nihče ne dotika).
+  // Če aplikacijo zapreš prej, ostane za naslednjič.
   var AD_INTER = window.NAKUPKO_AD_INTER || (ANDROID ? "ca-app-pub-2170388618811750/7056508648" : "ca-app-pub-2170388618811750/1341702444");
-  var OPEN_KEY = "nakupko-odprtja", AWAY = 3 * 60 * 1000, EVERY = 3, SHOW_AFTER = 4000, FIRST_DAY = 24 * 3600 * 1000;
+  var OPEN_KEY = "nakupko-odprtja", AWAY = 3 * 60 * 1000, EVERY = 3, SHOW_AFTER = 45000, FIRST_DAY = 24 * 3600 * 1000;
   var inter = { ready: false, loading: false, listening: false, fails: 0 }, openedAt = 0, hiddenAt = 0, touchedAt = 0, showTimer = 0;
   function opens() {
     var o = null;
