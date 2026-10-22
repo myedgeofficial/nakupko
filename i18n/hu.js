@@ -224,6 +224,8 @@ NK_PACK("hu", function (h) {
     "Sprejet si. Seznam je zdaj skupen.": "Elfogadtak. A lista most már közös.",
     "Prošnja za pridružitev ni bila sprejeta.": "A csatlakozási kérésedet nem fogadták el.",
     "Seznama s to kodo ni.": "Ezzel a kóddal nincs lista.",
+    "Najprej počakaj, da te sprejmejo v skupen seznam.": "Előbb várd meg, hogy elfogadjanak a közös listába.",
+    "✓ Splet je povezan. Seznam je zdaj isti na telefonu in na nakupko.com.": "✓ A weboldal csatlakoztatva. A lista most ugyanaz a telefonon és a nakupko.com-on.",
     "Skupen seznam je ustvarjen.": "Közös lista létrehozva.",
     "Prošnja poslana. Ko te sprejmejo, se seznam poveže.": "Kérés elküldve. A lista akkor kapcsolódik, amikor elfogadnak.",
     "Prekličeš prošnjo za pridružitev?": "Visszavonod a csatlakozási kérést?",

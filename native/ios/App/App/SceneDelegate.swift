@@ -28,6 +28,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "i" })?.value ?? ""
             return items.isEmpty ? nil : "import:" + items
         }
+        // QR »Poveži s telefonom« na nakupko.com (nakupko://povezi?k=PARKODA)
+        if url.host == "povezi" {
+            let k = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "k" })?.value ?? ""
+            return k.isEmpty ? nil : "povezi:" + k
+        }
         return "live"
     }
 

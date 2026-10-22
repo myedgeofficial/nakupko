@@ -225,6 +225,8 @@ NK_PACK("hr", function (h) {
     "Sprejet si. Seznam je zdaj skupen.": "Prihvaćen si. Popis je sada zajednički.",
     "Prošnja za pridružitev ni bila sprejeta.": "Tvoj zahtjev za pridruživanje nije prihvaćen.",
     "Seznama s to kodo ni.": "Popis s ovim kodom ne postoji.",
+    "Najprej počakaj, da te sprejmejo v skupen seznam.": "Najprije pričekaj da te prihvate u zajednički popis.",
+    "✓ Splet je povezan. Seznam je zdaj isti na telefonu in na nakupko.com.": "✓ Web je povezan. Popis je sada isti na mobitelu i na nakupko.com.",
     "Skupen seznam je ustvarjen.": "Zajednički popis je napravljen.",
     "Prošnja poslana. Ko te sprejmejo, se seznam poveže.": "Zahtjev poslan. Popis se poveže kad te prihvate.",
     "Prekličeš prošnjo za pridružitev?": "Povući zahtjev za pridruživanje?",

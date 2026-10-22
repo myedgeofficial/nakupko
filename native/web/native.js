@@ -288,6 +288,12 @@
     if (api && api.openStoreById && d && d.storeId) api.openStoreById(d.storeId);
   });
 
+  // QR »Poveži s telefonom« na nakupko.com: splet dobi isti (skupni) seznam kot telefon.
+  function linkWeb(pair) {
+    if (!window.__nakupkoLinkWeb) { setTimeout(function () { linkWeb(pair); }, 300); return; }
+    window.__nakupkoLinkWeb(pair);
+  }
+
   // Seznam s spletne strani nakupko.com (gumb »Dodaj v Nakupko«): izdelke dodamo na seznam.
   function importList(raw) {
     var api = window.__nakupko;
@@ -317,6 +323,7 @@
       if (!r || !r.storeId) return;
       var api = window.__nakupko, sm0 = document.getElementById("storeMode");
       if (r.storeId.indexOf("import:") === 0) { importList(r.storeId.slice(7)); return; }
+      if (r.storeId.indexOf("povezi:") === 0) { linkWeb(r.storeId.slice(7)); return; }
       // Iz seznama na zaklenjenem zaslonu: nakupovanje odpremo takoj.
       if (r.storeId === "live" && api && api.openStore) { if (sm0 && sm0.classList.contains("hidden")) api.openStore(); return; }
       // Obvestilo »trgovina je blizu«: odpremo prav to trgovino, ne čakamo na GPS v aplikaciji.
