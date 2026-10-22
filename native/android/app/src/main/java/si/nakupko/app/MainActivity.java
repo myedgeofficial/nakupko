@@ -30,6 +30,12 @@ public class MainActivity extends BridgeActivity {
             if (items != null && !items.isEmpty()) GeoManager.get(this).pendingStoreId = "import:" + items;
             return;
         }
+        // QR »Poveži s telefonom« na nakupko.com (nakupko://povezi?k=PARKODA): splet dobi isti seznam.
+        if (data != null && "nakupko".equals(data.getScheme()) && "povezi".equals(data.getHost())) {
+            String k = data.getQueryParameter("k");
+            if (k != null && !k.isEmpty()) GeoManager.get(this).pendingStoreId = "povezi:" + k;
+            return;
+        }
         String id = intent.getStringExtra(GeoManager.EXTRA_STORE);
         if (id != null) GeoManager.get(this).pendingStoreId = id;
     }

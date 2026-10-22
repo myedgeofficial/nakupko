@@ -31,6 +31,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="nakupko" android:host="dodaj" />
+                <data android:scheme="nakupko" android:host="povezi" />
             </intent-filter>
 
         </activity>
