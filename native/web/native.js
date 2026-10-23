@@ -21,7 +21,7 @@
     var api = {
       addListener: function (event, cb) { return Cap.addListener("NakupkoGeo", event, cb); }
     };
-    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways", "routeInfo", "showRoute"].forEach(function (m) {
+    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways", "routeInfo", "showRoute", "cook", "takeCook"].forEach(function (m) {
       api[m] = function (opts) { return Cap.nativePromise("NakupkoGeo", m, opts || {}); };
     });
     return api;
@@ -347,6 +347,17 @@
       });
     }).catch(function () {});
   }
+
+  // Kuhanje po korakih (recepti.js): korak je tudi na zaklenjenem zaslonu z gumboma Nazaj/Naprej.
+  // Ob vrnitvi v aplikacijo prevzamemo korak, ki si ga izbral na zaklenjenem zaslonu.
+  window.__nakupkoCook = function (o) { Geo.cook(o).catch(function () {}); };
+  function applyCookStep() {
+    Geo.takeCook().then(function (r) {
+      if (r && typeof r.step === "number" && r.step >= 0 && window.NK_RECEPTI) window.NK_RECEPTI.step(r.step);
+    }).catch(function () {});
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) applyCookStep(); });
+  Geo.addListener("cookStep", function (d) { if (d && window.NK_RECEPTI) window.NK_RECEPTI.step(d.step); });
 
   // Ena velikost za vse (tudi za starejše): stran je 12 % večja prek viewporta – postavitev se
   // prilagodi ožjemu zaslonu, zato se ne da premikati levo-desno. Izbire velikosti v aplikaciji ni.

@@ -992,6 +992,31 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 }
 
+// Začetek/osvežitev kuhanja na zaklenjenem zaslonu (samo v aplikaciji: Activity.request v razširitvi ni na voljo).
+extension LiveCook {
+    static func set(active: Bool, title: String, steps: [String], step: Int, done: String, lang: String) {
+        guard #available(iOS 16.2, *) else { return }
+        UserDefaults.standard.removeObject(forKey: stepKey)
+        let all = Activity<CookingAttributes>.activities
+        guard active, !steps.isEmpty else {
+            for a in all { Task { await a.end(nil, dismissalPolicy: .immediate) } }
+            return
+        }
+        let list = fit(steps)
+        let state = CookingAttributes.ContentState(step: max(0, min(list.count, step)), steps: list, lang: lang)
+        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(6 * 3600))
+        if let a = all.first(where: { $0.attributes.title == title }) {
+            Task { await a.update(content) }
+            for o in all where o.id != a.id { Task { await o.end(nil, dismissalPolicy: .immediate) } }
+            return
+        }
+        for o in all { Task { await o.end(nil, dismissalPolicy: .immediate) } }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        _ = try? Activity.request(attributes: CookingAttributes(title: title, done: done), content: content, pushType: nil)
+    }
+
+}
+
 // Most do spletnega dela (native.js).
 @objc(NakupkoGeoPlugin)
 public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -1009,7 +1034,9 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "routeInfo", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "showRoute", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "showRoute", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cook", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "takeCook", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -1018,6 +1045,36 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         geo.onError = { [weak self] data in self?.notifyListeners("locationError", data: data) }
         geo.onLeft = { [weak self] id in self?.notifyListeners("storeLeft", data: ["storeId": id]) }
         geo.onArrived = { [weak self] id in self?.notifyListeners("storeArrived", data: ["storeId": id]) }
+        // Korak, spremenjen na zaklenjenem zaslonu, medtem ko je aplikacija odprta.
+        NotificationCenter.default.addObserver(forName: Notification.Name("NakupkoCookStep"), object: nil, queue: .main) { [weak self] _ in
+            let d = UserDefaults.standard
+            guard let step = d.object(forKey: LiveCook.stepKey) as? Int else { return }
+            d.removeObject(forKey: LiveCook.stepKey)
+            self?.notifyListeners("cookStep", data: ["step": step])
+        }
+    }
+
+    // Kuhanje po korakih: korak recepta na zaklenjenem zaslonu (Nazaj/Naprej).
+    @objc func cook(_ call: CAPPluginCall) {
+        let active = call.getBool("active") ?? false
+        let title = call.getString("title") ?? "Nakupko"
+        let steps = (call.getArray("steps") as? [String]) ?? []
+        let step = call.getInt("step") ?? 0
+        let done = call.getString("done") ?? "Dober tek!"
+        let lang = call.getString("lang") ?? L10n.lang
+        DispatchQueue.main.async {
+            LiveCook.set(active: active, title: title, steps: steps, step: step, done: done, lang: lang)
+            call.resolve()
+        }
+    }
+
+    @objc func takeCook(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let d = UserDefaults.standard
+            let step = d.object(forKey: LiveCook.stepKey) as? Int ?? -1
+            d.removeObject(forKey: LiveCook.stepKey)
+            call.resolve(["step": step])
+        }
     }
 
     @objc func startWatch(_ call: CAPPluginCall) {
