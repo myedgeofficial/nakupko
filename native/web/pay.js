@@ -165,7 +165,7 @@
     addListener: function (event, cb) { return Cap.addListener("AdMob", event, cb); },
     call: function (m, opts) { return Cap.nativePromise("AdMob", m, opts || {}); }
   };
-  var ad = { started: false, shown: false, busy: false };
+  var ad = { started: false, shown: false, busy: false, loaded: false, fails: 0, retry: 0 };
   function setAdHeight(h) {
     document.documentElement.style.setProperty("--ad-h", (h > 0 ? Math.round(h) : 0) + "px");
   }
@@ -177,6 +177,14 @@
       // Reklama, ki se naloži šele po nakupu naročnine, takoj odstranimo.
       if (!ad.shown && !ad.busy && s && s.height > 0) Ads.call("removeBanner", {}).catch(function () {});
       setAdHeight(ad.shown && s ? s.height : 0);
+    });
+    // Banner, ki se ne naloži (AdMob ta hip nima oglasa, slaba povezava), se sam ne poskusi znova:
+    // brez tega je ostal prazen do naslednjega zagona aplikacije.
+    Ads.addListener("bannerAdLoaded", function () { ad.loaded = true; ad.fails = 0; });
+    Ads.addListener("bannerAdFailedToLoad", function () {
+      ad.loaded = false; ad.shown = false; setAdHeight(0);
+      clearTimeout(ad.retry);
+      ad.retry = setTimeout(renderAds, Math.min(20000 * Math.pow(2, ad.fails++), 300000));
     });
     // Privolitev (EU): Googlov obrazec se pokaže samo, če ga zakon zahteva in še ni odgovora.
     return (adsStart = Ads.call("initialize", {})
@@ -195,7 +203,7 @@
     p.then(function () {
       if (want) return Ads.call("showBanner", { adId: AD_UNIT, adSize: "ADAPTIVE_BANNER", position: "BOTTOM_CENTER", margin: 0 });
       return Ads.call("removeBanner", {});
-    }).then(function () { ad.shown = want; if (!want) setAdHeight(0); })
+    }).then(function () { ad.shown = want; if (!want) { ad.loaded = false; setAdHeight(0); } })
       .catch(function () { setAdHeight(0); })
       .then(function () { ad.busy = false; if ((!!st && !active()) !== ad.shown) renderAds(); });
   }
@@ -291,6 +299,7 @@
   window.addEventListener("load", function () { countOpen(); watchBreaks(); render(); refresh(); });
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState !== "visible") { hiddenAt = Date.now(); var o = opens(); o.last = hiddenAt; saveOpens(o); return; }
+    if (ad.shown && !ad.loaded) { ad.shown = false; ad.fails = 0; renderAds(); } // banner še ni naložen: poskusi znova
     if (hiddenAt && Date.now() - hiddenAt > AWAY) countOpen(); // vrnitev po 3+ minutah šteje kot novo odprtje
     else if (opens().pending) { openedAt = Date.now(); scheduleInter(SHOW_AFTER); }
     refresh();

@@ -39,11 +39,12 @@
   }
   // V samodejnem načinu jezik ne preklopi sam, ko greš v drugo državo: aplikacija enkrat vpraša
   // (ALKEY = jezik, ki ga uporabnik trenutno ima; ASKKEY = država, za katero smo že vprašali).
-  var ALKEY = "nakupko-lang-auto", ASKKEY = "nakupko-lang-asked";
+  // Ključ "-2": 1.3.2 je ob posodobitvi zapisal jezik telefona (iPhone v angleščini → vse angleško),
+  // zato ga ne beremo več in jezik spet določi država.
+  var ALKEY = "nakupko-lang-auto-2", ASKKEY = "nakupko-lang-asked";
   var saved = get(KEY);
   var MODE = saved && PACKS[saved] ? saved : "auto";
-  var LANG = MODE !== "auto" ? MODE : (supported(get(ALKEY)) ||
-    supported((navigator.languages && navigator.languages[0]) || navigator.language) || autoLang());
+  var LANG = MODE !== "auto" ? MODE : (supported(get(ALKEY)) || autoLang());
   if (MODE === "auto" && get(ALKEY) !== LANG) set(ALKEY, LANG);
   window.NK_LANG = LANG;
   window.NK_LANG_MODE = MODE;
