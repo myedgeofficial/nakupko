@@ -168,6 +168,7 @@
   var ad = { started: false, shown: false, busy: false, loaded: false, fails: 0, retry: 0 };
   function setAdHeight(h) {
     document.documentElement.style.setProperty("--ad-h", (h > 0 ? Math.round(h) : 0) + "px");
+    document.documentElement.classList.toggle("has-ad", h > 0);
   }
   var adsStart = null;
   function startAds() {
