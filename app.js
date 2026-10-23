@@ -533,32 +533,123 @@
     if (hitName) name = hitName.name; // angleško ime → izdelek iz kataloga
     var key = norm(name);
     var existing = state.items.find(function (i) { return norm(i.name) === key && !i.done && (i.brand || "") === (brand || ""); });
+    var target = existing;
+    var amt = opts && opts.amt;
     if (existing) {
-      existing.qty = (existing.qty || 1) + (qty || 1);
+      // Količina iz recepta (npr. 400 g) se prišteje, sicer gre kos več.
+      if (amt) existing.amt = sumAmt(existing.amt, amt);
+      else existing.qty = (existing.qty || 1) + (qty || 1);
     } else {
       var prod = CATALOG_BY_KEY[key];
-      state.items.unshift({
+      target = {
         id: uid(), name: prod ? prod.name : name, brand: brand || "", qty: qty || 1,
         cat: prod ? prod.cat : "Drugo", done: false, addedAt: Date.now()
-      });
+      };
+      if (amt) target.amt = sumAmt(null, amt);
+      // Slika, ki jo je uporabnik zadnjič dodal temu izdelku (isti izdelek in znamka), pride spet zraven.
+      var memo = (state.photoMemo || {})[photoKey(target)];
+      if (memo) target.photo = memo.p;
+      state.items.unshift(target);
     }
     state.usage[key] = (state.usage[key] || 0) + 1;
     state.usageNames[key] = (CATALOG_BY_KEY[key] || {}).name || name;
+    if (!(opts && opts.silent)) justAdded = { id: target.id };
     save();
     renderAll();
+    justAdded = null;
     if (!(opts && opts.silent)) {
       var msg = "Dodano: " + name + (brand ? " (" + brand + ")" : "");
+      // Vidno potrdilo: kratek utrip števca na zavihku Seznam (+ rahel tresljaj, kjer gre).
+      replay($("countOpen"), "bump"); replay($("heroCount"), "bump");
+      try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* nič */ }
       toast(msg);
       // Obvestilo tudi takoj pod iskalnikom: spodnjega toasta tipkovnica pogosto zakrije.
       var note = $("addedNote");
       if (note) {
-        note.textContent = "✓ " + msg; note.classList.remove("hidden");
+        // Ob potrditvi še možnost, da izdelek slikaš ali priložiš sliko (če hočeš točno določenega).
+        note.innerHTML = "";
+        note.appendChild(el("span", { text: "✓ " + msg }));
+        if (!target.photo) note.appendChild(el("span", { class: "added-photo" }, photoButtons(target)));
+        note.classList.remove("hidden");
+        replay(note, "pop");
         clearTimeout(addedTimer);
-        addedTimer = setTimeout(function () { note.classList.add("hidden"); }, 3000);
+        addedTimer = setTimeout(function () { note.classList.add("hidden"); }, target.photo ? 3000 : 7000);
       }
     }
   }
   var addedTimer = null;
+  var justAdded = null; // zadnji dodan izdelek: v seznamu za trenutek zasveti
+  function replay(node, cls) {
+    if (!node) return;
+    node.classList.remove(cls);
+    void node.offsetWidth; // animacija steče znova tudi ob hitrem zaporednem dodajanju
+    node.classList.add(cls);
+  }
+
+  // ---------- Slika izdelka ----------
+  // Uporabnik lahko izdelek slika ali priloži sliko (npr. točno ta jogurt). Slika se pomanjša
+  // (~25 kB JPEG) in shrani kar v izdelek, zato gre tudi na skupen seznam.
+  function photoKey(it) { return norm(it.name) + "|" + norm(it.brand || ""); }
+  function photoButtons(it) {
+    return [
+      el("button", { type: "button", class: "chip", onclick: function (e) { e.stopPropagation(); pickPhoto(it.id, true); } }, ["📷 Slikaj"]),
+      el("button", { type: "button", class: "chip", onclick: function (e) { e.stopPropagation(); pickPhoto(it.id, false); } }, ["Iz galerije"])
+    ];
+  }
+  function pickPhoto(id, camera) {
+    var inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "image/*";
+    if (camera) inp.setAttribute("capture", "environment");
+    inp.style.display = "none";
+    inp.addEventListener("change", function () {
+      var f = inp.files && inp.files[0];
+      inp.remove();
+      if (!f) return;
+      shrinkPhoto(f, function (data) {
+        var it = state.items.find(function (i) { return i.id === id; });
+        if (!data || !it) { if (!data) toast("Slike ni bilo mogoče odpreti."); return; }
+        it.photo = data;
+        rememberPhoto(it, data);
+        save(); renderAll();
+        $("addedNote") && $("addedNote").classList.add("hidden");
+        toast("Slika dodana: " + it.name);
+      });
+    });
+    document.body.appendChild(inp);
+    inp.click();
+  }
+  function shrinkPhoto(file, cb) {
+    var url = URL.createObjectURL(file), img = new Image();
+    img.onload = function () {
+      var max = 480, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      var c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      try { cb(c.toDataURL("image/jpeg", 0.6)); } catch (e) { cb(null); }
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); cb(null); };
+    img.src = url;
+  }
+  // Zadnjih 20 slik si zapomnimo po izdelku in znamki: ko izdelek spet dodaš, je slika že zraven.
+  function rememberPhoto(it, data) {
+    var m = state.photoMemo = state.photoMemo || {}, k = photoKey(it);
+    if (data) m[k] = { p: data, at: Date.now() }; else delete m[k];
+    var keys = Object.keys(m).sort(function (a, b) { return m[b].at - m[a].at; });
+    keys.slice(20).forEach(function (x) { delete m[x]; });
+  }
+  function removePhoto(it) {
+    delete it.photo;
+    rememberPhoto(it, null);
+    save(); renderAll();
+  }
+  function showPhoto(it) {
+    var box = el("div", { class: "photo-view", role: "dialog", "aria-modal": "true", onclick: function () { box.remove(); } }, [
+      el("img", { src: it.photo, alt: it.name }),
+      el("p", { text: it.name + (it.brand ? " (" + it.brand + ")" : "") })
+    ]);
+    document.body.appendChild(box);
+  }
 
   function toggleItem(id, storeCtx) {
     var it = state.items.find(function (i) { return i.id === id; });
@@ -639,7 +730,13 @@
   function storePicker(it) {
     var delBtn = el("button", { type: "button", class: "chip chip-del", onclick: function () { pickOpen = null; removeItem(it.id); } }, ["Izbriši"]);
     if (it.done) return el("div", { class: "store-pick" }, [delBtn]);
-    var box = el("div", { class: "store-pick" }, [el("span", { class: "muted small", text: "Kje kupiš?" })]);
+    var box = el("div", { class: "store-pick" }, [el("span", { class: "muted small", text: "Slika:" })]);
+    if (it.photo) {
+      box.appendChild(el("button", { type: "button", class: "chip", onclick: function () { showPhoto(it); } }, ["Poglej sliko"]));
+      box.appendChild(el("button", { type: "button", class: "chip", onclick: function () { removePhoto(it); } }, ["Odstrani sliko"]));
+    } else photoButtons(it).forEach(function (b) { box.appendChild(b); });
+    box.appendChild(el("span", { class: "pick-break" }));
+    box.appendChild(el("span", { class: "muted small", text: "Kje kupiš?" }));
     box.appendChild(el("button", { type: "button", class: "chip" + (!it.store ? " on" : ""), onclick: function () { setItemStore(it, ""); } }, ["Kjerkoli"]));
     storeChoices(it).forEach(function (k) {
       box.appendChild(el("button", { type: "button", class: "chip" + (it.store === k ? " on" : ""), onclick: function () { setItemStore(it, k); } },
@@ -662,6 +759,9 @@
   }
   // V tujini pišemo cene samo, kjer jih imamo (Avstrija, Hrvaška, Madžarska).
   function abroad() { var c = state.storesCache && state.storesCache.country; return !!c && c !== "SI"; }
+  // Zneskov (cen) uporabniku ne kažemo, dokler cene niso zanesljive; aplikacija jih računa v ozadju
+  // samo za priporočilo najcenejše trgovine.
+  var SHOW_PRICES = window.NAKUPKO_SHOW_PRICES === true;
   function pricesOff() { return state.settings.pricePref === "none" || (abroad() && !foreignOn()); }
   function pref2() { if (abroad()) return null; var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
   // trgovine, ki jih uporabnik sploh obiskuje (prva + druga izbira); null = vse
@@ -701,7 +801,7 @@
   var X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   // Cena v vrstici: cena za kos/pakiranje z enoto (»2,49 € / 250 g«), meso in sir na kg; akcija posebej.
   function priceChip(it, storeCtx) {
-    if (pricesOff()) return null;
+    if (!SHOW_PRICES || pricesOff()) return null;
     var chain = null, p = null;
     if (storeCtx && storeCtx.chain) { chain = storeCtx.chain; p = priceFor(it, chain); if (p.price == null) p = null; }
     if (!p) { p = prefPrice(it); if (p) chain = p.chain; }
@@ -744,12 +844,34 @@
     return (iconMemo[n] = hit);
   }
   function thumbFor(it) {
+    if (it.photo) return el("span", { class: "thumb photo", role: "button", "aria-label": "Slika izdelka", onclick: function (e) { e.stopPropagation(); showPhoto(it); } }, [el("img", { src: it.photo, alt: "" })]);
     var m = CAT_META[it.cat] || CAT_META.Drugo;
     return el("span", { class: "thumb", "aria-hidden": "true", style: "background:" + m[1] }, [el("img", { src: "icons/" + iconFor(it) + ".svg", alt: "" })]);
   }
   try { localStorage.removeItem("nakupko-img"); delete state.imgCache; } catch (e) { /* nič */ }
 
   function qtyText(q) { return q && q !== 1 ? String(q).replace(".", ",") + "x" : ""; }
+  // Količine iz receptov: { g: 400, kos: 2 } → »400 g + 2 kos«.
+  var AMT_U = { g: ["g", "g"], ml: ["ml", "ml"], kg: ["kg", "kg"], l: ["l", "l"], kos: ["kos", "pc"], strok: ["str.", "clove"], "žlica": ["žl.", "tbsp"], "žlička": ["žlič.", "tsp"], "šopek": ["šop.", "bunch"], list: ["list.", "leaf"], "pločevinka": ["ploč.", "can"], kozarec: ["koz.", "jar"], vrečka: ["vreč.", "bag"], rezina: ["rez.", "slice"], zavitek: ["zav.", "pack"] };
+  function sumAmt(a, b) {
+    var out = {};
+    [a, b].forEach(function (m) { Object.keys(m || {}).forEach(function (u) { var v = +m[u]; if (v > 0) out[u] = Math.round(((out[u] || 0) + v) * 10) / 10; }); });
+    return out;
+  }
+  function parseAmt(s) {
+    var m = {};
+    String(s || "").split("+").forEach(function (a) { var t = a.trim().split(/\s+/); if (+t[0] > 0 && t[1]) m[t[1]] = (m[t[1]] || 0) + +t[0]; });
+    return Object.keys(m).length ? m : null;
+  }
+  function amtText(m) {
+    var en = (window.NK_LANG || "sl") !== "sl";
+    return Object.keys(m || {}).map(function (u) {
+      var v = m[u], uu = u;
+      if (u === "g" && v >= 1000) { v = v / 1000; uu = "kg"; } if (u === "ml" && v >= 1000) { v = v / 1000; uu = "l"; }
+      var n = String(Math.round(v * 10) / 10);
+      return (en ? n : n.replace(".", ",")) + " " + (AMT_U[uu] ? AMT_U[uu][en ? 1 : 0] : uu);
+    }).join(" + ");
+  }
   function itemRow(it, big, storeCtx) {
     var meta = itemMeta(it);
     var check = el("button", { class: "check", type: "button", "aria-label": it.done ? "Označi kot nekupljeno" : "Označi kot kupljeno",
@@ -760,7 +882,7 @@
     del.innerHTML = X_SVG;
     // Tap na ime: izbira trgovine za ta izdelek.
     var tag = it.store ? el("span", { class: "store-tag" }, [CHAIN_BY_KEY[it.store] ? chainDot(it.store) : null, storeKeyName(it.store)]) : null;
-    var q = qtyText(it.qty);
+    var q = it.amt && Object.keys(it.amt).length ? amtText(it.amt) + (it.qty > 1 ? " · " + qtyText(it.qty) : "") : qtyText(it.qty);
     var row = el("div", { class: "irow" }, [
       thumbFor(it),
       el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { pickOpen = pickOpen === it.id ? null : it.id; renderAll(); } }, [
@@ -770,7 +892,8 @@
       ]),
       check
     ]);
-    var li = el("li", { class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") }, [
+    var fresh = justAdded && justAdded.id === it.id;
+    var li = el("li", { class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") + (fresh ? " just-added" : "") }, [
       del,
       row,
       pickOpen === it.id ? storePicker(it) : null
@@ -980,6 +1103,7 @@
       pendingProduct = p;
       pendingGroup = group || (groups.length === 1 ? groups[0].name : null);
       pendingBrand = null;
+      pickMore = false;
       $("addInput").value = p.name;
       renderBrandPick();
     } else {
@@ -989,6 +1113,10 @@
   }
   // Znamko izbereš (✓), na seznam pa doda šele gumb »Dodaj na seznam« (ali + zgoraj).
   var pendingBrand = null;   // izbrana znamka/vrsta ("" = katerakoli)
+  var pickMore = false;      // prikaži vse znamke (»Več …«)
+  function moreChip() {
+    return el("button", { class: "chip ghosty", type: "button", onclick: function () { pickMore = true; renderBrandPick(); } }, ["Več …"]);
+  }
   function renderBrandPick() {
     var box = $("brandPick");
     box.innerHTML = "";
@@ -1004,21 +1132,27 @@
     if (g && g.variants.length) {
       // Druga raven: okus / vrsta znotraj znamke.
       box.appendChild(el("span", { class: "muted small", text: g.name + " – katera?" }));
-      if (groups.length > 1) box.appendChild(el("button", { class: "chip ghosty", type: "button", onclick: function () { pendingGroup = null; pendingBrand = ""; renderBrandPick(); } }, ["‹ Znamke"]));
-      var vs = g.variants.slice(), lastV = lastBrand.indexOf(g.name + " ") === 0 ? lastBrand.slice(g.name.length + 1) : "";
-      if (lastV && vs.indexOf(lastV) > 0) { vs.splice(vs.indexOf(lastV), 1); vs.unshift(lastV); }
+      if (groups.length > 1) box.appendChild(el("button", { class: "chip ghosty", type: "button", onclick: function () { pendingGroup = null; pendingBrand = ""; pickMore = false; renderBrandPick(); } }, ["‹ Znamke"]));
+      var lastV = lastBrand.indexOf(g.name + " ") === 0 ? lastBrand.slice(g.name.length + 1) : "";
+      var vs = byPopularity(g.variants, function (v) { return v === lastV ? 1e6 : brandCount(p.name, g.name + " " + v, true); });
       if (pendingBrand === null || (pendingBrand !== g.name && pendingBrand.indexOf(g.name + " ") !== 0)) pendingBrand = lastV ? g.name + " " + lastV : g.name;
-      vs.forEach(function (v) { box.appendChild(chip(v, g.name + " " + v)); });
+      var vShown = !pickMore && vs.length > 6 ? vs.slice(0, 5) : vs;
+      vShown.forEach(function (v) { box.appendChild(chip(v, g.name + " " + v)); });
+      if (vShown.length < vs.length) box.appendChild(moreChip());
       box.appendChild(chip("Katerakoli " + g.name, g.name));
     } else {
       box.appendChild(el("span", { class: "muted small", text: "Znamka za " + p.name + ":" }));
       var lastG = groups.filter(function (x) { return lastBrand === x.name || lastBrand.indexOf(x.name + " ") === 0; })[0];
-      if (lastG && groups.indexOf(lastG) > 0) { groups.splice(groups.indexOf(lastG), 1); groups.unshift(lastG); }
+      // Najprej najbolj priljubljene: zadnja izbrana, nato tiste, ki jih največ kupuješ, nato katalog (najbolj znane prve).
+      groups = byPopularity(groups, function (x) { return x === lastG ? 1e6 : brandCount(p.name, x.name, false); });
       if (pendingBrand === null) pendingBrand = lastG && !lastG.variants.length ? lastG.name : "";
       box.appendChild(chip("Katerakoli", ""));
-      groups.forEach(function (x) {
-        box.appendChild(chip(x.name + (x.variants.length ? " ›" : ""), x.name, x.variants.length ? function () { pendingGroup = x.name; pendingBrand = null; renderBrandPick(); } : null));
+      // Veliko znamk: najprej le najpogostejše (zadnja izbrana je prva), ostale pod »Več …«.
+      var gShown = !pickMore && groups.length > 5 ? groups.slice(0, 4) : groups;
+      gShown.forEach(function (x) {
+        box.appendChild(chip(x.name + (x.variants.length ? " ›" : ""), x.name, x.variants.length ? function () { pendingGroup = x.name; pendingBrand = null; pickMore = false; renderBrandPick(); } : null));
       });
+      if (gShown.length < groups.length) box.appendChild(moreChip());
     }
     var label = p.name + (pendingBrand ? " (" + pendingBrand + ")" : "");
     box.appendChild(el("button", { class: "primary full confirm", type: "button", onclick: confirmPick }, ["Dodaj na seznam: " + label]));
@@ -1034,9 +1168,25 @@
     pendingBrand = null;
     pendingProduct = null;
     $("addInput").value = "";
+    $("paneList").classList.remove("typing");
     $("addQty").value = "1";
     $("brandPick").classList.add("hidden");
     $("suggest").classList.add("hidden");
+  }
+  // Kolikokrat si kupil ta izdelek te znamke (exact: točno ta različica).
+  function brandCount(name, brand, exact) {
+    var key = norm(name), b = norm(brand), n = 0;
+    state.history.forEach(function (h) {
+      if (!h.brand || norm(h.name) !== key) return;
+      var hb = norm(h.brand);
+      if (hb === b || (!exact && hb.indexOf(b + " ") === 0)) n++;
+    });
+    return n;
+  }
+  // Stabilno razvrščanje: višja ocena naprej, sicer ostane vrstni red kataloga.
+  function byPopularity(list, score) {
+    return list.map(function (x, i) { return { x: x, s: score(x), i: i }; })
+      .sort(function (a, b) { return b.s - a.s || a.i - b.i; }).map(function (o) { return o.x; });
   }
   function lastBrandFor(name) {
     var key = norm(name);
@@ -1216,13 +1366,62 @@
     renderTrip();
   }
 
+  // Poslovalnice Jager (uradni seznam trgovinejager.com, lokacija po naslovu): mnoge v OpenStreetMap
+  // niso vpisane kot trgovina, zato jih dodamo, kadar v bližini ni nobenega Jagra iz OSM.
+  // Brez poslovalnic, katerih naslova ni bilo mogoče natančno najti (Kozje, Mestinje, Mirna, Mozirje,
+  // Podčetrtek, Poljčane, Sladki Vrh, Vransko); te se zaznajo, če so v OSM.
+  var JAGER_STORES = [
+    { a: "K železnici 1, 2345 Bistrica ob Dravi", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.5565, lon: 15.55599 },
+    { a: "Bistrica ob Sotli 4a, 3256 Bistrica ob Sotli", h: "Mo-Fr 07:00-18:00; Sa 07:00-17:00; Su off", lat: 46.05575, lon: 15.66167 },
+    { a: "Braslovče 2a, 3314 Braslovče", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.28575, lon: 15.04136 },
+    { a: "Ipavčeva ulica 25, 3000 Celje", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.23966, lon: 15.25851 },
+    { a: "Moškanjci 24a, 2272 Gorišnica", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.4163, lon: 15.99891 },
+    { a: "Miklavška cesta 60, Hoče", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.50139, lon: 15.6594 },
+    { a: "Tovarniška cesta 8, 2325 Kidričevo", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.40342, lon: 15.79919 },
+    { a: "Kostrivnica 1a, 3241 Kostrivnica", h: "Mo-Fr 07:30-16:00; Sa 07:30-13:00; Su off", lat: 46.2621, lon: 15.58575 },
+    { a: "Aškerčeva 1a, 8270 Krško", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 45.95488, lon: 15.49819 },
+    { a: "Kranjčeva ulica 61, 9220 Lendava", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.55636, lon: 16.46159 },
+    { a: "Ormoška cesta 44a, 9240 Ljutomer", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.51424, lon: 16.20377 },
+    { a: "Loka pri Žusmu 11, 3223 Loka pri Žusmu", h: "Mo-Fr 08:00-15:00; Sa 08:00-13:00; Su off", lat: 46.17358, lon: 15.50394 },
+    { a: "Majšperk 66a, 2322 Majšperk", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.34655, lon: 15.73869 },
+    { a: "Ulica Kraljeviča Marka 19, Maribor", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.55817, lon: 15.66484 },
+    { a: "Kamenice 3, 9233 Odranci", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.58361, lon: 16.28249 },
+    { a: "Hardek 34i, 2270 Ormož", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.40939, lon: 16.15733 },
+    { a: "Pišece 25/b, 8255 Pišece", h: "Mo-Fr 07:00-18:00; Sa 07:00-17:00; Su off", lat: 45.99196, lon: 15.61931 },
+    { a: "Ptujska cesta 4, 2331 Pragersko", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.39733, lon: 15.65476 },
+    { a: "Latkova vas 214 b, 3312 Prebold", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.25262, lon: 15.09326 },
+    { a: "Zagrebška cesta 34, 2251 Ptuj", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.40896, lon: 15.8651 },
+    { a: "Boračevska cesta 3, 9252 Radenci", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.64268, lon: 16.03504 },
+    { a: "Pohorska ulica 25, Maribor", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.53767, lon: 15.60436 },
+    { a: "Ceste 10, 3252 Rogatec", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.22394, lon: 15.70217 },
+    { a: "Na Livadi 14, 3250 Rogaška Slatina", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.23119, lon: 15.65197 },
+    { a: "Prvomajska ul. 29, 3250 Rogaška Slatina", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.24364, lon: 15.62645 },
+    { a: "Mariborska cesta 54, 2352 Selnica ob Dravi", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.54876, lon: 15.48342 },
+    { a: "Sladka Gora 4a, Šmarje pri Jelšah", h: "Mo-Fr 08:00-15:00; Sa 08:00-13:00; Su off", lat: 46.26575, lon: 15.55176 },
+    { a: "Cesta k Dravi 8a, 2241 Spodnji Duplek", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.50091, lon: 15.74963 },
+    { a: "Starše 78b, 2205 Starše", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.46787, lon: 15.76389 },
+    { a: "Trnovska vas 44, 2254 Trnovska vas", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.51997, lon: 15.88712 },
+    { a: "Industrijska ulica 4A, 9224 Turnišče", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.62329, lon: 16.31755 },
+    { a: "Cesta Simona Blatnika 7, 3320 Velenje", h: "Mo-Sa 07:00-20:00; Su off", lat: 46.36523, lon: 15.10027 },
+    { a: "Maistrova ulica 19, 2212 Šentilj", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.67575, lon: 15.65678 },
+    { a: "Cesta pod Rifnikom 24, 3230 Šentjur", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.20811, lon: 15.39979 },
+    { a: "Kolodvorska ulica 2a, 3240 Šmarje pri Jelšah", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.22993, lon: 15.51968 }
+  ];
+  function missingJager(p, list) {
+    return JAGER_STORES.filter(function (j) {
+      if (distM(p, j) > 3000) return false;
+      return !list.some(function (s) { return s.chain === "jager" && distM(s, j) < 250; });
+    }).map(function (j) {
+      return { id: "uradno/jager/" + j.lat + "," + j.lon, name: "Jager, " + j.a, short: "Jager", chain: "jager", duty: false, lat: j.lat, lon: j.lon, hours: j.h };
+    });
+  }
   var OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"];
   function fetchStores(p, force) {
     if (fetching && !force) return;
     fetching = true;
     // Najprej država (is_in), nato trgovine.
     var q = "[out:json][timeout:20];is_in(" + p.lat + "," + p.lon + ")->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(" +
-      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist|tobacco|kiosk|newsagent)$\"](around:3000," + p.lat + "," + p.lon + ");" +
+      "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist|tobacco|kiosk|newsagent)$\"](around:3000," + p.lat + "," + p.lon + ");" +
       "nwr[\"amenity\"=\"fuel\"](around:3000," + p.lat + "," + p.lon + ");" +
       ");out center tags 250;";
     var tryAt = function (i) {
@@ -1256,6 +1455,8 @@
               return fs;
             }
             var kind = storeKind([t.brand, t.name, t.operator].join(" "), t.opening_hours);
+            // Nakupovalni center šteje le, če je Jager center (trgovina z živili v njem ni posebej vpisana).
+            if (t.shop === "mall" && kind !== "jager") return null;
             if (!kind && t.amenity === "fuel") kind = "bencinska";
             if (!kind) return null;
             var chain = kind === "duty" ? null : kind;
@@ -1265,6 +1466,7 @@
             var addr = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
             return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || defHours || "" };
           }).filter(Boolean);
+          if (!tuj) stores = stores.concat(missingJager(p, stores));
           applyOfficial(stores);
           lastFetchPos = { lat: p.lat, lon: p.lon };
           state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now(), country: ctry };
@@ -1476,8 +1678,8 @@
     $("smBar").style.width = (total ? Math.round(done.length / total * 100) : 100) + "%";
     var sum = 0;
     open.forEach(function (it) { var p = activeStore && activeStore.chain ? priceFor(it, activeStore.chain) : null; if (!p || p.price == null) p = prefPrice(it); if (p) sum += p.price * (it.qty || 1); });
-    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && !pricesOff() ? " · še ≈ " + eur(sum) : "");
-    renderRecoInto($("smReco"), activeStore);
+    $("smProgress").textContent = done.length + " od " + total + " v košarici" + (open.length && SHOW_PRICES && !pricesOff() ? " · še ≈ " + eur(sum) : "");
+    $("smReco").innerHTML = ""; // v trgovini brez predlogov (moteče)
   }
 
   // ---------- Cene: primerjava, tabela, uvoz ----------
@@ -1498,6 +1700,14 @@
     $("heroCount").parentNode.classList.toggle("long", open.length > 99);
     $("heroSide").classList.toggle("hidden", pricesOff());
     if (pricesOff()) return;
+    if (!SHOW_PRICES) { // samo priporočilo: najcenejša trgovina za seznam, brez zneska
+      var best = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length; })[0] : null;
+      $("heroSide").classList.toggle("hidden", !best);
+      $("heroLabel").textContent = "Okvirno najceneje";
+      $("heroTotal").textContent = best ? CHAIN_BY_KEY[best.c].name : "–";
+      $("heroBest").textContent = "";
+      return;
+    }
     $("heroLabel").textContent = "Ocena košarice";
     if (!open.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = ""; return; }
     // »≈ 10,61 €« in pod njim trgovina v oklepaju: najcenejša ali tvoje trgovine (npr. Hofer/Lidl).
@@ -1571,13 +1781,13 @@
           chainLogo(r.c),
           el("div", { class: "sname-wrap" }, [
             el("div", { class: "stname", text: c.name }),
-            isBest ? el("div", { class: "stag", text: "Najceneje" }) : el("div", { class: "stag m", text: "+" + eur(r.sum - best.sum) }),
+            isBest ? el("div", { class: "stag", text: "Najceneje" }) : SHOW_PRICES ? el("div", { class: "stag m", text: "+" + eur(r.sum - best.sum) }) : null,
             r.near ? el("div", { class: "sdist", text: fmtDist(r.near.d) }) : null,
-            r.missing ? el("div", { class: "sdist" }, [r.missing + " ", el("span", { text: "brez cene" })]) : null
+            SHOW_PRICES && r.missing ? el("div", { class: "sdist" }, [r.missing + " ", el("span", { text: "brez cene" })]) : null
           ])
         ]),
         el("div", { class: "sbot" }, [
-          el("div", null, [el("div", { class: "sk", text: "Skupaj" }), el("div", { class: "sv" + (tot.length > 8 ? " long" : ""), text: tot })]),
+          SHOW_PRICES ? el("div", null, [el("div", { class: "sk", text: "Skupaj" }), el("div", { class: "sv" + (tot.length > 8 ? " long" : ""), text: tot })]) : el("div"),
           el("button", { class: "spin", type: "button", "aria-label": "Pokaži pot", onclick: function () { openChainMap(r.c); } },
             [svgEl('<path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="10" r="2.6"/>')])
         ])
@@ -1945,7 +2155,7 @@
       box.appendChild(el("div", { class: "trip-main split" }, [
         el("div", { class: "trip-title", text: "Splača se iti v dve trgovini" }),
         el("div", { class: "trip-stores" }, [storeLabel(p.a), el("b", { text: "+" }), storeLabel(p.b)]),
-        el("div", { class: "trip-sub", text: "Sta " + fmtDist(p.gap) + " narazen. Prihraniš ≈ " + eur(plan.saving) + " (" + eur(p.cost) + " namesto " + eur(plan.singleCost) + " samo v trgovini " + CHAIN_BY_KEY[plan.single.s.chain].name + ")." })
+        SHOW_PRICES && el("div", { class: "trip-sub", text: "Sta " + fmtDist(p.gap) + " narazen. Prihraniš ≈ " + eur(plan.saving) + " (" + eur(p.cost) + " namesto " + eur(plan.singleCost) + " samo v trgovini " + CHAIN_BY_KEY[plan.single.s.chain].name + ")." })
       ]));
       var lists = el("div", { class: "trip-lists" }, [
         el("div", null, [el("b", { text: CHAIN_BY_KEY[p.a.s.chain].name + ": " }), plan.listA.join(", ") || "–"]),
@@ -1963,7 +2173,7 @@
     box.appendChild(el("div", { class: "trip-main" }, [
       el("div", { class: "trip-title", text: "Pojdi v eno trgovino" }),
       el("div", { class: "trip-stores" }, [storeLabel(s)]),
-      el("div", { class: "trip-sub", text: sub })
+      SHOW_PRICES ? el("div", { class: "trip-sub", text: sub }) : null
     ]));
     box.appendChild(routeButton(s.s));
   }
@@ -2020,20 +2230,25 @@
     if (!e.target.closest || !e.target.closest("#listBar .dd")) setFilterMenu(false);
     if (swipedRow && (!e.target.closest || !e.target.closest("li.item.swiped"))) closeSwipe();
   });
-  // Zavihka nad seznamom: SEZNAM / TRGOVINE.
+  // Zavihki nad seznamom: SEZNAM / RECEPTI / TRGOVINE.
   function setPane(p) {
-    var stores_ = p === "stores";
-    $("ftList").classList.toggle("on", !stores_); $("ftList").setAttribute("aria-selected", String(!stores_));
-    $("ftStores").classList.toggle("on", stores_); $("ftStores").setAttribute("aria-selected", String(stores_));
-    $("paneList").classList.toggle("hidden", stores_);
-    $("paneStores").classList.toggle("hidden", !stores_);
-    if (stores_) renderStoresPane();
+    [["list", "ftList", "paneList"], ["recipes", "ftRecipes", "paneRecipes"], ["stores", "ftStores", "paneStores"]].forEach(function (x) {
+      var on = x[0] === p;
+      $(x[1]).classList.toggle("on", on); $(x[1]).setAttribute("aria-selected", String(on));
+      $(x[2]).classList.toggle("hidden", !on);
+    });
+    if (p === "stores") renderStoresPane();
+    if (p === "recipes" && window.NK_RECEPTI) window.NK_RECEPTI.show();
   }
   $("ftList").addEventListener("click", function () { setPane("list"); });
+  $("ftRecipes").addEventListener("click", function () { setPane("recipes"); });
   $("ftStores").addEventListener("click", function () { setPane("stores"); });
   $("storeSort").addEventListener("change", function (e) { storeSort = e.target.value; renderStoresPane(); });
 
+  // Predlogi in pogosti izdelki se pokažejo šele, ko začneš pisati (čistejši seznam).
+  function syncTyping() { $("paneList").classList.toggle("typing", !!$("addInput").value.trim()); }
   $("addInput").addEventListener("input", function () {
+    syncTyping();
     pendingProduct = null; pendingBrand = null; $("brandPick").classList.add("hidden"); selIdx = -1; renderSuggest();
   });
   $("addInput").addEventListener("keydown", function (e) {
@@ -2043,6 +2258,12 @@
     else if (e.key === "Escape") { $("suggest").classList.add("hidden"); }
   });
   $("addInput").addEventListener("blur", function () { setTimeout(function () { $("suggest").classList.add("hidden"); }, 150); });
+  // Prazno polje + tap na »+« → kurzor v polje (tipkovnica se odpre), ne nič.
+  document.querySelector("#addForm .addbtn").addEventListener("click", function (e) {
+    if (pendingProduct || $("addInput").value.trim()) return;
+    e.preventDefault();
+    $("addInput").focus();
+  });
   $("addForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var v = $("addInput").value.trim();
@@ -2227,7 +2448,7 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
+  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n, amt) { var a = typeof amt === "string" ? parseAmt(amt) : amt; addItem(n, "", 1, a ? { silent: true, amt: a } : { silent: true }); }, amtText: amtText, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
     // Klik na obvestilo »trgovina je blizu«: odpremo prav to trgovino, brez čakanja na GPS v aplikaciji.
     var list = stores.concat((state.storesCache && state.storesCache.list) || []);
     var st = list.filter(function (x) { return x.id === id; })[0] || lastNearStore || null;

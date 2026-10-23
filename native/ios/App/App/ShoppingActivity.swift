@@ -129,6 +129,61 @@ struct CheckItemIntent: LiveActivityIntent {
     }
 }
 
+// ---------- Kuhanje po korakih na zaklenjenem zaslonu ----------
+// Aplikacija (recepti.js → native.js → NakupkoGeo.cook) pošlje vse korake recepta; Nazaj/Naprej
+// na zaklenjenem zaslonu premakneta korak brez odpiranja aplikacije. step == steps.count pomeni »Dober tek!«.
+struct CookingAttributes: ActivityAttributes {
+    struct ContentState: Codable, Hashable {
+        var step: Int
+        var steps: [String]
+        var lang: String? = nil
+    }
+    var title: String
+    var done: String
+}
+
+enum LiveCook {
+    static let stepKey = "cook.step"
+
+    // Live Activity sprejme največ 4 KB: omejimo število in dolžino korakov.
+    static func fit(_ steps: [String]) -> [String] {
+        steps.prefix(12).map { $0.count > 220 ? String($0.prefix(219)) + "…" : $0 }
+    }
+
+    static func move(_ d: Int) async {
+        guard #available(iOS 16.2, *) else { return }
+        for a in Activity<CookingAttributes>.activities {
+            var s = a.content.state
+            s.step = max(0, min(s.steps.count, s.step + d))
+            UserDefaults.standard.set(s.step, forKey: stepKey)
+            await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(6 * 3600)))
+        }
+        NotificationCenter.default.post(name: Notification.Name("NakupkoCookStep"), object: nil)
+    }
+}
+
+struct CookNextIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Naslednji korak"
+    static var isDiscoverable: Bool = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+    init() {}
+    func perform() async throws -> some IntentResult {
+        await LiveCook.move(1)
+        return .result()
+    }
+}
+
+struct CookPrevIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Prejšnji korak"
+    static var isDiscoverable: Bool = false
+    static var authenticationPolicy: IntentAuthenticationPolicy = .alwaysAllowed
+    init() {}
+    func perform() async throws -> some IntentResult {
+        await LiveCook.move(-1)
+        return .result()
+    }
+}
+
 // Besedila, ki jih pokaže iPhone sam (obvestila, seznam na zaklenjenem zaslonu), v jeziku aplikacije.
 // Jezik pošlje aplikacija (native.js → setConfig, geo.lang); na zaklenjenem zaslonu ga nosi ContentState.lang.
 enum L10n {
@@ -137,7 +192,7 @@ enum L10n {
     private static let table: [String: [String: String]] = [
         "near": ["sl": "🛒 %@ je blizu", "en": "🛒 %@ is nearby", "de": "🛒 %@ ist in der Nähe", "hr": "🛒 %@ je blizu", "it": "🛒 %@ è vicino", "hu": "🛒 %@ a közelben", "fr": "🛒 %@ est tout près", "es": "🛒 %@ está cerca"],
         "nearBody": ["sl": "Na seznamu imaš %@. Se ustaviš?", "en": "You have %@ on your list. Stopping by?", "de": "Du hast %@ auf der Liste. Kurz vorbeischauen?", "hr": "Na popisu imaš %@. Svratit ćeš?", "it": "Hai %@ nella lista. Ti fermi?", "hu": "%@ van a listádon. Beugrasz?", "fr": "Tu as %@ sur ta liste. Tu t'arrêtes ?", "es": "Tienes %@ en tu lista. ¿Pasas?"],
-        "cheaper": ["sl": "%@ (%@ od tu) je za tvoj seznam ≈ %@ cenejši.", "en": "%@ (%@ from here) is ≈ %@ cheaper for your list.", "de": "%@ (%@ entfernt) ist für deine Liste ≈ %@ günstiger.", "hr": "%@ (%@ odavde) je za tvoj popis ≈ %@ jeftiniji.", "it": "%@ (a %@ da qui) costa ≈ %@ in meno per la tua lista.", "hu": "%@ (%@ innen) ≈ %@-val olcsóbb a listádra.", "fr": "%@ (à %@ d'ici) est ≈ %@ moins cher pour ta liste.", "es": "%@ (a %@ de aquí) es ≈ %@ más barato para tu lista."],
+        "cheaper": ["sl": "%@ (%@ od tu) je za tvoj seznam okvirno cenejši.", "en": "%@ (%@ from here) is likely cheaper for your list.", "de": "%@ (%@ entfernt) ist für deine Liste voraussichtlich günstiger.", "hr": "%@ (%@ odavde) je za tvoj popis okvirno jeftiniji.", "it": "%@ (a %@ da qui) costa probabilmente meno per la tua lista.", "hu": "%@ (%@ innen) valószínűleg olcsóbb a listádra.", "fr": "%@ (à %@ d'ici) est probablement moins cher pour ta liste.", "es": "%@ (a %@ de aquí) es probablemente más barato para tu lista."],
         "denied": ["sl": "Dostop do lokacije je zavrnjen.", "en": "Location access denied.", "de": "Standortzugriff verweigert.", "hr": "Pristup lokaciji je odbijen.", "it": "Accesso alla posizione negato.", "hu": "Helyhozzáférés megtagadva.", "fr": "Accès à la position refusé.", "es": "Acceso a la ubicación denegado."],
         "allDone": ["sl": "Vse v košarici ✓", "en": "All in the basket ✓", "de": "Alles im Korb ✓", "hr": "Sve u košarici ✓", "it": "Tutto nel carrello ✓", "hu": "Minden a kosárban ✓", "fr": "Tout est dans le panier ✓", "es": "Todo en la cesta ✓"],
         "openList": ["sl": "Odpri seznam", "en": "Open list", "de": "Liste öffnen", "hr": "Otvori popis", "it": "Apri lista", "hu": "Lista megnyitása", "fr": "Ouvrir la liste", "es": "Abrir lista"],
@@ -151,6 +206,9 @@ enum L10n {
         "routeClose": ["sl": "Zapri", "en": "Close", "de": "Schließen", "hr": "Zatvori", "it": "Chiudi", "hu": "Bezárás", "fr": "Fermer", "es": "Cerrar"],
         "routeEta": ["sl": "%@ min · %@", "en": "%@ min · %@", "de": "%@ Min. · %@", "hr": "%@ min · %@", "it": "%@ min · %@", "hu": "%@ perc · %@", "fr": "%@ min · %@", "es": "%@ min · %@"],
         "routeNone": ["sl": "Poti ni mogoče izračunati.", "en": "Can’t calculate a route.", "de": "Route kann nicht berechnet werden.", "hr": "Rutu nije moguće izračunati.", "it": "Impossibile calcolare il percorso.", "hu": "Az útvonal nem számítható ki.", "fr": "Impossible de calculer l’itinéraire.", "es": "No se puede calcular la ruta."],
+        "cookPrev": ["sl": "‹ Nazaj", "en": "‹ Back", "de": "‹ Zurück", "hr": "‹ Natrag", "it": "‹ Indietro", "hu": "‹ Vissza", "fr": "‹ Retour", "es": "‹ Atrás"],
+        "cookNext": ["sl": "Naprej ›", "en": "Next ›", "de": "Weiter ›", "hr": "Dalje ›", "it": "Avanti ›", "hu": "Tovább ›", "fr": "Suivant ›", "es": "Siguiente ›"],
+        "cookStep": ["sl": "Korak %@ od %@", "en": "Step %@ of %@", "de": "Schritt %@ von %@", "hr": "Korak %@ od %@", "it": "Passo %@ di %@", "hu": "%@. lépés / %@", "fr": "Étape %@ sur %@", "es": "Paso %@ de %@"],
         "liveBody": ["sl": "%@ na seznamu. Kljukaj kar na zaklenjenem zaslonu.", "en": "%@ on your list. Tick them off right on the lock screen.", "de": "%@ auf der Liste. Hake sie direkt auf dem Sperrbildschirm ab.", "hr": "%@ na popisu. Označavaj ih na zaključanom zaslonu.", "it": "%@ nella lista. Spuntali dalla schermata di blocco.", "hu": "%@ a listán. Pipáld ki a zárolási képernyőn.", "fr": "%@ sur ta liste. Coche-les sur l'écran verrouillé.", "es": "%@ en tu lista. Márcalos en la pantalla bloqueada."]
     ]
 

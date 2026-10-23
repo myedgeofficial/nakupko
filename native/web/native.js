@@ -21,7 +21,7 @@
     var api = {
       addListener: function (event, cb) { return Cap.addListener("NakupkoGeo", event, cb); }
     };
-    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways", "routeInfo", "showRoute"].forEach(function (m) {
+    ["startWatch", "stopWatch", "setConfig", "getStatus", "shopping", "takePendingStore", "takeDone", "setZoom", "openSettings", "requestAlways", "routeInfo", "showRoute", "cook", "takeCook"].forEach(function (m) {
       api[m] = function (opts) { return Cap.nativePromise("NakupkoGeo", m, opts || {}); };
     });
     return api;
@@ -129,7 +129,7 @@
       });
   }
 
-  // ---------- Stikalo »Obvestilo, ko je trgovina blizu« (največ 1× na 15 min) ----------
+  // ---------- Stikalo »Obvestilo, ko je trgovina blizu« (največ 1× na 30 min) ----------
   var NEAR_KEY = "nakupko.nearNotify";
   function nearNotifyOn() { try { return localStorage.getItem(NEAR_KEY) !== "0"; } catch (e) { return true; } }
   function nearSwitch() {
@@ -138,7 +138,7 @@
     var r = document.createElement("div");
     r.className = "set-row";
     r.innerHTML = '<div class="set-text"><b>Obvestilo »trgovina je blizu«</b>' +
-      '<span class="muted small">Ko greš mimo trgovine. Največ enkrat na 15 minut. Seznam ob prihodu v trgovino deluje tudi brez tega.</span></div>' +
+      '<span class="muted small">Ko greš mimo trgovine. Največ enkrat na 30 minut. Seznam ob prihodu v trgovino deluje tudi brez tega.</span></div>' +
       '<button id="btnNear" class="switch" type="button" role="switch" aria-label="Obvestilo trgovina je blizu"></button>';
     row.parentNode.insertBefore(r, row);
     var b = document.getElementById("btnNear");
@@ -284,11 +284,42 @@
     if (api && api.openStoreById && d && d.storeId) api.openStoreById(d.storeId);
   });
 
+  // QR »Poveži s telefonom« na nakupko.com: splet dobi isti (skupni) seznam kot telefon.
+  function linkWeb(pair) {
+    if (!window.__nakupkoLinkWeb) { setTimeout(function () { linkWeb(pair); }, 300); return; }
+    window.__nakupkoLinkWeb(pair);
+  }
+
+  // Seznam s spletne strani nakupko.com (gumb »Dodaj v Nakupko«): izdelke dodamo na seznam.
+  function importList(raw) {
+    var api = window.__nakupko;
+    if (!api || !api.add) { setTimeout(function () { importList(raw); }, 300); return; }
+    var have = {}, n = 0;
+    (api.state().items || []).forEach(function (i) { if (!i.done) have[String(i.name).toLowerCase()] = 1; });
+    // Izdelek je lahko s količino iz recepta: »Moka bela~400 g+1 kos«.
+    raw.split("|").forEach(function (x) {
+      var parts = x.split("~"), name = parts[0].trim(), amt = (parts[1] || "").trim();
+      if (!name || name.length > 80) return;
+      if (!amt && have[name.toLowerCase()]) return;
+      have[name.toLowerCase()] = 1; api.add(name, amt || null); n++;
+    });
+    var lang = (document.documentElement.lang || "sl").slice(0, 2);
+    var msg = n ? (lang === "sl" ? "Dodano na seznam: " + n : "Added to your list: " + n) : (lang === "sl" ? "Vse je že na seznamu" : "Already on your list");
+    var t = document.createElement("div");
+    t.textContent = "🛒 " + msg;
+    t.style.cssText = "position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 14px);transform:translateX(-50%);z-index:99999;background:#17132a;color:#fff;font:700 15px -apple-system,system-ui,sans-serif;padding:12px 18px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.25);transition:opacity .4s";
+    document.body.appendChild(t);
+    setTimeout(function () { t.style.opacity = "0"; }, 2600);
+    setTimeout(function () { t.remove(); }, 3100);
+  }
+
   // Tap na obvestilo »Si v trgovini«: nakupovanje odpremo takoj, brez odštevanja.
   function openFromNotification() {
     Geo.takePendingStore().then(function (r) {
       if (!r || !r.storeId) return;
       var api = window.__nakupko, sm0 = document.getElementById("storeMode");
+      if (r.storeId.indexOf("import:") === 0) { importList(r.storeId.slice(7)); return; }
+      if (r.storeId.indexOf("povezi:") === 0) { linkWeb(r.storeId.slice(7)); return; }
       // Iz seznama na zaklenjenem zaslonu: nakupovanje odpremo takoj.
       if (r.storeId === "live" && api && api.openStore) { if (sm0 && sm0.classList.contains("hidden")) api.openStore(); return; }
       // Obvestilo »trgovina je blizu«: odpremo prav to trgovino, ne čakamo na GPS v aplikaciji.
@@ -316,6 +347,17 @@
       });
     }).catch(function () {});
   }
+
+  // Kuhanje po korakih (recepti.js): korak je tudi na zaklenjenem zaslonu z gumboma Nazaj/Naprej.
+  // Ob vrnitvi v aplikacijo prevzamemo korak, ki si ga izbral na zaklenjenem zaslonu.
+  window.__nakupkoCook = function (o) { Geo.cook(o).catch(function () {}); };
+  function applyCookStep() {
+    Geo.takeCook().then(function (r) {
+      if (r && typeof r.step === "number" && r.step >= 0 && window.NK_RECEPTI) window.NK_RECEPTI.step(r.step);
+    }).catch(function () {});
+  }
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) applyCookStep(); });
+  Geo.addListener("cookStep", function (d) { if (d && window.NK_RECEPTI) window.NK_RECEPTI.step(d.step); });
 
   // Ena velikost za vse (tudi za starejše): stran je 12 % večja prek viewporta – postavitev se
   // prilagodi ožjemu zaslonu, zato se ne da premikati levo-desno. Izbire velikosti v aplikaciji ni.
@@ -519,7 +561,7 @@
   function fixedDetection() {
     var api = window.__nakupko, st = api && api.state && api.state().settings;
     if (!st) return;
-    st.radius = 75; st.delay = 10;
+    st.radius = 60; st.delay = 10;
   }
 
   function showBackgroundStatus() {

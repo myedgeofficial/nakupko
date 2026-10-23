@@ -9,6 +9,18 @@ html.size-mid body, html.size-senior body { zoom: 1 !important; }
 .tabs { bottom: calc(10px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
 body { padding-bottom: calc(96px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
 .overlay { padding-bottom: calc(24px + env(safe-area-inset-bottom) + var(--ad-h, 0px)); }
+/* Z reklamo: meni ni več plavajoča kartica, ampak polna bela vrstica tik nad bannerjem,
+   pod bannerjem (varni rob) ista bela podlaga, da je vse en spodnji blok. */
+html.has-ad .tabs {
+  bottom: calc(env(safe-area-inset-bottom) + var(--ad-h)); left: 0; transform: none; width: 100%;
+  padding: 4px 10px; border-radius: 0; background: var(--surface);
+  -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 -1px 0 var(--line);
+}
+html.has-ad body::after {
+  content: ""; position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; pointer-events: none;
+  height: calc(env(safe-area-inset-bottom) + var(--ad-h)); background: var(--surface);
+}
+html.has-ad body { padding-bottom: calc(80px + env(safe-area-inset-bottom) + var(--ad-h)); }
 
 /* Nastavitve v iOS aplikaciji: brez drsnikov in preizkusov, razdalja in zamik sta nastavljena (native.js). */
 #tab-stores .settings details.more { display: none !important; }

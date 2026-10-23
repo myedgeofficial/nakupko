@@ -177,7 +177,20 @@ input[type=text], input[type=search], textarea {
 .brands > span { width: 100%; }
 .brands .confirm { margin-top: 3.5px; white-space: normal; font-size: 15px; }
 .hh-leave { margin-top: 7px; }
-.added-note { margin: 9px 2px 0; font-weight: 800; color: var(--violet); }
+.added-note { margin: 9px 2px 0; padding: 9px 13px; border-radius: 14px; background: var(--violet-soft); font-weight: 800; color: var(--violet); }
+/* Potrdilo ob dodajanju: obvestilo se pokaže, števec utripne, nov izdelek v seznamu za trenutek zasveti. */
+.added-note.pop { animation: nk-pop .32s ease-out; }
+.badge.bump, #heroCount.bump { animation: nk-bump .45s ease-out; }
+#heroCount { display: inline-block; }
+.list li.item.just-added { animation: nk-new 1.4s ease-out; }
+@keyframes nk-pop { from { opacity: 0; transform: translateY(-6px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes nk-bump { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes nk-new {
+  0% { opacity: 0; transform: translateY(-8px); box-shadow: 0 0 0 3px var(--violet); }
+  20% { opacity: 1; transform: none; box-shadow: 0 0 0 3px var(--violet); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .added-note.pop, .badge.bump, #heroCount.bump, .list li.item.just-added { animation: none; } }
 
 /* ---------- Zavihka SEZNAM / TRGOVINE (kot mapa) ---------- */
 .ftabs { display: flex; gap: 5.5px; align-items: flex-end; margin: 14px 0 0; position: relative; z-index: 1; }
@@ -538,3 +551,127 @@ details.card[open] > summary { margin-bottom: 10.5px; }
   .addbtn { width: 49.5px; height: 49.5px; flex-basis: 49.5px; }
   .ph2 { font-size: 14px; }
 }
+
+/* »Rabiš kaj?« – vprašanje iz trgovine ostalim na skupnem seznamu */
+.sm-ask { margin-top: 9px; }
+.sm-ask-line { font-size: 13.5px; font-weight: 700; padding: 2px 0; color: var(--muted); }
+.sm-ask-line.ok { color: var(--violet); }
+.sm-ask-btn.ghost { width: 100%; margin-top: 4px; }
+.sm-ask-btn.link { padding-top: 4px; font-size: 13.5px; }
+.ask-sheet .add-row { display: flex; gap: 7px; margin: 4px 0 12px; }
+.ask-sheet .add-row input { flex: 1; }
+.ask-sheet .full + .full { margin-top: 8px; }
+.ask-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ask-chips:empty { display: none; }
+
+/* »Morda potrebuješ« šele med pisanjem; »Pogosto kupuješ« nikoli (seznam mora ostati pregleden). */
+.pane-list:not(.typing) #recoBox { display: none; }
+#quickBox { display: none !important; }
+
+/* Slika izdelka */
+.added-photo { display: flex; gap: 7px; margin-top: 7px; }
+.added-photo .chip { font-size: 13.5px; padding: 6.5px 11px; color: var(--ink, inherit); }
+.pick-break { flex-basis: 100%; height: 0; }
+.thumb.photo { overflow: hidden; background: var(--surface-2); cursor: zoom-in; }
+.thumb.photo img { width: 100%; height: 100%; object-fit: cover; }
+.done .thumb.photo img { opacity: .55; }
+.photo-view { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, .88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom)); }
+.photo-view img { max-width: 100%; max-height: 78vh; border-radius: 14px; object-fit: contain; }
+.photo-view p { color: #fff; font-weight: 800; margin: 0; text-align: center; }
+
+/* ---------- Vprašanje o jeziku ob prihodu v drugo državo ---------- */
+.lang-ask { position: fixed; inset: 0; z-index: 60; background: rgba(18, 24, 38, .35); display: flex; align-items: flex-end; justify-content: center; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+.lang-ask-card { width: 100%; max-width: 420px; background: var(--surface); color: var(--ink); border-radius: 22px; padding: 20px 18px 16px; display: grid; gap: 9px; text-align: center; box-shadow: 0 12px 34px rgba(0, 0, 0, .2); }
+.lang-ask-card b { font-size: 19px; }
+.lang-ask-card .muted:empty { display: none; }
+.lang-ask-card button { border: 0; border-radius: 16px; padding: 14px; font: 800 17px var(--font); }
+.lang-ask-keep { background: var(--violet); color: #fff; margin-top: 6px; }
+.lang-ask-switch { background: var(--violet-soft); color: var(--violet); }
+
+/* ---------- Recepti (zavihek med Seznamom in Trgovinami) ---------- */
+.ftab.on:nth-child(2):not(:last-child) { background: linear-gradient(90deg, #6A2FFB, #4837FB); }
+.ftabs:has(#ftRecipes) .ftab { font-size: 14.5px; letter-spacing: .03em; gap: 6px; padding: 0 5px; }
+.ftabs:has(#ftRecipes) .ftab .badge { min-width: 23px; height: 22px; padding: 0 6px; font-size: 13px; }
+#ftList { flex: 1.25; }
+@media (max-width: 380px) { .ftabs:has(#ftRecipes) .ftab { font-size: 13px; letter-spacing: 0; gap: 5px; } }
+.rsearch { position: relative; margin: 2px 0 12px; }
+.rsearch svg { position: absolute; left: 14px; top: 50%; width: 19px; height: 19px; transform: translateY(-50%); stroke: var(--muted); fill: none; stroke-width: 2; stroke-linecap: round; }
+.rsearch input { width: 100%; font: 700 16px var(--font); color: var(--ink); background: var(--surface); border: 0; border-radius: 15px; padding: 13px 14px 13px 42px; outline: 0; box-shadow: var(--shadow); -webkit-appearance: none; }
+.rcrumbs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 2px 10px; }
+.rcrumbs button { font: 800 12px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: #5B4A86; background: var(--surface); border: 0; border-radius: 999px; padding: 8px 12px; box-shadow: var(--shadow); }
+.rstep { padding: 0 2px; }
+.rstep .rk { display: block; font: 800 11.5px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: var(--violet); margin-top: 4px; }
+.rstep h2 { font: 900 28px/1.08 var(--font); letter-spacing: -.02em; margin: 7px 0 14px; color: var(--ink); }
+.ropts { display: grid; gap: 9px; }
+.ropt, .rf, .rc { text-align: left; font: inherit; color: var(--ink); background: var(--surface); border: 0; border-radius: 18px; box-shadow: var(--shadow); width: 100%; }
+.ropt { padding: 15px 16px; }
+.ropt b { display: block; font: 900 22px/1.1 var(--font); letter-spacing: -.01em; }
+.ropt > span:not(.rdots) { display: block; color: var(--muted); font-weight: 700; font-size: 14px; margin-top: 3px; }
+.ropt small { display: block; margin-top: 8px; font: 800 11.5px/1 var(--font); letter-spacing: .12em; text-transform: uppercase; color: #9C95B8; }
+.rdots { display: inline-flex; gap: 4px; vertical-align: middle; }
+.rdots i { width: 7px; height: 7px; border-radius: 50%; background: #DCD5EE; }
+.rdots i.on { background: var(--grad-d); }
+.ropt .rdots { margin-bottom: 8px; }
+.rskip { display: block; margin: 12px auto 4px; font: 800 14px var(--font); color: var(--muted); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
+.rfold { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+.rf { padding: 13px 13px 12px; border-top-left-radius: 6px; }
+.rfi { display: flex; gap: 5px; color: var(--violet); margin-bottom: 9px; }
+.rfi svg { width: 22px; height: 22px; }
+.rf b { display: block; font: 900 17px/1.12 var(--font); }
+.rf > span:last-child { display: block; margin-top: 5px; font: 800 11px/1 var(--font); letter-spacing: .12em; text-transform: uppercase; color: #9C95B8; }
+.rgrid { display: grid; gap: 9px; }
+.rc { position: relative; display: flex; align-items: center; gap: 13px; padding: 12px; }
+.ric { flex: none; width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; color: #fff; background: var(--grad-d); }
+.ric svg { width: 32px; height: 32px; }
+.rtx b { display: block; font: 900 18px/1.15 var(--font); }
+.rmeta { display: flex; align-items: center; gap: 8px; margin-top: 5px; font: 800 12px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: #9C95B8; }
+.rc.added::after { content: "✓"; position: absolute; top: 8px; right: 10px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ok); color: #fff; font-size: 12px; font-weight: 900; }
+.rsheet .rsh-head { display: flex; gap: 13px; align-items: center; }
+.rsh-ic { flex: none; width: 58px; height: 58px; border-radius: 17px; display: grid; place-items: center; color: #fff; background: var(--grad-d); }
+.rsh-ic svg { width: 36px; height: 36px; }
+.rsh-head b { display: block; font: 900 23px/1.12 var(--font); letter-spacing: -.01em; }
+.rsh-head div > span { display: block; color: var(--muted); font-weight: 700; font-size: 14px; margin-top: 3px; }
+.rsh-serv { display: flex; align-items: center; justify-content: space-between; background: var(--panel); border-radius: 16px; padding: 10px 12px; margin: 14px 0 10px; font-weight: 800; }
+.rsh-step { display: flex; align-items: center; gap: 12px; }
+.rsh-step button { width: 38px; height: 38px; border-radius: 12px; border: 0; background: var(--surface); color: var(--violet); font: 900 22px/1 var(--font); box-shadow: var(--shadow); }
+.rsh-step b { min-width: 24px; text-align: center; font-size: 20px; font-variant-numeric: tabular-nums; }
+.rsh-list { display: grid; }
+.rsh-i { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; font: 800 16px var(--font); color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 11px 2px; }
+.rsh-i:last-child { border-bottom: 0; }
+.rsh-i .rnm { flex: 1; }
+.rsh-i .ram { color: var(--violet); white-space: nowrap; }
+.rcb { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid #CFC5E4; }
+.rsh-i.on .rcb { background: var(--violet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E") center/14px no-repeat; border-color: var(--violet); }
+.rsh-i:not(.on) .rnm, .rsh-i:not(.on) .ram { opacity: .4; text-decoration: line-through; }
+.rsheet .rsh-add { margin-top: 8px; }
+
+/* kuhanje po korakih */
+.rsheet .rsh-cook { margin-top: 10px; background: var(--surface); color: var(--violet); border: 2px solid var(--violet); }
+.kuhaj { position: fixed; inset: 0; z-index: 400; background: #0f0b1f; color: #fff; display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom)); font-family: var(--font); }
+.kh-top { display: flex; align-items: center; gap: 12px; }
+.kh-top b { flex: 1; font-weight: 900; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kh-top span { color: rgba(255,255,255,.65); font-weight: 800; }
+.kh-x { width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(255,255,255,.1); color: #fff; font-size: 26px; line-height: 1; flex: none; }
+.kh-bar { height: 6px; border-radius: 6px; background: rgba(255,255,255,.12); margin-top: 12px; overflow: hidden; }
+.kh-bar i { display: block; height: 100%; width: 0; background: var(--grad-d); border-radius: 6px; transition: width .3s; }
+.kh-body { flex: 1; overflow: auto; display: flex; flex-direction: column; justify-content: center; padding: 20px 2px; }
+.kh-k { font-weight: 900; letter-spacing: .12em; text-transform: uppercase; font-size: 14px; color: #c9b8ff; margin-bottom: 12px; }
+.kh-step { font-weight: 800; font-size: 28px; line-height: 1.28; margin: 0; }
+.kh-step.fin { font-size: 40px; }
+.kh-ing { margin-top: 24px; border-radius: 16px; padding: 12px 14px; background: rgba(255,255,255,.07); }
+.kh-ing summary { font-weight: 900; font-size: 16px; }
+.kh-list { display: grid; gap: 6px; margin-top: 10px; }
+.kh-list p { margin: 0; display: flex; justify-content: space-between; gap: 10px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 6px; }
+.kh-list p span { color: #c9b8ff; white-space: nowrap; }
+.kh-nav { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.kh-nav button { border: 0; border-radius: 18px; padding: 19px 10px; font: 900 19px var(--font); }
+.kh-prev { background: rgba(255,255,255,.12); color: #fff; }
+.kh-prev:disabled { opacity: .35; }
+.kh-next { background: var(--grad-d); color: #fff; }
+.nk-moji { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+.nk-moji.hidden { display: none; }
+.nk-moji .mk { width: 100%; font-size: 12px; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.nk-moji .mj { display: inline-flex; align-items: center; border-radius: 999px; background: var(--brand-soft); }
+.nk-moji .mj-go { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--ink); font: 800 15px var(--font); padding: 7px 4px 7px 14px; }
+.nk-moji .mj-go b { background: var(--grad-d); color: #fff; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
+.nk-moji .mj-x { border: 0; background: none; color: var(--muted); font-size: 18px; padding: 0 10px 0 4px; }
