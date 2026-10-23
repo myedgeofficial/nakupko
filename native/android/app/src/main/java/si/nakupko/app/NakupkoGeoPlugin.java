@@ -52,6 +52,11 @@ public class NakupkoGeoPlugin extends Plugin {
             @Override public void onLiveDone() {
                 notifyListeners("liveDone", new JSObject());
             }
+            @Override public void onCookStep(int step) {
+                JSObject d = new JSObject();
+                d.put("step", step);
+                notifyListeners("cookStep", d);
+            }
         });
         geo.refresh();
     }
@@ -186,6 +191,22 @@ public class NakupkoGeoPlugin extends Plugin {
         geo.pendingStoreId = null;
         JSObject r = new JSObject();
         r.put("storeId", id == null ? "" : id);
+        call.resolve(r);
+    }
+
+    // Kuhanje po korakih: korak recepta v obvestilu na zaklenjenem zaslonu (Nazaj/Naprej).
+    @PluginMethod
+    public void cook(PluginCall call) {
+        geo.cook(Boolean.TRUE.equals(call.getBoolean("active", false)), call.getString("title", "Nakupko"),
+            call.getArray("steps", new JSArray()), call.getInt("step", 0), call.getString("done", "Dober tek!"), call.getString("lang", "sl"));
+        if (Boolean.TRUE.equals(call.getBoolean("active", false)) && getActivity() != null) getActivity().runOnUiThread(this::askNotifications);
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void takeCook(PluginCall call) {
+        JSObject r = new JSObject();
+        r.put("step", geo.takeCook());
         call.resolve(r);
     }
 }

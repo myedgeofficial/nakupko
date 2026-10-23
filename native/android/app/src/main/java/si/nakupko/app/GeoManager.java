@@ -41,6 +41,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 // Nakupko: zaznavanje trgovin tudi, ko je aplikacija zaprta (Android različica NakupkoGeo.swift).
@@ -53,6 +54,7 @@ final class GeoManager {
         void onPosition(Location loc);
         void onError(int code, String message);
         default void onLiveDone() {}
+        default void onCookStep(int step) {}
     }
 
     static final String ACTION_GEOFENCE = "si.nakupko.app.GEOFENCE";
@@ -714,6 +716,95 @@ final class GeoManager {
     private PendingIntent itemDone(String id) {
         Intent i = new Intent(ctx, ShopItemReceiver.class).setAction(ACTION_ITEM_DONE).putExtra(EXTRA_ITEM, id);
         return PendingIntent.getBroadcast(ctx, ("done:" + id).hashCode(), i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    // ---------- Kuhanje po korakih (stalno obvestilo, kot Live Activity na iPhonu) ----------
+    // Aplikacija pošlje vse korake recepta; Nazaj/Naprej v obvestilu premakneta korak brez odklepanja.
+    // Stanje je v prefs, da gumba delujeta tudi, če Android vmes zapre aplikacijo.
+    static final String ACTION_COOK = "si.nakupko.app.COOK";
+    static final String EXTRA_DELTA = "nakupko.delta";
+    private static final int COOK_NOTIFICATION = 7302;
+
+    synchronized void cook(boolean active, String title, JSONArray steps, int step, String done, String lang) {
+        if (!active || steps == null || steps.length() == 0) {
+            prefs.edit().remove("cook").remove("cookPending").apply();
+            NotificationManagerCompat.from(ctx).cancel(COOK_NOTIFICATION);
+            return;
+        }
+        JSONObject c = new JSONObject();
+        try {
+            c.put("title", title).put("steps", steps).put("done", done).put("lang", lang)
+                .put("step", Math.max(0, Math.min(steps.length(), step)));
+        } catch (JSONException ignored) {}
+        prefs.edit().putString("cook", c.toString()).remove("cookPending").apply();
+        renderCook(c);
+    }
+
+    synchronized void cookMove(int d) {
+        JSONObject c = cookState();
+        if (c == null) return;
+        int n = c.optJSONArray("steps").length(), step = Math.max(0, Math.min(n, c.optInt("step") + d));
+        try { c.put("step", step); } catch (JSONException ignored) {}
+        prefs.edit().putString("cook", c.toString()).putInt("cookPending", step).apply();
+        renderCook(c);
+        Listener l = listener;
+        if (l != null && foreground) l.onCookStep(step);
+    }
+
+    // Korak, izbran v obvestilu, odkar je aplikacija nazadnje vprašala (-1: nič novega).
+    synchronized int takeCook() {
+        int s = prefs.getInt("cookPending", -1);
+        prefs.edit().remove("cookPending").apply();
+        return s;
+    }
+
+    private JSONObject cookState() {
+        String raw = prefs.getString("cook", null);
+        if (raw == null) return null;
+        try { JSONObject c = new JSONObject(raw); return c.optJSONArray("steps") == null ? null : c; } catch (JSONException e) { return null; }
+    }
+
+    private static String cookText(String key, String lang) {
+        String[] row;
+        switch (key) {
+            case "prev": row = new String[]{"‹ Nazaj", "‹ Back", "‹ Zurück", "‹ Natrag", "‹ Indietro", "‹ Vissza", "‹ Retour", "‹ Atrás"}; break;
+            case "next": row = new String[]{"Naprej ›", "Next ›", "Weiter ›", "Dalje ›", "Avanti ›", "Tovább ›", "Suivant ›", "Siguiente ›"}; break;
+            default: row = new String[]{"Korak", "Step", "Schritt", "Korak", "Passo", "Lépés", "Étape", "Paso"};
+        }
+        int i = java.util.Arrays.asList("sl", "en", "de", "hr", "it", "hu", "fr", "es").indexOf(lang);
+        return row[i < 0 ? 1 : i];
+    }
+
+    private void renderCook(JSONObject c) {
+        JSONArray steps = c.optJSONArray("steps");
+        int n = steps.length(), step = c.optInt("step");
+        boolean fin = step >= n;
+        String lang = c.optString("lang", "sl");
+        String text = fin ? c.optString("done") : steps.optString(step);
+        String count = fin ? "✓" : cookText("step", lang) + " " + (step + 1) + "/" + n;
+        NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, CH_SHOP)
+            .setSmallIcon(R.drawable.ic_stat_nakupko)
+            .setColor(0xFF8A3FFC)
+            .setContentTitle(c.optString("title") + " · " + count)
+            .setContentText(text)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(text))
+            .setProgress(n, Math.min(step + 1, n), false)
+            .setOngoing(!fin)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setShowWhen(false)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(openApp(null));
+        if (step > 0) b.addAction(0, cookText("prev", lang), cookIntent(-1));
+        if (!fin) b.addAction(0, cookText("next", lang), cookIntent(1));
+        post(COOK_NOTIFICATION, b);
+    }
+
+    private PendingIntent cookIntent(int d) {
+        Intent i = new Intent(ctx, ShopItemReceiver.class).setAction(ACTION_COOK).putExtra(EXTRA_DELTA, d);
+        return PendingIntent.getBroadcast(ctx, 7300 + d, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     private void createChannels() {

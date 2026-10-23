@@ -28,6 +28,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "i" })?.value ?? ""
             return items.isEmpty ? nil : "import:" + items
         }
+        // Tap na korak kuhanja na zaklenjenem zaslonu: samo odpremo aplikacijo (kuhanje je že odprto).
+        if url.host == "kuhaj" { return nil }
         // QR »Poveži s telefonom« na nakupko.com (nakupko://povezi?k=PARKODA)
         if url.host == "povezi" {
             let k = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "k" })?.value ?? ""
