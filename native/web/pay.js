@@ -188,16 +188,18 @@
       ad.retry = setTimeout(renderAds, Math.min(20000 * Math.pow(2, ad.fails++), 300000));
     });
     // Privolitev (EU): Googlov obrazec se pokaže samo, če ga zakon zahteva in še ni odgovora.
-    return (adsStart = Ads.call("initialize", {})
+    // Če se Googlov obrazec ali odgovor zatakne, reklame ne smejo čakati v nedogled (prej banner potem ni prišel nikoli).
+    var consent = Ads.call("initialize", {})
       .then(function () { return Ads.call("requestConsentInfo", {}); })
       .then(function (info) {
         if (info && info.status === "REQUIRED" && info.isConsentFormAvailable) return Ads.call("showConsentForm", {});
-      })
+      });
+    return (adsStart = Promise.race([consent, new Promise(function (ok) { setTimeout(ok, 20000); })])
       .catch(function () {}));
   }
   function renderAds() {
     if (MODE !== "ads" || ad.busy) return;
-    var want = !!st && !active();
+    var want = !active();
     if (want === ad.shown && ad.started) return;
     ad.busy = true;
     var p = startAds();
@@ -205,8 +207,14 @@
       if (want) return Ads.call("showBanner", { adId: AD_UNIT, adSize: "ADAPTIVE_BANNER", position: "BOTTOM_CENTER", margin: 0 });
       return Ads.call("removeBanner", {});
     }).then(function () { ad.shown = want; if (!want) { ad.loaded = false; setAdHeight(0); } })
-      .catch(function () { setAdHeight(0); })
-      .then(function () { ad.busy = false; if ((!!st && !active()) !== ad.shown) renderAds(); });
+      .catch(function () { setAdHeight(0); ad.failed = true; })
+      .then(function () {
+        ad.busy = false;
+        if (!active() === ad.shown) return;
+        // Neuspel klic (AdMob še ni pripravljen): poskusi znova čez nekaj časa, ne v zanki.
+        if (ad.failed) { ad.failed = false; clearTimeout(ad.retry); ad.retry = setTimeout(renderAds, Math.min(20000 * Math.pow(2, ad.fails++), 300000)); }
+        else renderAds();
+      });
   }
 
   // ---------- Reklama čez cel zaslon: ob vsakem 3. odprtju aplikacije ----------
@@ -239,7 +247,7 @@
   // Isti pogoj kot pri bannerju: ni naročnika Plus.
   function interWanted() {
     var ob = document.getElementById("onboard"); // nikoli med uvodnimi vprašanji
-    return MODE === "ads" && !!AD_INTER && !!st && !active() && opens().pending && !(ob && !ob.classList.contains("hidden"));
+    return MODE === "ads" && !!AD_INTER && !active() && opens().pending && !(ob && !ob.classList.contains("hidden"));
   }
   function prepareInter() {
     if (!interWanted() || inter.ready || inter.loading) return;
