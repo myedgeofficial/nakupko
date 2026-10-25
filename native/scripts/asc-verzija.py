@@ -8,7 +8,8 @@ src = open(os.path.join(os.path.dirname(__file__), "testflight-external.py"), en
 exec(src.split("app = call(")[0])
 
 VERSION = os.environ.get("VERSION", "1.2")
-MIN_BUILD = os.environ.get("MIN_BUILD", "0")  # samo App Store gradnja (z oglasi), ne starejše TestFlight
+MIN_BUILD = os.environ.get("MIN_BUILD", "0")
+MARKETING_URL = os.environ.get("MARKETING_URL", "https://nakupko.com")  # AdMob: »developer website« z app-ads.txt  # samo App Store gradnja (z oglasi), ne starejše TestFlight
 NEW = json.load(open(os.path.join(os.path.dirname(__file__), "..", "asc-slike", f"novo-{VERSION}.json"), encoding="utf-8"))
 
 app = call("GET", f"/apps?filter[bundleId]={BUNDLE_ID}")["data"][0]["id"]
@@ -35,7 +36,7 @@ for l in locs:
     loc = l["attributes"]["locale"]
     text = NEW.get(loc) or NEW.get(loc.split("-")[0]) or NEW["en-US"]
     r = call("PATCH", f"/appStoreVersionLocalizations/{l['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": l["id"],
-             "attributes": {"whatsNew": text}}}, ok_errors=(409, 422))
+             "attributes": {"whatsNew": text, "marketingUrl": MARKETING_URL}}}, ok_errors=(409, 422))
     done.append(loc + ("" if r else "!"))
 print(f"::notice::Kaj je novega: {', '.join(done)}")
 
