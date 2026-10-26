@@ -832,14 +832,14 @@
   }
   // ---------- Ikone izdelkov ----------
   // Barvne ikone (Microsoft Fluent Emoji, MIT) iz mape icons/, izbrane po imenu izdelka; sicer po kategoriji.
-  var ICONS = window.NAKUPKO_ICONS || { rules: [], cat: {} };
+  var ICONS = window.NAKUPKO_ICONS || { rules: [], cat: {}, exact: {} };
   var ICON_RULES = ICONS.rules.map(function (r) { return [new RegExp(r[0]), r[1]]; });
   var iconMemo = {};
   function iconFor(it) {
     var n = norm(it.name);
     if (iconMemo[n]) return iconMemo[n];
-    var hit = null;
-    for (var i = 0; i < ICON_RULES.length; i++) { if (ICON_RULES[i][0].test(n)) { hit = ICON_RULES[i][1]; break; } }
+    var hit = (ICONS.exact && ICONS.exact[n]) || null;
+    if (!hit) for (var i = 0; i < ICON_RULES.length; i++) { if (ICON_RULES[i][0].test(n)) { hit = ICON_RULES[i][1]; break; } }
     if (!hit) { var p = CATALOG_BY_KEY[n]; hit = ICONS.cat[(p && p.cat) || it.cat] || ICONS.cat.Drugo || "shopping-cart"; }
     return (iconMemo[n] = hit);
   }
