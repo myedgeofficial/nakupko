@@ -4,6 +4,7 @@ name: TestFlight zunanji testerji
 on:
   push:
     branches: [testerji-dodaj, claude/project-thread-f3qn8g]
+    paths: [".github/workflows/testerji-dodaj.yml", ".github/scripts/zunanji-testerji.py"]
 
 jobs:
   dodaj:
