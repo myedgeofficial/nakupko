@@ -29,4 +29,9 @@ for staro in [e.strip().lower() for e in os.environ.get("ODSTRANI", "").split(",
     for t in call("GET", "/betaTesters", params={"filter[email]": staro, "limit": 50}).json().get("data", []):
         r = call("DELETE", "/betaTesters/" + t["id"])
         izpis.append(f"{staro}: tester izbrisan {r.status_code}")
+    for u in call("GET", "/users", params={"limit": 200}).json().get("data", []):
+        if u["attributes"]["username"].lower() == staro:
+            izpis.append(f"{staro}: je ASC uporabnik {u['attributes'].get('roles')}")
+    vsa = [i["attributes"]["email"] for i in call("GET", "/userInvitations", params={"limit": 200}).json().get("data", [])]
+    izpis.append(f"čakajoča ASC povabila: {vsa}")
 print("::notice::" + (" | ".join(izpis) or "nič za odstraniti"))
