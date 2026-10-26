@@ -19,23 +19,14 @@ def call(method, path, **kw):
     return r
 
 
-email = os.environ["EMAIL"].strip().lower()
+# Odstrani napačen e-naslov (ODSTRANI) iz TestFlighta in čakajočih povabil v App Store Connect.
 izpis = []
-uporabniki = [u for u in call("GET", "/users", params={"limit": 200}).json().get("data", []) if u["attributes"]["username"].lower() == email]
-for u in uporabniki:
-    vidne = call("GET", f"/users/{u['id']}/visibleApps").json().get("data", [])
-    izpis.append(f"ASC uporabnik: {u['attributes'].get('roles')} {[v['attributes']['name'] for v in vidne]}")
-inv = [i for i in call("GET", "/userInvitations", params={"limit": 200}).json().get("data", []) if i["attributes"]["email"].lower() == email]
-izpis.append(f"ASC povabila čakajo: {len(inv)}")
-if not uporabniki and not inv:
-    a = call("GET", "/apps", params={"filter[bundleId]": "com.byurska.studio"}).json()["data"][0]
-    r = call("POST", "/userInvitations", json={"data": {"type": "userInvitations", "attributes": {
-        "email": email, "firstName": "Andjela", "lastName": "Tester", "roles": ["CUSTOMER_SUPPORT"],
-        "allAppsVisible": False, "provisioningAllowed": False},
-        "relationships": {"visibleApps": {"data": [{"type": "apps", "id": a["id"]}]}}}})
-    izpis.append(f"novo ASC povabilo: {r.status_code}")
-for t in call("GET", "/betaTesters", params={"filter[email]": email, "limit": 50}).json().get("data", []):
-    tapps = [a["attributes"]["name"] for a in call("GET", f"/betaTesters/{t['id']}/apps").json().get("data", [])]
-    grupe = [g["attributes"]["name"] for g in call("GET", f"/betaTesters/{t['id']}/betaGroups").json().get("data", [])]
-    izpis.append(f"TestFlight {tapps} skupine {grupe}")
-print("::notice::" + " | ".join(izpis))
+for staro in [e.strip().lower() for e in os.environ.get("ODSTRANI", "").split(",") if e.strip()]:
+    for i in call("GET", "/userInvitations", params={"limit": 200}).json().get("data", []):
+        if i["attributes"]["email"].lower() == staro:
+            r = call("DELETE", "/userInvitations/" + i["id"])
+            izpis.append(f"{staro}: ASC povabilo izbrisano {r.status_code}")
+    for t in call("GET", "/betaTesters", params={"filter[email]": staro, "limit": 50}).json().get("data", []):
+        r = call("DELETE", "/betaTesters/" + t["id"])
+        izpis.append(f"{staro}: tester izbrisan {r.status_code}")
+print("::notice::" + (" | ".join(izpis) or "nič za odstraniti"))
