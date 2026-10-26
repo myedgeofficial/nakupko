@@ -20,40 +20,22 @@ def call(method, path, **kw):
 
 
 email = os.environ["EMAIL"].strip().lower()
-apps = {}
-for bundle in os.environ["BUNDLES"].split(","):
-    a = call("GET", "/apps", params={"filter[bundleId]": bundle}).json().get("data", [])
-    if a:
-        apps[a[0]["id"]] = a[0]["attributes"]["name"]
-    else:
-        print(f"::warning::{bundle}: aplikacije ni v tej ekipi")
-
-testerji = call("GET", "/betaTesters", params={"filter[email]": email, "include": "apps,betaGroups", "limit": 50}).json()
-for t in testerji.get("data", []):
-    print(f"::notice::Tester {t['id']} stanje={t['attributes'].get('state')} tip={t['attributes'].get('inviteType')}")
-    grupe = call("GET", f"/betaTesters/{t['id']}/betaGroups", params={"limit": 50}).json().get("data", [])
-    for g in grupe:
-        print(f"::notice::Skupina {g['attributes']['name']} (interna={g['attributes'].get('isInternalGroup')})")
-    tapps = call("GET", f"/betaTesters/{t['id']}/apps", params={"limit": 50}).json().get("data", [])
-    for a in tapps:
-        print(f"::notice::Je tester za: {a['attributes']['name']}")
-        if a["id"] in apps:
-            r = call("POST", "/betaTesterInvitations", json={"data": {"type": "betaTesterInvitations", "relationships": {
-                "betaTester": {"data": {"type": "betaTesters", "id": t["id"]}}, "app": {"data": {"type": "apps", "id": a["id"]}}}}})
-            print(f"::notice::{a['attributes']['name']}: povabilo ponovno poslano ({r.status_code})")
-if not testerji.get("data"):
-    print(f"::warning::{email} ni tester v nobeni aplikaciji")
-
-# Povabilo v App Store Connect (interna pot): izbriši staro in pošlji novo.
-for inv in call("GET", "/userInvitations", params={"limit": 200, "include": "visibleApps"}).json().get("data", []):
-    at = inv["attributes"]
-    if at["email"].lower() != email:
-        continue
-    vidne = call("GET", f"/userInvitations/{inv['id']}/visibleApps").json().get("data", [])
-    print(f"::notice::ASC povabilo čaka (vloge {at.get('roles')}, aplikacije {[v['attributes']['name'] for v in vidne]}); pošiljam znova")
-    call("DELETE", f"/userInvitations/{inv['id']}")
+izpis = []
+uporabniki = [u for u in call("GET", "/users", params={"limit": 200}).json().get("data", []) if u["attributes"]["username"].lower() == email]
+for u in uporabniki:
+    vidne = call("GET", f"/users/{u['id']}/visibleApps").json().get("data", [])
+    izpis.append(f"ASC uporabnik: {u['attributes'].get('roles')} {[v['attributes']['name'] for v in vidne]}")
+inv = [i for i in call("GET", "/userInvitations", params={"limit": 200}).json().get("data", []) if i["attributes"]["email"].lower() == email]
+izpis.append(f"ASC povabila čakajo: {len(inv)}")
+if not uporabniki and not inv:
+    a = call("GET", "/apps", params={"filter[bundleId]": "com.byurska.studio"}).json()["data"][0]
     r = call("POST", "/userInvitations", json={"data": {"type": "userInvitations", "attributes": {
-        "email": email, "firstName": at.get("firstName") or "Tester", "lastName": at.get("lastName") or "Tester", "roles": at.get("roles") or ["CUSTOMER_SUPPORT"],
-        "allAppsVisible": at.get("allAppsVisible", False), "provisioningAllowed": at.get("provisioningAllowed", False)},
-        "relationships": {"visibleApps": {"data": [{"type": "apps", "id": v["id"]} for v in vidne]}}}})
-    print(f"::notice::ASC povabilo ponovno poslano: {r.status_code}")
+        "email": email, "firstName": "Andjela", "lastName": "Tester", "roles": ["CUSTOMER_SUPPORT"],
+        "allAppsVisible": False, "provisioningAllowed": False},
+        "relationships": {"visibleApps": {"data": [{"type": "apps", "id": a["id"]}]}}}})
+    izpis.append(f"novo ASC povabilo: {r.status_code}")
+for t in call("GET", "/betaTesters", params={"filter[email]": email, "limit": 50}).json().get("data", []):
+    tapps = [a["attributes"]["name"] for a in call("GET", f"/betaTesters/{t['id']}/apps").json().get("data", [])]
+    grupe = [g["attributes"]["name"] for g in call("GET", f"/betaTesters/{t['id']}/betaGroups").json().get("data", [])]
+    izpis.append(f"TestFlight {tapps} skupine {grupe}")
+print("::notice::" + " | ".join(izpis))
