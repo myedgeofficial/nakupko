@@ -675,3 +675,12 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .nk-moji .mj-go { display: inline-flex; align-items: center; gap: 8px; border: 0; background: none; color: var(--ink); font: 800 15px var(--font); padding: 7px 4px 7px 14px; }
 .nk-moji .mj-go b { background: var(--grad-d); color: #fff; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
 .nk-moji .mj-x { border: 0; background: none; color: var(--muted); font-size: 18px; padding: 0 10px 0 4px; }
+
+/* Moje trgovine: vsaka trgovina svoj gumb, izbereš jih več */
+.pref-hint { margin: 0 0 4px; }
+.pref-chains { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 4px; }
+.pref-chain { display: flex; align-items: center; gap: 9px; padding: 13px 14px; border-radius: 14px; border: 1.5px solid var(--line, #E4E1EC); background: #fff; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.pref-chain b { font-weight: 700; }
+.pref-chain.on { border-color: var(--violet); background: var(--violet-soft); }
+.pref-chain.on::after { content: "✓"; margin-left: auto; color: var(--violet); font-weight: 800; }
+.pref-next { width: 100%; margin-top: 6px; }

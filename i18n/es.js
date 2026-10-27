@@ -2,6 +2,10 @@
 NK_PACK("es", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    // Moje trgovine (vsaka posebej)
+    "Izberi vse trgovine, v katere rad hodiš. Lahko jih izbereš več.": "Elige todas las tiendas en las que te gusta comprar. Puedes elegir varias.",
+    "Nakupko ti pokaže, kje bo tvoj nakup najcenejši.": "Nakupko te muestra dónde tu compra será más barata.",
+    "Naprej": "Siguiente",
     // Recepti (recepti.js)
     "Recepti": "Recetas",
     "Poišči jed ali sestavino": "Busca un plato o ingrediente",
