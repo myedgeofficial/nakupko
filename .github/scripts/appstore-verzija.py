@@ -1,12 +1,16 @@
 # Pripravi novo verzijo v App Store Connect: ustvari verzijo, doda zadnji build te verzije
 # in vpiše »Kaj je novega« v vseh jezikih. V pregled je NE odda (to naredi človek).
 # Okolje: KEY_ID, ISSUER_ID, KEY_P8, VERZIJA, BUNDLE_ID; besedila v .github/scripts/kaj-je-novega.json.
-import json, os, sys, time, urllib.request, urllib.error
+import json, os, re, sys, textwrap, time, urllib.request, urllib.error
 import jwt
 
 API = "https://api.appstoreconnect.apple.com/v1"
+# Ključ je lahko shranjen v eni vrstici ali brez vrstic BEGIN/END (kot v ios.yml).
+raw = os.environ["KEY_P8"].replace("﻿", "").replace("\\n", "\n")
+body = re.sub(r"[^A-Za-z0-9+/=]", "", re.sub(r"-----(BEGIN|END)[A-Z ]*-----", "", raw))
+pem = "-----BEGIN PRIVATE KEY-----\n" + "\n".join(textwrap.wrap(body, 64)) + "\n-----END PRIVATE KEY-----\n"
 tok = jwt.encode({"iss": os.environ["ISSUER_ID"], "iat": int(time.time()), "exp": int(time.time()) + 1100, "aud": "appstoreconnect-v1"},
-                 os.environ["KEY_P8"], algorithm="ES256", headers={"kid": os.environ["KEY_ID"], "typ": "JWT"})
+                 pem, algorithm="ES256", headers={"kid": os.environ["KEY_ID"], "typ": "JWT"})
 
 def klic(metoda, pot, telo=None):
     req = urllib.request.Request(pot if pot.startswith("http") else API + pot, method=metoda,
