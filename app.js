@@ -746,15 +746,32 @@
     return box;
   }
   // ---------- Izbira trgovin za izračun cen ----------
+  // Trgovine, ki jih uporabnik izbere posamezno (več hkrati); »mine« = samo izbrane.
+  var PICK_CHAINS = ["hofer", "lidl", "eurospin", "jager", "tus", "spar", "mercator", "leclerc"];
   var PREFS = {
-    discount: { label: "Hofer in Lidl", short: "Hofer/Lidl", chains: ["hofer", "lidl"] },
-    eurojag: { label: "Eurospin in Jager", short: "Eurospin/Jager", chains: ["eurospin", "jager"] },
-    classic: { label: "Tuš, Spar in Mercator", short: "Tuš/Spar/Mercator", chains: ["tus", "spar", "mercator"] },
     all: { label: "Kjerkoli je najceneje", short: "najceneje", chains: null },
     none: { label: "Cene me ne zanimajo", short: "", chains: null }
   };
+  // Prej so bile trgovine v skupinah (prva in druga izbira); ob prvem zagonu jih prepišemo v posamezne.
+  var OLD_GROUPS = { discount: ["hofer", "lidl"], eurojag: ["eurospin", "jager"], classic: ["tus", "spar", "mercator"] };
+  function migratePrefs() {
+    var st = state.settings, old = OLD_GROUPS[st.pricePref];
+    if (!old) return;
+    var l = old.slice();
+    (OLD_GROUPS[st.pricePref2] || []).forEach(function (c) { if (l.indexOf(c) < 0) l.push(c); });
+    st.myChains = l; st.pricePref = "mine"; delete st.pricePref2;
+    save();
+  }
+  function chosenChains() { return (state.settings.myChains || []).filter(function (c) { return CHAIN_BY_KEY[c]; }); }
+  function chainsLabel(l) { return l.map(function (c) { return CHAIN_BY_KEY[c].name; }).join(", "); }
   function pref() {
+    if (OLD_GROUPS[state.settings.pricePref]) migratePrefs();
     if (abroad() && state.settings.pricePref !== "none") return PREFS.all; // v tujini: kjerkoli je najceneje
+    if (state.settings.pricePref === "mine") {
+      var l = chosenChains();
+      if (l.length) return { label: chainsLabel(l), short: l.map(function (c) { return CHAIN_BY_KEY[c].name; }).join("/"), chains: l };
+      return PREFS.all;
+    }
     return PREFS[state.settings.pricePref] || PREFS.all;
   }
   // V tujini pišemo cene samo, kjer jih imamo (Avstrija, Hrvaška, Madžarska).
@@ -763,7 +780,7 @@
   // samo za priporočilo najcenejše trgovine.
   var SHOW_PRICES = window.NAKUPKO_SHOW_PRICES === true;
   function pricesOff() { return state.settings.pricePref === "none" || (abroad() && !foreignOn()); }
-  function pref2() { if (abroad()) return null; var k = state.settings.pricePref2; return k && k !== state.settings.pricePref && PREFS[k] && PREFS[k].chains ? PREFS[k] : null; }
+  function pref2() { return null; } // druge izbire ni več: vse trgovine izbereš skupaj
   // trgovine, ki jih uporabnik sploh obiskuje (prva + druga izbira); null = vse
   function myChains() {
     if (!pref().chains) return null;
@@ -832,14 +849,14 @@
   }
   // ---------- Ikone izdelkov ----------
   // Barvne ikone (Microsoft Fluent Emoji, MIT) iz mape icons/, izbrane po imenu izdelka; sicer po kategoriji.
-  var ICONS = window.NAKUPKO_ICONS || { rules: [], cat: {} };
+  var ICONS = window.NAKUPKO_ICONS || { rules: [], cat: {}, exact: {} };
   var ICON_RULES = ICONS.rules.map(function (r) { return [new RegExp(r[0]), r[1]]; });
   var iconMemo = {};
   function iconFor(it) {
     var n = norm(it.name);
     if (iconMemo[n]) return iconMemo[n];
-    var hit = null;
-    for (var i = 0; i < ICON_RULES.length; i++) { if (ICON_RULES[i][0].test(n)) { hit = ICON_RULES[i][1]; break; } }
+    var hit = (ICONS.exact && ICONS.exact[n]) || null;
+    if (!hit) for (var i = 0; i < ICON_RULES.length; i++) { if (ICON_RULES[i][0].test(n)) { hit = ICON_RULES[i][1]; break; } }
     if (!hit) { var p = CATALOG_BY_KEY[n]; hit = ICONS.cat[(p && p.cat) || it.cat] || ICONS.cat.Drugo || "shopping-cart"; }
     return (iconMemo[n] = hit);
   }
@@ -1907,55 +1924,45 @@
   }
 
   // ---------- Izris ----------
-  function renderPrefChoices(box, onPick, opts) {
-    opts = opts || {};
+  function renderPrefChoices(box, onDone) {
+    migratePrefs();
     box.innerHTML = "";
-    var keys = opts.second ? ["discount", "eurojag", "classic"].filter(function (k) { return k !== state.settings.pricePref; }).concat(["skip"])
-      : ["discount", "eurojag", "classic", "all", "none"];
-    var cur = opts.second ? (pref2() ? state.settings.pricePref2 : "skip") : state.settings.pricePref;
-    keys.forEach(function (k) {
-      if (k === "skip") {
-        box.appendChild(el("button", { class: "pref-opt" + (cur === "skip" ? " on" : ""), type: "button", onclick: function () { onPick(null); } }, [
-          el("div", { class: "pref-text" }, [el("b", { text: "Ni druge izbire" }), el("span", { text: "Hodim samo v prve" })])
-        ]));
-        return;
-      }
-      var p = PREFS[k];
-      var dots = el("span", { class: "pref-dots" }, (p.chains || (k === "all" ? COMPARE_CHAINS : [])).map(chainDot));
-      var sub = { discount: "Diskontni trgovini", eurojag: "Ugodni trgovini", classic: "Klasični supermarketi", all: "Primerjam vse in pokažem najnižjo ceno", none: "Brez cen, samo seznam" }[k];
-      box.appendChild(el("button", { class: "pref-opt" + (cur === k ? " on" : ""), type: "button", onclick: function () { onPick(k); } }, [
+    var mine = state.settings.pricePref === "mine" ? chosenChains() : [];
+    box.appendChild(el("p", { class: "muted small pref-hint", text: "Izberi vse trgovine, v katere rad hodiš. Lahko jih izbereš več." }));
+    var grid = el("div", { class: "pref-chains" });
+    PICK_CHAINS.forEach(function (c) {
+      var on = mine.indexOf(c) >= 0;
+      grid.appendChild(el("button", { class: "pref-chain" + (on ? " on" : ""), type: "button", "aria-pressed": on ? "true" : "false", onclick: function () { toggleChain(c); renderPrefChoices(box, onDone); } },
+        [chainDot(c), el("b", { text: CHAIN_BY_KEY[c].name })]));
+    });
+    box.appendChild(grid);
+    ["all", "none"].forEach(function (k) {
+      var p = PREFS[k], cur = state.settings.pricePref === k || (k === "all" && state.settings.pricePref === "mine" && !mine.length);
+      var sub = { all: "Primerjam vse in pokažem najnižjo ceno", none: "Brez cen, samo seznam" }[k];
+      var dots = el("span", { class: "pref-dots" }, (k === "all" ? COMPARE_CHAINS : []).map(chainDot));
+      box.appendChild(el("button", { class: "pref-opt" + (cur ? " on" : ""), type: "button", onclick: function () { setPref(k); if (onDone) onDone(); else renderPrefChoices(box); } }, [
         el("div", { class: "pref-text" }, [el("b", { text: p.label }), el("span", { text: sub })]), dots
       ]));
     });
+    if (onDone && mine.length) box.appendChild(el("button", { class: "primary full pref-next", type: "button", onclick: onDone }, ["Naprej"]));
   }
-  function renderPrefs() {
-    renderPrefChoices($("prefBox"), setPref);
-    $("pref2Wrap").classList.toggle("hidden", !pref().chains);
-    if (pref().chains) renderPrefChoices($("pref2Box"), setPref2, { second: true });
+  function renderPrefs() { renderPrefChoices($("prefBox")); }
+  function toggleChain(c) {
+    var l = state.settings.pricePref === "mine" ? chosenChains() : [], i = l.indexOf(c);
+    if (i >= 0) l.splice(i, 1); else l.push(c);
+    state.settings.myChains = l;
+    state.settings.pricePref = l.length ? "mine" : "all";
+    save();
+    if ($("prefBox") && $("prefBox") !== document.activeElement) renderPrefChoices($("prefBox"));
+    renderAll();
+    toast(l.length ? "Cene računam za: " + chainsLabel(l) : "Cene računam za: " + PREFS.all.label);
   }
   function setPref(k) {
-    var first = !state.settings.pricePref;
     state.settings.pricePref = k;
-    if (state.settings.pricePref2 === k) state.settings.pricePref2 = null;
     save();
     renderPrefs();
     renderAll();
-    // ob prvem zagonu še vprašaj za drugo izbiro
-    if (first && PREFS[k].chains) {
-      $("obTitle").textContent = "Pa druga izbira?";
-      $("obText").textContent = "Kam greš, ko ne greš v " + PREFS[k].short + "? Tako lahko Nakupko predlaga, kdaj se splača obiskati dve bližnji trgovini.";
-      renderPrefChoices($("onboardBox"), function (k2) { setPref2(k2); askSize(); }, { second: true });
-      return;
-    }
-    if (first && !state.settings.size) { askSize(); return; }
-    $("onboard").classList.add("hidden");
     toast(k === "none" ? "Cene so skrite." : "Cene računam za: " + PREFS[k].label);
-  }
-  function setPref2(k) {
-    state.settings.pricePref2 = k; save();
-    renderPrefs();
-    renderAll();
-    toast(k ? "Druga izbira: " + PREFS[k].label : "Brez druge izbire.");
   }
   // ---------- Velikost prikaza po starosti ----------
   var SIZES = {
@@ -1990,9 +1997,16 @@
     $("onboard").classList.remove("hidden");
   }
   function maybeOnboard() {
+    migratePrefs();
     if (state.settings.pricePref && !state.settings.size) { askSize(); return; }
     if (state.settings.pricePref) return;
-    renderPrefChoices($("onboardBox"), setPref);
+    $("obTitle").textContent = "Kje najraje nakupuješ?";
+    $("obText").textContent = "Nakupko ti pokaže, kje bo tvoj nakup najcenejši.";
+    renderPrefChoices($("onboardBox"), function () {
+      if (!state.settings.pricePref) { state.settings.pricePref = "all"; save(); }
+      if (!state.settings.size) { askSize(); return; }
+      $("onboard").classList.add("hidden");
+    });
     $("onboard").classList.remove("hidden");
   }
 
@@ -2448,7 +2462,7 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n, amt) { var a = typeof amt === "string" ? parseAmt(amt) : amt; addItem(n, "", 1, a ? { silent: true, amt: a } : { silent: true }); }, amtText: amtText, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
+  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n, amt) { var a = typeof amt === "string" ? parseAmt(amt) : amt; addItem(n, "", 1, a ? { silent: true, amt: a } : { silent: true }); }, amtText: amtText, eur: eur, moneyScale: moneyScale, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
     // Klik na obvestilo »trgovina je blizu«: odpremo prav to trgovino, brez čakanja na GPS v aplikaciji.
     var list = stores.concat((state.storesCache && state.storesCache.list) || []);
     var st = list.filter(function (x) { return x.id === id; })[0] || lastNearStore || null;
