@@ -83,6 +83,7 @@ NK_PACK("it", function (h) {
     "Recepti so prilagojeni tvoji kuhinji.": "Le ricette sono adattate alla tua cucina.",
     "Recepti za tvojo kuhinjo": "Ricette per la tua cucina",
     "Za to ceno ni jedi.": "Nessun piatto a questo prezzo.",
+    "Toaster": "Tostapane",
     "Korak 1 od 3": "Passo 1 di 3",
     "Korak 2 od 3": "Passo 2 di 3",
     "Korak 3 od 3": "Passo 3 di 3",

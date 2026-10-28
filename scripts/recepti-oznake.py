@@ -31,7 +31,6 @@ NI_VEGAN = r"^(med$|jajca)"
 APARATI = [
     ("cvrtnik", r"cvrtnik"),
     ("mikrovalovka", r"mikrovalov"),
-    ("pocasni", r"počasn\w* kuhalnik"),
     ("sopar", r"soparnik|kuhaln\w* za paro"),
     ("toaster", r"toaster|opekač"),
     ("zar", r"\bžar\w*(?! ponv)|\bna žaru|\bžaru\b|žerjavic"),

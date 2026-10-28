@@ -16,7 +16,7 @@
   var DENAR = [["b1", 0, 1, "Res poceni"], ["b2", 1, 2, "Varčno"], ["b3", 2, 3.5, "Običajno"], ["b4", 3.5, 1e9, "Za poseben dan"]];
   var TEZ = [[1, "Enostavno", "Zmore vsak"], [2, "Srednje", "Nekaj izkušenj"], [3, "Zahtevno", "Za prave kuharje"]];
   var APAR = [["stedilnik", "Štedilnik"], ["pecica", "Pečica"], ["mikrovalovka", "Mikrovalovna pečica"], ["cvrtnik", "Cvrtnik na vroč zrak"],
-    ["blender", "Blender"], ["mikser", "Mikser"], ["zar", "Žar"], ["pocasni", "Počasni kuhalnik"], ["toaster", "Opekač kruha"], ["sopar", "Soparnik"]];
+    ["blender", "Blender"], ["mikser", "Mikser"], ["zar", "Žar"], ["toaster", "Toaster"], ["sopar", "Soparnik"]];
   var ALER = [["gluten", "Gluten"], ["mleko", "Mleko in laktoza"], ["jajca", "Jajca"], ["orescki", "Oreščki"], ["arasidi", "Arašidi"], ["ribe", "Ribe"],
     ["raki", "Raki in školjke"], ["soja", "Soja"], ["sezam", "Sezam"], ["zelena", "Zelena"], ["gorcica", "Gorčica"]];
   var DIETE = ["Jem vse", "Vegetarijansko", "Vegansko"];
@@ -207,7 +207,6 @@
   var KUH = [
     ["mikrovalovka", 116, 44, '<rect x="16" y="46" width="104" height="46" rx="6" ' + ST + '/><rect x="23" y="52" width="66" height="34" rx="3" ' + GL + '/><path d="M28 56h14L22 82z" fill="#fff" opacity=".12"/><rect x="94" y="51" width="21" height="36" rx="2.5" fill="#2A2D33"/><rect x="97" y="54" width="15" height="6" rx="1" fill="#57E39C"/><circle cx="104.5" cy="68" r="4.5" fill="#C9CED6"/><circle cx="104.5" cy="80" r="3" fill="#C9CED6"/>'],
     ["sopar", 344, 30, '<path d="M321 40c-3-4 3-6 0-10M334 40c-3-4 3-6 0-10" fill="none" stroke="#B9C3CC" stroke-width="2" stroke-linecap="round"/><path d="M309 50a18 8 0 0 1 36 0z" fill="#EEF5F8" stroke="#9DB3C0" stroke-width="1.5"/><circle cx="327" cy="42.5" r="2.5" fill="#6F7A84"/><rect x="309" y="50" width="36" height="13" rx="2" fill="#D9ECF4" stroke="#9DB3C0" stroke-width="1.5"/><rect x="309" y="63" width="36" height="13" rx="2" fill="#D9ECF4" stroke="#9DB3C0" stroke-width="1.5"/><path d="M314 70h8M327 57h9" stroke="#7CB46B" stroke-width="3" stroke-linecap="round"/><rect x="306" y="76" width="42" height="16" rx="4" fill="#F7F8FA" stroke="#B9C0C8" stroke-width="1.5"/><circle cx="327" cy="84" r="3" fill="#3C9BDA"/>'],
-    ["pocasni", 296, 50, '<path d="M246 67a24 10 0 0 1 48 0z" fill="#CFE3EE" fill-opacity=".85" stroke="#8FA5B3" stroke-width="1.5"/><circle cx="270" cy="56" r="3" fill="#1B1D21"/><path d="M243 67h54v15a10 10 0 0 1-10 10h-34a10 10 0 0 1-10-10z" ' + BK + '/><path d="M238 73h6M296 73h6" stroke="#2A2D33" stroke-width="4" stroke-linecap="round"/><circle cx="270" cy="80" r="4" fill="#C9CED6"/><path d="M247 71h46" stroke="#fff" stroke-opacity=".15" stroke-width="2"/>'],
     ["toaster", 70, 104, '<rect x="28" y="104" width="12" height="16" rx="3" fill="#E4B877" stroke="#B5844A" stroke-width="1.5"/><rect x="46" y="104" width="12" height="16" rx="3" fill="#E4B877" stroke="#B5844A" stroke-width="1.5"/><rect x="18" y="116" width="54" height="34" rx="10" ' + ST + '/><rect x="72" y="124" width="6" height="10" rx="2" fill="#2A2D33"/><path d="M26 124h38" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>'],
     ["blender", 114, 64, '<rect x="80" y="63" width="32" height="9" rx="2.5" fill="#1F2226"/><path d="M82 72h28l-4 50H86z" fill="#DCEFF8" fill-opacity=".75" stroke="#86A9BD" stroke-width="1.5"/><path d="M84.6 98h22.8l-1.9 24H86.5z" fill="#F07FA0"/><path d="M90 76v40" stroke="#fff" stroke-opacity=".7" stroke-width="2.5" stroke-linecap="round"/><rect x="79" y="122" width="34" height="28" rx="6" ' + BK + '/><circle cx="96" cy="136" r="5" fill="#C9CED6"/>'],
     ["stedilnik", 222, 104, '<rect x="134" y="100" width="92" height="52" fill="transparent"/><path d="M160 106c-2-3 2-5 0-8M173 106c-2-3 2-5 0-8M186 106c-2-3 2-5 0-8" fill="none" stroke="#B9C3CC" stroke-width="2" stroke-linecap="round"/><path d="M138 120h8M200 120h8" stroke="#2A2D33" stroke-width="4" stroke-linecap="round"/><path d="M146 111h54v26a6 6 0 0 1-6 6h-42a6 6 0 0 1-6-6z" ' + ST + '/><rect x="143" y="108" width="60" height="5" rx="2" fill="#C5CBD3" stroke="#8E959F" stroke-width="1.2"/><rect x="134" y="143" width="92" height="7" rx="2" fill="#16181C"/><path d="M146 146.5h12M202 146.5h12" stroke="#E2483D" stroke-width="2" stroke-linecap="round"/>'],
@@ -222,7 +221,7 @@
       '<linearGradient id="kBk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#40444B"/><stop offset="1" stop-color="#16181C"/></linearGradient>' +
       '<linearGradient id="kGl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3A4352"/><stop offset="1" stop-color="#0D1016"/></linearGradient>' +
       '<linearGradient id="kWd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#D2A576"/><stop offset="1" stop-color="#A57446"/></linearGradient>' +
-      '<pattern id="kTl" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#F7F3EC"/><path d="M24 0V24H0" fill="none" stroke="#E6DDCF" stroke-width="1.2"/></pattern>' +
+      '<pattern id="kTl" width="24" height="24" patternUnits="userSpaceOnUse"><rect width="24" height="24" fill="#F7F3EC"/><path d="M24 0V24H0" fill="none" stroke="#EFE9DF" stroke-width=".6"/></pattern>' +
       '<filter id="kGr"><feColorMatrix type="saturate" values="0"/></filter></defs>' +
       '<rect x="0" y="0" width="360" height="290" rx="20" fill="url(#kTl)"/><path d="M0 262h360v8a20 20 0 0 1-20 20H20A20 20 0 0 1 0 270z" fill="#C9AE8C"/>' +
       '<path d="M152 16h56v24l16 22h-88l16-22z" fill="url(#kSt)" stroke="#8E959F" stroke-width="1.5"/><rect x="8" y="92" width="120" height="6" rx="2" fill="url(#kWd)"/><rect x="236" y="92" width="116" height="6" rx="2" fill="url(#kWd)"/>' +
@@ -245,7 +244,7 @@
     }).join("");
     var gf = kit.al.indexOf("gluten") >= 0;
     if ((e = w.querySelector(".kit-gf"))) { e.className = "kit-gf" + (gf ? " on" : ""); e.setAttribute("aria-pressed", gf); }
-    if ((e = w.querySelector(".kit-al"))) e.innerHTML = ALER.map(function (a) {
+    if ((e = w.querySelector(".kit-al"))) e.innerHTML = ALER.slice(1).map(function (a) {
       var on = kit.al.indexOf(a[0]) >= 0;
       return '<button type="button" class="kchip al' + (on ? " on" : "") + '" data-al="' + a[0] + '" aria-pressed="' + on + '">' + esc(T(a[1])) + "</button>";
     }).join("");

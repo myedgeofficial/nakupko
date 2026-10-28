@@ -83,6 +83,7 @@ NK_PACK("hu", function (h) {
     "Recepti so prilagojeni tvoji kuhinji.": "A receptek a konyhádhoz igazodnak.",
     "Recepti za tvojo kuhinjo": "Receptek a konyhádhoz",
     "Za to ceno ni jedi.": "Ezen az áron nincs étel.",
+    "Toaster": "Kenyérpirító",
     "Korak 1 od 3": "1. lépés / 3",
     "Korak 2 od 3": "2. lépés / 3",
     "Korak 3 od 3": "3. lépés / 3",
