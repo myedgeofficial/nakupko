@@ -4,7 +4,7 @@
 // Podatki so isti kot na nakupko.com (recepti.json, količine za 4 osebe; polja 8–10: aparati, alergeni, prehrana).
 (function () {
   "use strict";
-  var REC = null, rt = null, rb = null, rd = null, rm = null, cur = null, off = {};
+  var REC = null, rt = null, rb = null, rd = null, rm = null, ra = null, cur = null, off = {};
   var SL = (window.NK_LANG || "sl") === "sl";
   var T = function (s) { return window.NK_T ? window.NK_T(s) : s; };
   var KEY = "nakupko-osebe", KKEY = "nakupko-kuhinja";
@@ -104,7 +104,7 @@
   function pool(t, b, d, m) {
     return REC.jedi.map(function (r, i) { return i; }).filter(function (i) {
       var r = REC.jedi[i];
-      return ok(r) && (!t || t === "vse" || casOf(r) === t) && (!b || b === "vse" || denOf(r) === b) && (!d || d === "vse" || r[4] === d) && (!m || r[5] === m);
+      return ok(r) && (!ra || (r[8] || []).some(function (x) { return x !== "mikrovalovka|stedilnik" && x.split("|").indexOf(ra) >= 0; })) && (!t || t === "vse" || casOf(r) === t) && (!b || b === "vse" || denOf(r) === b) && (!d || d === "vse" || r[4] === d) && (!m || r[5] === m);
     });
   }
   function jedi(n) { return n + " " + T(n === 1 ? "jed" : "jedi"); }
@@ -115,6 +115,14 @@
     return '<button type="button" class="rc' + (cls || "") + (hasAll ? " added" : "") + '" data-i="' + i + '"><span class="ric">' + ico(r[0]) + '</span><span class="rtx"><b>' + esc(nm(r)) + '</b><span class="rmeta">' + mins(r[3]) + dots(r[4]) + '<span class="rcost">' + esc(costTxt(r)) + "</span></span></span></button>";
   }
   function cards(ids) { var open = openSet(); return '<div class="rgrid">' + ids.map(function (i) { return card(i, open); }).join("") + "</div>"; }
+  // »Recepti za moj aparat«: samo aparati, ki jih imaš, in vsaj 3 jedi
+  function apBox() {
+    var b = APAR.filter(function (a) { return a[0] !== "stedilnik" && has(a[0]); }).map(function (a) {
+      ra = a[0]; var n = pool().length; ra = null;
+      return n >= 3 ? '<button type="button" class="rap" data-a="' + a[0] + '">' + esc(T(a[1])) + "<small>" + n + "</small></button>" : "";
+    }).join("");
+    return b ? '<div class="rapbox"><b>' + esc(T("Ali pa recepti za tvoj aparat")) + '</b><div class="raps">' + b + "</div></div>" : "";
+  }
   function prog(k) {
     var m = /(\d) od (\d)/.exec(k); if (!m) return "";
     for (var i = 1, o = ""; i <= +m[2]; i++) o += '<i class="' + (i < +m[1] ? "done" : i === +m[1] ? "now" : "") + '"></i>';
@@ -133,11 +141,16 @@
       esc(bits.join(" · ")) + '</span></span><span class="rkit-go">' + esc(T("Uredi")) + " ›</span></button>";
   }
   // prvo odprtje: vodenje v dveh korakih, šele potem recepti
+  function rmap() {
+    return '<div class="rmap">' + [T("Kuhinja"), T("Kaj ješ"), T("Recepti")].map(function (x, i) {
+      return '<span class="' + (i + 1 < su ? "done" : i + 1 === su ? "now" : "") + '"><b>' + (i + 1 < su ? "✓" : i + 1) + "</b>" + esc(x) + "</span>";
+    }).join('<i aria-hidden="true">›</i>') + "</div>";
+  }
   function setup() {
-    if (su === 1) return '<div class="rstep rsetup">' + prog("1 od 2") + '<span class="rk">' + esc(T("Korak 1 od 2")) + " · " + esc(T("Moja kuhinja")) + "</span><h2>" + esc(T("Kaj imaš v kuhinji?")) + "</h2>" +
+    if (su === 1) return '<div class="rstep rsetup"><p class="rhello">' + esc(T("Preden ti pokažem recepte, mi povej dve stvari.")) + "</p>" + rmap() + "<h2>" + esc(T("Kaj imaš v kuhinji?")) + "</h2>" +
       '<p class="rsub">' + esc(T("Recepte ti izberem glede na to, kaj imaš v kuhinji in kaj ješ. Tapni aparate, ki jih imaš.")) + "</p>" +
       '<div class="kit-pic"></div><div class="kit-ap kchips"></div><button type="button" class="btn primary full rnext" data-su="2">' + esc(T("Naprej")) + " ›</button></div>";
-    return '<div class="rstep rsetup">' + prog("2 od 2") + '<span class="rk">' + esc(T("Korak 2 od 2")) + " · " + esc(T("Moja kuhinja")) + "</span><h2>" + esc(T("Kaj ješ?")) + "</h2>" +
+    return '<div class="rstep rsetup">' + rmap() + "<h2>" + esc(T("Kaj ješ?")) + "</h2>" +
       '<p class="rsub">' + esc(T("Recepte, ki ti ne ustrezajo, skrijem.")) + "</p>" + kitDiet() +
       '<p class="kit-n"></p><button type="button" class="btn primary full rnext" data-su="3">' + esc(T("Pokaži recepte")) + ' ›</button><button type="button" class="rskip" data-su="1">‹ ' + esc(T("Nazaj")) + "</button></div>";
   }
@@ -149,6 +162,7 @@
     var box = $("rflow"); if (!box) return;
     if (!REC) { box.innerHTML = '<p class="empty">' + esc(T("Nalagam recepte …")) + "</p>"; return; }
     var q = norm($("rq").value), words = q.split(" ").filter(Boolean), h = kitBar();
+    var sb = box.parentNode.querySelector(".rsearch"); if (sb) sb.hidden = !kit.set;
     if (!kit.set && !words.length) { box.innerHTML = setup(); drawKit(box); return; }
     if (!rt) h = '<p class="rready">✓ ' + esc(T("Recepti so prilagojeni tvoji kuhinji.")) + "</p>" + h;
     if (words.length) {
@@ -164,6 +178,7 @@
       return;
     }
     var cr = [];
+    if (ra) cr.push(["a", T(APAR.filter(function (a) { return a[0] === ra; })[0][1])]);
     if (rt) cr.push(["t", rt === "vse" ? T("Ves čas") : T(CASI.filter(function (c) { return c[0] === rt; })[0][3])]);
     if (rd) cr.push(["d", rd === "vse" ? T("Vsa zahtevnost") : T(TEZ[rd - 1][1])]);
     if (rm) cr.push(["m", mapName(REC.mape.filter(function (m) { return m[0] === rm; })[0])]);
@@ -174,7 +189,7 @@
       h += step("Korak 1 od 3", T("Koliko časa imaš?"), '<div class="ropts">' + CASI.map(function (c) {
         var n = pool(c[0]).length; if (!n) return "";
         return '<button type="button" class="ropt" data-t="' + c[0] + '"><b>' + esc(T(c[3])) + "</b><span>" + esc(T(c[4])) + "</span><small>" + jedi(n) + "</small></button>";
-      }).join("") + "</div>", "Vseeno mi je, pokaži vse");
+      }).join("") + "</div>" + (ra ? "" : apBox()), "Vseeno mi je, pokaži vse");
     } else if (!rd) {
       h += step("Korak 2 od 3", T("Kako zahtevno naj bo?"), '<div class="ropts">' + TEZ.map(function (t) {
         var n = pool(rt, null, t[0]).length; if (!n) return "";
@@ -292,7 +307,7 @@
     return [v, u];
   }
   function amtOf(g) { var a = scaleAmt(g[1], g[2], servings / 4), m = null; if (a) { m = {}; m[a[1]] = a[0]; } return m; }
-  function osebe(n) { return SL ? n + (n === 1 ? " osebo" : n === 2 ? " osebi" : n < 5 ? " osebe" : " oseb") : n + (n === 1 ? " person" : " people"); }
+  function osebe(n) { return SL ? n + (n === 1 ? " osebo" : n === 2 ? " osebi" : n < 5 ? " osebe" : " oseb") : n + " " + T(n === 1 ? "oseba" : "oseb"); }
   function drawSheet() {
     var r = cur, api = window.__nakupko, sh = $("rsheet"); if (!sh || !r) return;
     sh.querySelector(".rsh-ic").innerHTML = ico(r[0]);
@@ -443,10 +458,11 @@
       }, 220);
       return;
     }
+    if (b.dataset.a) { ra = b.dataset.a; draw(); return; }
     if (b.dataset.b) rb = b.dataset.b;
     else if (b.dataset.bud !== undefined) { rb = b.dataset.bud || null; draw(); return; }
     else if (b.dataset.skip) { if (!rt) rt = "vse"; else rd = "vse"; }
-    else if (b.dataset.back) { var k = b.dataset.back; if (k === "t") { rt = rb = rd = rm = null; } else if (k === "d") { rb = rd = rm = null; } else { rb = rm = null; } }
+    else if (b.dataset.back) { var k = b.dataset.back; if (k === "a") { ra = rt = rb = rd = rm = null; } else if (k === "t") { rt = rb = rd = rm = null; } else if (k === "d") { rb = rd = rm = null; } else { rb = rm = null; } }
     draw();
     var p = $("paneRecipes"); if (p && p.getBoundingClientRect().top < 0) p.scrollIntoView({ behavior: "smooth" });
   });
