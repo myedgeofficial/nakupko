@@ -14,15 +14,19 @@ on:
 jobs:
   pripravi:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
       - name: Verzija iz projekta
         id: v
         run: |
           V="${{ inputs.verzija }}"
           if [ -z "$V" ]; then V=$(grep -m1 -o 'MARKETING_VERSION = [0-9.]*' native/ios/App/App.xcodeproj/project.pbxproj | awk '{print $3}'); fi
           echo "verzija=$V" >> "$GITHUB_OUTPUT"
+          # build mora biti novejši od zadnje spremembe aplikacije (številka builda = čas gradnje UTC)
+          echo "najmanj=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M -- . ':!.github')" >> "$GITHUB_OUTPUT"
       - run: pip install "pyjwt[crypto]"
       - name: Pripravi verzijo v App Store Connect
         env:
@@ -31,4 +35,5 @@ jobs:
           KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
           VERZIJA: ${{ steps.v.outputs.verzija }}
           BUNDLE_ID: si.nakupko.app
+          NAJMANJ_BUILD: ${{ steps.v.outputs.najmanj }}
         run: python .github/scripts/appstore-verzija.py
