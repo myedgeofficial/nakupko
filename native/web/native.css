@@ -21,6 +21,10 @@ html.has-ad body::after {
   height: calc(env(safe-area-inset-bottom) + var(--ad-h)); background: var(--surface);
 }
 html.has-ad body { padding-bottom: calc(80px + env(safe-area-inset-bottom) + var(--ad-h)); }
+/* Okna (Moja kuhinja, recept …) se končajo nad reklamo, da gumba Shrani ne prekrije. */
+html.has-ad .kuhaj { padding-bottom: calc(14px + env(safe-area-inset-bottom) + var(--ad-h)); }
+html.has-ad .sheet-wrap { bottom: calc(env(safe-area-inset-bottom) + var(--ad-h)); }
+html.has-ad .sheet { padding-bottom: 19.5px; max-height: calc(92vh - var(--ad-h) - env(safe-area-inset-bottom)); }
 
 /* Nastavitve v iOS aplikaciji: brez drsnikov in preizkusov, razdalja in zamik sta nastavljena (native.js). */
 #tab-stores .settings details.more { display: none !important; }
