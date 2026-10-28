@@ -63,9 +63,14 @@ def prehrana(r, al):
     return 2
 
 
+# korak brez aparata, ki pa potrebuje toploto: pečenje mesa na strani = ponev; segrevanje, taljenje = štedilnik ali mikrovalovna
+PONEV = r"peci|peče(mo|te)|pecite|na (vsaki|obeh) stran|zapeci|zapeče"
+TOPLO = r"segrej|segrev|stopi|stopljen|raztopi|stali|vroč|topl[aoe]? (mleko|vod)|kuhan"
+
+
 def aparati(r):
     # Aparat iz vsakega koraka; »X ali Y« v istem koraku pomeni, da zadošča eden od obeh.
-    need, alts = set(), set()
+    need, alts, mehko = set(), set(), False
     for st in (r[7][0] if len(r) > 7 and r[7] else []):
         t = low(st)
         t = re.sub(r"mikrovalovn\w* pečic\w*", "mikrovalovki", t)
@@ -77,6 +82,11 @@ def aparati(r):
             for m in re.finditer(rx, t, re.I):
                 pos.setdefault(kod, []).append(m.start())
         hit = [(min(v), k) for k, v in pos.items()]
+        if not hit:
+            if re.search(PONEV, t):
+                need.add("stedilnik")
+            elif re.search(TOPLO, t):
+                mehko = True
         alt = None
         m = re.search(r"\bali\b", t)
         if m and len(pos) > 1:
@@ -96,6 +106,8 @@ def aparati(r):
             need.update(k for _, k in hit)
     # če je kje navedena zamenjava (»ali v pečici«), velja za cel recept
     need -= {k for x in alts for k in x.split("|")}
+    if mehko and not need & {"stedilnik", "mikrovalovka"} and not any("stedilnik" in x or "mikrovalovka" in x for x in alts):
+        alts.add("mikrovalovka|stedilnik")
     order = [k for k, _ in APARATI]
     return [k for k in order if k in need] + sorted(alts)
 
