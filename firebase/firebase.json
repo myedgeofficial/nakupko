@@ -25,6 +25,13 @@
           }
         ]
       }
+    ],
+    "redirects": [
+      {
+        "source": "**",
+        "destination": "https://stats.remako.si",
+        "type": 302
+      }
     ]
   }
 }
