@@ -104,6 +104,11 @@ h2.inline { display: inline; }
 .hero-total { font: 900 30px/1.05 var(--font); color: var(--ink); margin-top: 5.5px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hero-best { font: 700 17.5px/1.2 var(--font); color: var(--muted); margin-top: 3.5px; overflow-wrap: anywhere; }
 .hero-best:empty { display: none; }
+#heroCheap.hidden { display: none; }
+.hero-side.with-near { padding-top: 16px; }
+.hero-near { margin-top: 10px; }
+.hero-near-name { font: 900 19px/1.15 var(--font); color: var(--ink); margin-top: 3.5px; overflow-wrap: anywhere; }
+.hero-near-dist { font-weight: 700; color: var(--muted); font-size: 15px; white-space: nowrap; }
 
 /* ---------- Postavitev ---------- */
 main { padding: 0 12.5px; max-width: 633.5px; margin: 0 auto; }
@@ -536,6 +541,7 @@ details.card[open] > summary { margin-bottom: 10.5px; }
   .hero-num small { font-size: 8px; }
   .hero-total { font-size: 25.5px; }
   .hero-best { font-size: 16px; }
+  .hero-near-name { font-size: 17px; }
   .ftab { font-size: 14px; letter-spacing: .04em; gap: 7px; }
   .irow { gap: 9.5px; padding-right: 10.5px; }
   .thumb { width: 56.5px; height: 56.5px; flex-basis: 56.5px; }

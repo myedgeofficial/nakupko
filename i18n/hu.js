@@ -151,6 +151,7 @@ NK_PACK("hu", function (h) {
     "Več možnosti": "További lehetőségek",
     "Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).": "Helyek: © OpenStreetMap közreműködők. A nyitvatartás tájékoztató jellegű. Termékikonok: Microsoft Fluent Emoji (MIT).",
     "Okvirno najceneje": "Nagyjából a legolcsóbb",
+    "Okvirno najbližje": "Nagyjából a legközelebbi",
     "Najcenejša trgovina je le okvirna ocena iz javno dostopnih cen, ki niso nujno točne ali aktualne. Dejanske cene, akcije in zaloga v trgovini se lahko razlikujejo. Nakupko za razlike ne odgovarja.": "A legolcsóbb bolt csak durva becslés nyilvánosan elérhető árak alapján, amelyek pontatlanok vagy elavultak lehetnek. A tényleges árak, akciók és készlet a boltban eltérhetnek. A Nakupko nem felel az eltérésekért.",
     "Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.": "Az árak tájékoztató jellegűek, és eltérhetnek a bolti áraktól. Nem tudjuk, hogy egy termék van-e készleten.",
     "Vse": "Mind",
