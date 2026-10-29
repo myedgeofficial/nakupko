@@ -20,6 +20,10 @@ def call(method, path, **kw):
 
 
 email = os.environ["EMAIL"].lower()
+for staro in [e.strip().lower() for e in os.environ.get("STARO", "").split(",") if e.strip()]:  # zamenjan naslov
+    for i in call("GET", "/userInvitations", params={"limit": 200}).json().get("data", []):
+        if i["attributes"]["email"].lower() == staro:
+            print(f"{staro}: staro povabilo izbrisano {call('DELETE', '/userInvitations/' + i['id']).status_code}")
 uporabnik = [u for u in call("GET", "/users", params={"limit": 200}).json().get("data", []) if u["attributes"]["username"].lower() == email]
 povabila = [i for i in call("GET", "/userInvitations", params={"limit": 200}).json().get("data", []) if i["attributes"]["email"].lower() == email]
 if uporabnik:

@@ -12,10 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install pyjwt cryptography requests
-      - run: python3 .github/scripts/najnovejsi-testerjem.py
+      - run: python3 .github/scripts/zunanji-testerji.py
         env:
           KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
-          SAMO: si.nakupko.app
+          BUNDLES: "si.nakupko.app,com.byurska.lumora,si.fixko.app"
+          EMAILS: "cani.fani@gmail.com"
           
