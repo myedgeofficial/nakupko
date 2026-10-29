@@ -184,6 +184,7 @@ NK_PACK("hr", function (h) {
     "Več možnosti": "Više mogućnosti",
     "Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).": "Izvor lokacija: © OpenStreetMap contributors. Radno vrijeme je informativno. Ikone proizvoda: Microsoft Fluent Emoji (MIT).",
     "Okvirno najceneje": "Okvirno najjeftinije",
+    "Okvirno najbližje": "Okvirno najbliže",
     "Najcenejša trgovina je le okvirna ocena iz javno dostopnih cen, ki niso nujno točne ali aktualne. Dejanske cene, akcije in zaloga v trgovini se lahko razlikujejo. Nakupko za razlike ne odgovarja.": "Najjeftinija trgovina samo je okvirna procjena na temelju javno dostupnih cijena, koje ne moraju biti točne ni ažurne. Stvarne cijene, akcije i zalihe u trgovini mogu se razlikovati. Nakupko ne odgovara za razlike.",
     "Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.": "Cijene su okvirne i mogu se razlikovati od cijena u trgovini. Ne znamo je li proizvod na zalihi.",
     "Vse": "Sve",
