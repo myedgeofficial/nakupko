@@ -73,3 +73,7 @@ for app in call("GET", "/apps", params={"limit": 50}).json()["data"]:
         r = call("POST", "/betaAppReviewSubmissions", json={"data": {"type": "betaAppReviewSubmissions",
                  "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}})
         print(f"::notice::{ime}: beta pregled {'ODDAN' if r.status_code < 300 else 'NI oddan (' + str(r.status_code) + ')'}")
+    if zunanje:
+        sub = call("GET", f"/builds/{bid}/betaAppReviewSubmission").json().get("data")
+        bd = call("GET", f"/builds/{bid}/buildBetaDetail").json().get("data", {}).get("attributes", {})
+        print(f"::notice::{ime}: stanje pregleda {sub and sub['attributes'].get('betaReviewState')}, zunanje {bd.get('externalBuildState')}, šifriranje {build['attributes'].get('usesNonExemptEncryption')}")
