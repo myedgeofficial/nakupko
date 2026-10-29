@@ -4,7 +4,7 @@ name: TestFlight zunanji testerji
 on:
   push:
     branches: [testerji-dodaj, claude/project-thread-f3qn8g]
-    paths: [".github/workflows/testerji-dodaj.yml", ".github/scripts/zunanji-testerji.py", ".github/scripts/buildi-skupina.py"]
+    paths: [".github/workflows/testerji-dodaj.yml", ".github/scripts/zunanji-testerji.py", ".github/scripts/buildi-skupina.py", ".github/scripts/najnovejsi-testerjem.py"]
 
 jobs:
   dodaj:
@@ -12,7 +12,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install pyjwt cryptography requests
-      - run: python3 .github/scripts/buildi-skupina.py
+      - run: python3 .github/scripts/najnovejsi-testerjem.py
         env:
           KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
