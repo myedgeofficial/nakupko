@@ -20,6 +20,10 @@ ALERGENI = [
     ("sezam", r"^(sezam|tahini|hummus|halva|hamburger žemlje)"),
     ("zelena", r"^(zelena \(gomolj\)|vegeta|jušna kocka|govedska juha|zamrznjena mešanica za juho|instant juha|gotova juha|fond za omake)"),
     ("gorcica", r"^(gorčica|majoneza)"),
+    # gluten tudi sredi imena (piščančji nuggetsi, koruzni kosmiči imajo ječmenov slad, oves)
+    ("gluten", r"nuggets|paniran|koruzni kosmiči|ovsen|ječmen|pira|rž|seitan|kruh|drobtin|testenin|rezanci(?<!riževi rezanci)|moka(?<!ajdova moka)(?<!koruzna moka)(?<!kokosova moka)"),
+    # »gluten?« = lahko vsebuje gluten (predelano meso, kocke, mešanice začimb, omake); pri »Brez glutena« so skriti, med alergeni se ne izpišejo
+    ("gluten?", r"hrenovk|debrecink|kranjsk|krvavic|čevapčič|pleskavic|klobas|pečenic|čorizo|salam|pašteta|jušna kocka|v kocki|juha|omaka bbq|teriyaki|pire krompir v prahu|solatni preliv|začimba za|mehiška začimba|kari|garam masala|sladoled|čokolad|puding|tortilja čips|taco|pomfri|tempeh|lešnikov namaz|sirni namaz|sladni|rastlinsk"),
 ]
 MESO = r"^(piščan|puran|cel piščanec|mleto|svinjsk|govej|govedska|telečj|teletina|jagnjetin|raca|hrenovke|piščančje hrenovke|kranjska|pršut|šunka|salama|slanina|pašteta|čevapčiči|pleskavice|pečenice|krvavice|mortadela|klobase|debrecinke|mesni sir|kulen|čorizo|kraška panceta|suha šunka|prekajena|ocvirki|mast$|želatina|fond za omake|golaž|cordon|dunajski|zamrznjeni čevapčiči|zamrznjeni hamburgerji|piščančji nuggetsi|bolonjska)"
 NI_VEGAN = r"^(med$|jajca)"
@@ -27,7 +31,6 @@ NI_VEGAN = r"^(med$|jajca)"
 APARATI = [
     ("cvrtnik", r"cvrtnik"),
     ("mikrovalovka", r"mikrovalov"),
-    ("pocasni", r"počasn\w* kuhalnik"),
     ("sopar", r"soparnik|kuhaln\w* za paro"),
     ("toaster", r"toaster|opekač"),
     ("zar", r"\bžar\w*(?! ponv)|\bna žaru|\bžaru\b|žerjavic"),
@@ -45,6 +48,8 @@ def low(s):
 def alergeni(r):
     a = []
     for kod, rx in ALERGENI:
+        if kod in a or (kod == "gluten?" and "gluten" in a):
+            continue
         if any(re.search(rx, low(g[0])) for g in r[6] if "brez glutena" not in low(g[0]) or kod != "gluten"):
             a.append(kod)
     return a
@@ -58,9 +63,14 @@ def prehrana(r, al):
     return 2
 
 
+# korak brez aparata, ki pa potrebuje toploto: pečenje mesa na strani = ponev; segrevanje, taljenje = štedilnik ali mikrovalovna
+PONEV = r"peci|peče(mo|te)|pecite|na (vsaki|obeh) stran|zapeci|zapeče"
+TOPLO = r"segrej|segrev|stopi|stopljen|raztopi|stali|vroč|topl[aoe]? (mleko|vod)|kuhan"
+
+
 def aparati(r):
     # Aparat iz vsakega koraka; »X ali Y« v istem koraku pomeni, da zadošča eden od obeh.
-    need, alts = set(), set()
+    need, alts, mehko = set(), set(), False
     for st in (r[7][0] if len(r) > 7 and r[7] else []):
         t = low(st)
         t = re.sub(r"mikrovalovn\w* pečic\w*", "mikrovalovki", t)
@@ -72,6 +82,11 @@ def aparati(r):
             for m in re.finditer(rx, t, re.I):
                 pos.setdefault(kod, []).append(m.start())
         hit = [(min(v), k) for k, v in pos.items()]
+        if not hit:
+            if re.search(PONEV, t):
+                need.add("stedilnik")
+            elif re.search(TOPLO, t):
+                mehko = True
         alt = None
         m = re.search(r"\bali\b", t)
         if m and len(pos) > 1:
@@ -91,6 +106,8 @@ def aparati(r):
             need.update(k for _, k in hit)
     # če je kje navedena zamenjava (»ali v pečici«), velja za cel recept
     need -= {k for x in alts for k in x.split("|")}
+    if mehko and not need & {"stedilnik", "mikrovalovka"} and not any("stedilnik" in x or "mikrovalovka" in x for x in alts):
+        alts.add("mikrovalovka|stedilnik")
     order = [k for k, _ in APARATI]
     return [k for k in order if k in need] + sorted(alts)
 

@@ -1,0 +1,28 @@
+name: TestFlight povabilo notranjemu testerju
+
+# Doda testerja v vse notranje skupine vseh aplikacij in znova pošlje povabila. Zažene se ob pushu na vejo tester-povabi (ali ročno).
+on:
+  push:
+    branches: [tester-povabi]
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "E-pošta testerja (član ekipe v App Store Connect)"
+        required: true
+
+jobs:
+  povabi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install "pyjwt[crypto]"
+      - name: Povabi
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+          EMAIL: ${{ inputs.email || 'andjela.collab@gmail.com' }}
+          IME: Andjela
+          PRIIMEK: Paunovic
+        run: python .github/scripts/tester-povabi.py

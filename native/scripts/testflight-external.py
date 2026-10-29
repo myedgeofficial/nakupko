@@ -81,6 +81,15 @@ for g in groups:
     call("POST", f"/betaGroups/{g['id']}/relationships/builds", {"data": [{"type": "builds", "id": bid}]}, ok_errors=(409,))
     print("Dodano v skupino:", g["attributes"]["name"])
 
+# Brez »Test Information« (opis za testerje) Apple gradnje ne sprejme v pregled.
+if not call("GET", f"/apps/{app}/betaAppLocalizations")["data"]:
+    call("POST", "/betaAppLocalizations",
+         {"data": {"type": "betaAppLocalizations",
+                   "attributes": {"locale": "en-US", "feedbackEmail": "teo.simonic7@gmail.com",
+                                  "description": "Nakupko is a smart shopping list: add products, compare store prices, get reminded when you pass a store, and cook from recipes."},
+                   "relationships": {"app": {"data": {"type": "apps", "id": app}}}}}, ok_errors=(409, 422))
+    print("Dodan opis za testerje (Test Information)")
+
 # Apple hkrati pregleduje le eno gradnjo; če kakšna že čaka, se ta pošlje, ko jo ročno potrdiš ali ob naslednji.
 r = call("POST", "/betaAppReviewSubmissions",
          {"data": {"type": "betaAppReviewSubmissions", "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}}, ok_errors=(409, 422))

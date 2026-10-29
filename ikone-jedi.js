@@ -43,5 +43,24 @@ window.IKONE_JEDI = {
   muffin: '<path d="M12 26l3 14h18l3-14z"/><path d="M10 26a14 12 0 0 1 28 0z"/><path d="M19 30l1 10M24 30v10M29 30l-1 10"/><circle cx="24" cy="12" r="2"/>',
   coffee: '<path d="M8 18h26v10a12 12 0 0 1-24 0z"/><path d="M34 21h3a5 5 0 0 1 0 10h-4"/><path d="M6 42h30"/><path d="M16 12c-2-2 2-4 0-7M24 12c-2-2 2-4 0-7"/>',
   corn: '<path d="M24 6c6 4 8 12 8 20s-3 14-8 16c-5-2-8-8-8-16s2-16 8-20z"/><path d="M18 18h12M17 25h14M18 32h12M24 10v30"/><path d="M16 28c-6 2-10 8-10 14 6-2 10-6 12-10M32 28c6 2 10 8 10 14-6-2-10-6-12-10"/>',
-  sushi: '<ellipse cx="24" cy="16" rx="16" ry="7"/><path d="M8 16v16a16 7 0 0 0 32 0V16"/><ellipse cx="24" cy="16" rx="9" ry="3.5"/><circle cx="24" cy="16" r="2.4"/>'
+  sushi: '<ellipse cx="24" cy="16" rx="16" ry="7"/><path d="M8 16v16a16 7 0 0 0 32 0V16"/><ellipse cx="24" cy="16" rx="9" ry="3.5"/><circle cx="24" cy="16" r="2.4"/>',
+  spageti: '<path d="M8 44l14-16"/><ellipse cx="28" cy="21" rx="11" ry="8" transform="rotate(-40 28 21)"/><path d="M21 24c4 1 9-3 11-8M24 27c5 0 10-5 11-10"/><path d="M33 12l6-7M36 15l7-6M30 10l4-7"/>',
+  farfalle: '<path d="M21 22C16 17 12 14 7 12c-3 8-3 16 0 24 5-2 9-5 14-10z"/><path d="M27 22c5-5 9-8 14-10 3 8 3 16 0 24-5-2-9-5-14-10z"/><rect x="21" y="20" width="6" height="8" rx="2"/><path d="M11 19l4 2M11 29l4-2M37 19l-4 2M37 29l-4-2"/>',
+  zajemalka: '<path d="M5 26h22a11 11 0 0 1-22 0z"/><path d="M27 26c4-4 7-11 10-17"/><circle cx="39" cy="6" r="2.5"/><path d="M12 34c3 1 6 1 8 0"/>',
+  skoljka: '<path d="M24 38L7 19a18 15 0 0 1 34 0z"/><path d="M24 38L15 9M24 38V7M24 38l9-29M24 38L9 14M24 38l15-24"/><path d="M19 38h10v4H19z"/>',
+  korenje: '<path d="M13 41c-3 0-5-3-3-6l15-19a6 6 0 0 1 9 7L19 39c-2 2-4 2-6 2z"/><path d="M32 15c-1-5 1-9 5-10M35 18c3-3 7-3 10-1M31 13c-3-3-3-7-1-10"/><path d="M17 31l3 2M22 25l3 2"/>',
+  avokado: '<path d="M24 5c8 0 10 9 13 17a13 13 0 1 1-26 0C14 14 16 5 24 5z"/><circle cx="24" cy="30" r="6"/>',
+  bedro: '<path d="M26 29c-9-2-12-14-5-21s20-4 22 6-7 16-17 15z"/><path d="M26 29l-9 9"/><circle cx="12" cy="37" r="3.5"/><circle cx="17" cy="42" r="3.5"/><path d="M30 13c4 0 7 3 7 6"/>',
+  zrezek: '<path d="M8 24c-2-9 7-15 17-15 9 0 16 5 15 13-1 6-6 8-9 12-3 5-9 7-14 4S9 31 8 24z"/><path d="M13 22c0-5 6-9 12-9 6 0 10 3 10 8"/><circle cx="22" cy="27" r="3"/>',
+  sekac: '<path d="M5 12h23v17H9a4 4 0 0 1-4-4z"/><circle cx="10" cy="17" r="1.8"/><path d="M28 17h12a3 3 0 0 1 0 7H28"/><path d="M33 20.5h.01M37 20.5h.01"/>',
+  paradiznik: '<circle cx="24" cy="27" r="15"/><path d="M24 12l-3-5M24 12l-7-1 4 4M24 12l7-1-4 4M24 12l2-5"/><path d="M15 25a9 9 0 0 1 5-6"/>',
+  brokoli: '<path d="M14 27a7 7 0 0 1 0-13 9 9 0 0 1 16-5 8 8 0 0 1 6 18z"/><path d="M19 27l-2 15h14l-2-15"/><path d="M24 36v-6M20 21c1-2 3-3 5-3"/>',
+  potica: '<circle cx="24" cy="24" r="18"/><path d="M24 24a3 3 0 0 1 6 0 6.5 6.5 0 0 1-13 0 10 10 0 0 1 20 0 13.5 13.5 0 0 1-27 0"/>'
+};
+// Ikone kategorij (korak 3): stalne, vsaka kategorija svoje, med seboj različne
+window.IKONE_MAP = {
+  testenine: ["spageti", "farfalle", "lasagne"], juhe: ["soup", "pot", "zajemalka"], meso: ["zrezek", "bedro", "sekac"],
+  ribe: ["fish", "shrimp", "skoljka"], zelenjava: ["brokoli", "korenje", "leaf"], solate: ["salad", "avokado", "paradiznik"],
+  svet: ["sushi", "taco", "noodles"], klasika: ["potica", "sausage", "bread"], zajtrk: ["egg", "croissant", "coffee"],
+  sladice: ["cake", "muffin", "cookie"], zar: ["skewer", "burger", "party"]
 };

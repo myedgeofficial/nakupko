@@ -104,6 +104,11 @@ h2.inline { display: inline; }
 .hero-total { font: 900 30px/1.05 var(--font); color: var(--ink); margin-top: 5.5px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hero-best { font: 700 17.5px/1.2 var(--font); color: var(--muted); margin-top: 3.5px; overflow-wrap: anywhere; }
 .hero-best:empty { display: none; }
+#heroCheap.hidden { display: none; }
+.hero-side.with-near { padding-top: 16px; }
+.hero-near { margin-top: 10px; }
+.hero-near-name { font: 900 19px/1.15 var(--font); color: var(--ink); margin-top: 3.5px; overflow-wrap: anywhere; }
+.hero-near-dist { font-weight: 700; color: var(--muted); font-size: 15px; white-space: nowrap; }
 
 /* ---------- Postavitev ---------- */
 main { padding: 0 12.5px; max-width: 633.5px; margin: 0 auto; }
@@ -536,6 +541,7 @@ details.card[open] > summary { margin-bottom: 10.5px; }
   .hero-num small { font-size: 8px; }
   .hero-total { font-size: 25.5px; }
   .hero-best { font-size: 16px; }
+  .hero-near-name { font-size: 17px; }
   .ftab { font-size: 14px; letter-spacing: .04em; gap: 7px; }
   .irow { gap: 9.5px; padding-right: 10.5px; }
   .thumb { width: 56.5px; height: 56.5px; flex-basis: 56.5px; }
@@ -599,7 +605,33 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rsearch input { width: 100%; font: 700 16px var(--font); color: var(--ink); background: var(--surface); border: 0; border-radius: 15px; padding: 13px 14px 13px 42px; outline: 0; box-shadow: var(--shadow); -webkit-appearance: none; }
 .rcrumbs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 2px 10px; }
 .rcrumbs button { font: 800 12px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; color: #5B4A86; background: var(--surface); border: 0; border-radius: 999px; padding: 8px 12px; box-shadow: var(--shadow); }
-.rstep { padding: 0 2px; }
+.rstep { padding: 0 2px; animation: rstepIn .28s cubic-bezier(.2,.8,.2,1); }
+@keyframes rstepIn { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .rstep { animation: none; } }
+.rprog { display: flex; gap: 6px; margin: 2px 0 12px; }
+.rprog i { flex: 1; height: 6px; border-radius: 6px; background: var(--line); }
+.rprog i.done { background: var(--violet); }
+.rprog i.now { background: linear-gradient(90deg, var(--violet) 55%, var(--line) 55%); }
+.ropt, .rf { transition: transform .12s, box-shadow .12s; }
+.ropt:active, .rf:active { transform: scale(.97); }
+.ropt.pick, .rf.pick { box-shadow: 0 0 0 3px var(--violet), var(--shadow); transform: scale(.98); }
+.picking > :not(.pick) { opacity: .45; transition: opacity .15s; }
+.rnext { font-size: 17px; padding-top: 15px; padding-bottom: 15px; }
+.rhello { margin: 4px 0 12px !important; font: 800 15px/1.35 var(--font); color: var(--ink); }
+.rmap { display: flex; align-items: center; gap: 6px; margin: 0 0 14px; }
+.rmap span { display: flex; align-items: center; gap: 6px; font: 800 13px var(--font); color: var(--muted); }
+.rmap span b { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12.5px; background: var(--line); color: var(--muted); }
+.rmap span.now { color: var(--violet); }
+.rmap span.now b { background: var(--violet); color: #fff; box-shadow: 0 0 0 4px var(--violet-soft); }
+.rmap span.done b { background: var(--ok); color: #fff; }
+.rmap i { font-style: normal; color: var(--line); font-weight: 900; }
+.rapbox { margin: 16px 0 4px; }
+.rapbox > b { display: block; font: 900 15px var(--font); margin-bottom: 8px; }
+.raps { display: flex; flex-wrap: wrap; gap: 7px; }
+.rap { display: flex; align-items: center; gap: 7px; font: 800 13.5px var(--font); color: var(--ink); background: var(--surface); border: 0; border-radius: 999px; box-shadow: var(--shadow); padding: 8px 12px; }
+.rap small { font-size: 11.5px; color: var(--muted); }
+.rap:active { transform: scale(.96); }
+.rready { margin: 0 2px 8px; font: 800 13px var(--font); color: var(--ok); }
 .rstep .rk { display: block; font: 800 11.5px/1 var(--font); letter-spacing: .16em; text-transform: uppercase; color: var(--violet); margin-top: 4px; }
 .rstep h2 { font: 900 28px/1.08 var(--font); letter-spacing: -.02em; margin: 7px 0 14px; color: var(--ink); }
 .ropts { display: grid; gap: 9px; }
@@ -615,8 +647,8 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rskip { display: block; margin: 12px auto 4px; font: 800 14px var(--font); color: var(--muted); background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
 .rfold { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .rf { padding: 13px 13px 12px; border-top-left-radius: 6px; }
-.rfi { display: flex; gap: 5px; color: var(--violet); margin-bottom: 9px; }
-.rfi svg { width: 22px; height: 22px; }
+.rfi { display: flex; gap: 9px; color: var(--violet); margin-bottom: 9px; }
+.rfi svg { width: 28px; height: 28px; }
 .rf b { display: block; font: 900 17px/1.12 var(--font); }
 .rf > span:last-child { display: block; margin-top: 5px; font: 800 11px/1 var(--font); letter-spacing: .12em; text-transform: uppercase; color: #9C95B8; }
 .rgrid { display: grid; gap: 9px; }
@@ -706,19 +738,9 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rkit-sheet h1 { margin-top: 4px; }
 .kit-pic { margin: 4px 0 10px; }
 .kit { display: block; width: 100%; height: auto; }
-.kit .kw, .kit .kf, .kit .kc { stroke: none; }
-.kit .kw { fill: #F4F0FF; }
-.kit .kf { fill: #E4DCFA; }
-.kit .kh, .kit .kd { fill: #FFFFFF; stroke: #DCD3F4; stroke-width: 1.5; }
-.kit .kc { fill: #CFC3F2; }
-.kit .kl { fill: none; stroke: #DCD3F4; stroke-width: 1.5; stroke-linecap: round; }
 .kit .ka { cursor: pointer; outline: none; }
-.kit .ka .b { fill: #FFFFFF; stroke: #B7AED6; stroke-width: 2; stroke-linejoin: round; }
-.kit .ka .d { fill: none; stroke: #B7AED6; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.kit .ka.on .b { fill: #E2D6FF; stroke: var(--violet); }
-.kit .ka.on .d { stroke: var(--violet); }
-.kit .ka:not(.on) { opacity: .72; }
-.kit .ka:focus-visible .b { stroke-width: 3.5; }
+.kit .ka:not(.on) .kart { filter: url(#kGr); opacity: .38; }
+.kit .ka:focus-visible .kart { filter: drop-shadow(0 0 3px var(--violet)); }
 .kit .kb circle { fill: #FFFFFF; stroke: #B7AED6; stroke-width: 2; }
 .kit .kb path { fill: none; stroke: #9C95B8; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .kit .ka.on .kb circle { fill: var(--ok); stroke: #FFFFFF; }
@@ -728,6 +750,20 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .kchip.on { color: #fff; background: var(--violet); border-color: var(--violet); }
 .kchip.al.on { background: var(--danger); border-color: var(--danger); }
 .kchip.al.on::before { content: "✕ "; }
+.kit-gf { display: flex; align-items: center; gap: 10px; width: 100%; font: 800 15px var(--font); color: var(--ink); background: var(--surface); border: 2px solid var(--line); border-radius: 14px; padding: 11px 14px; margin: 0 0 14px; text-align: left; }
+.kit-gf-b { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line); display: grid; place-items: center; }
+.kit-gf.on { border-color: var(--violet); color: var(--violet); }
+.kit-gf.on .kit-gf-b { background: var(--violet); border-color: var(--violet); }
+.kit-gf.on .kit-gf-b::after { content: ""; width: 10px; height: 5px; border: solid #fff; border-width: 0 0 2.5px 2.5px; transform: translateY(-1px) rotate(-45deg); }
+.rsetup .kit-pic { margin: 6px 0 10px; }
+.rsetup .btn.primary { margin-top: 6px; }
+.sheet { position: relative; }
+.sheet-x { position: absolute; top: 12px; right: 12px; z-index: 2; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--panel); color: var(--ink); display: grid; place-items: center; padding: 0; }
+.sheet-x svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.rbud { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: -4px 0 12px; font: 800 12.5px var(--font); color: var(--muted); }
+.rbud span { margin-right: 2px; }
+.rbud button { font: 800 12.5px var(--font); color: var(--muted); background: var(--panel); border: 0; border-radius: 999px; padding: 5px 10px; }
+.rbud button.on { background: var(--violet-soft); color: var(--violet); }
 .kit-h { font: 900 18px var(--font); margin: 8px 0 10px; }
 .ksegs { display: flex; gap: 4px; background: var(--panel); border-radius: 14px; padding: 4px; margin-bottom: 12px; }
 .kseg { flex: 1; font: 800 13.5px var(--font); color: var(--muted); background: none; border: 0; border-radius: 11px; padding: 9px 4px; }

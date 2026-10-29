@@ -1381,6 +1381,7 @@
     evaluateNear();
     renderStores();
     renderTrip();
+    renderHero();
   }
 
   // Poslovalnice Jager (uradni seznam trgovinejager.com, lokacija po naslovu): mnoge v OpenStreetMap
@@ -1494,6 +1495,7 @@
           evaluateNear();
           renderStores();
           renderTrip(true);
+          renderHero();
         })
         .catch(function () { tryAt(i + 1); });
     };
@@ -1715,11 +1717,14 @@
     var open = state.items.filter(function (i) { return !i.done; });
     $("heroCount").textContent = open.length;
     $("heroCount").parentNode.classList.toggle("long", open.length > 99);
-    $("heroSide").classList.toggle("hidden", pricesOff());
+    var near = renderHeroNear();
+    $("heroCheap").classList.toggle("hidden", pricesOff());
+    $("heroSide").classList.toggle("hidden", pricesOff() && !near);
     if (pricesOff()) return;
     if (!SHOW_PRICES) { // samo priporočilo: najcenejša trgovina za seznam, brez zneska
       var best = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length; })[0] : null;
-      $("heroSide").classList.toggle("hidden", !best);
+      $("heroCheap").classList.toggle("hidden", !best);
+      $("heroSide").classList.toggle("hidden", !best && !near);
       $("heroLabel").textContent = "Okvirno najceneje";
       $("heroTotal").textContent = best ? CHAIN_BY_KEY[best.c].name : "–";
       $("heroBest").textContent = "";
@@ -1739,6 +1744,33 @@
     if (!rows.length) { $("heroTotal").textContent = "–"; $("heroBest").textContent = ""; return; }
     $("heroTotal").textContent = "≈ " + eur(rows[0].sum);
     $("heroBest").textContent = "(" + CHAIN_BY_KEY[rows[0].c].name + ")";
+  }
+  // »Okvirno najbližje«: najbližja odprta trgovina iz seznama verig (brez specializiranih), z razdaljo.
+  function nearestOpenStore() {
+    var ref = lastPos || lastFetchPos, best = null, now = new Date();
+    if (!ref || !state.settings.locOn) return null;
+    stores.forEach(function (s) {
+      if (!s.chain || s.lat == null || /^test\//.test(s.id)) return;
+      var ch = CHAIN_BY_KEY[s.chain];
+      if (ch && ch.only) return;
+      if (openState(s, now).open === false) return;
+      var d = distM(ref, s);
+      if (d <= 15000 && (!best || d < best.d)) best = { s: s, d: d };
+    });
+    return best;
+  }
+  function fmtDist(d) {
+    if (d < 1000) return Math.max(10, Math.round(d / 10) * 10) + " m";
+    return (d < 10000 ? Math.round(d / 100) / 10 : Math.round(d / 1000)).toLocaleString(document.documentElement.lang || "sl") + " km";
+  }
+  function renderHeroNear() {
+    var n = nearestOpenStore();
+    $("heroNear").classList.toggle("hidden", !n);
+    $("heroSide").classList.toggle("with-near", !!n);
+    if (!n) return null;
+    $("heroNearName").textContent = (CHAIN_BY_KEY[n.s.chain] || {}).name || n.s.short || n.s.name;
+    $("heroNearDist").textContent = "· " + fmtDist(n.d);
+    return n;
   }
   // ---------- Zavihek »Trgovine«: skupna cena seznama po trgovinah ----------
   var LOGO_IMG = { hofer: "hofer", lidl: "lidl", spar: "spar", eurospin: "eurospin" };
