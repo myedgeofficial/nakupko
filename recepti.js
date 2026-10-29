@@ -198,7 +198,7 @@
     } else if (!rm) {
       h += step("Korak 3 od 3", T("Na kaj imaš danes apetit?"), '<div class="rfold">' + REC.mape.map(function (m) {
         var ids = pool(rt, null, rd, m[0]); if (!ids.length) return "";
-        var seen = {}, ics = ids.map(function (i) { return REC.jedi[i][0]; }).filter(function (x) { return seen[x] ? false : (seen[x] = 1); }).slice(0, 3);
+        var ics = (window.IKONE_MAP || {})[m[0]] || [];
         return '<button type="button" class="rf" data-m="' + m[0] + '"><span class="rfi">' + ics.map(ico).join("") + "</span><b>" + esc(mapName(m)) + "</b><span>" + jedi(ids.length) + "</span></button>";
       }).join("") + "</div>");
     } else {
