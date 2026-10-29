@@ -14,7 +14,12 @@ H = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
 
 def call(method, path, **kw):
     for _ in range(4):  # Apple občasno vrne 500
-        r = requests.request(method, API + path, headers=H, timeout=60, **kw)
+        try:
+            r = requests.request(method, API + path, headers=H, timeout=90, **kw)
+        except requests.RequestException as e:
+            print(f"::warning::{method} {path}: {e}")
+            time.sleep(5)
+            continue
         if r.status_code < 500:
             break
         time.sleep(5)
@@ -23,7 +28,10 @@ def call(method, path, **kw):
     return r
 
 
+samo = os.environ.get("SAMO", "")  # npr. si.nakupko.app; prazno = vse aplikacije
 for app in call("GET", "/apps", params={"limit": 50}).json()["data"]:
+    if samo and app["attributes"]["bundleId"] not in samo.split(","):
+        continue
     ime = app["attributes"]["name"]
     b = call("GET", "/builds", params={"filter[app]": app["id"], "filter[processingState]": "VALID", "filter[expired]": "false",
                                        "sort": "-uploadedDate", "limit": 1, "include": "preReleaseVersion,buildBetaDetail"}).json()
