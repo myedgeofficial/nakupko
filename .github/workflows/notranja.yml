@@ -1,0 +1,24 @@
+name: TestFlight notranja testerka
+
+# Push na vejo claude/project-thread-f3qn8g povabi EMAIL v ekipo App Store Connect (za notranje testiranje).
+on:
+  push:
+    branches: [claude/project-thread-f3qn8g]
+    paths: [".github/workflows/notranja.yml", ".github/scripts/notranja.py"]
+
+jobs:
+  povabi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyjwt cryptography requests
+      - run: python3 .github/scripts/notranja.py
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+          EMAIL: cani.fani@gmail.com
+          STARO: nika.rihtaric@gmail.com
+          IME: Nika
+          PRIIMEK: Rihtaric
+          BUNDLES: "si.nakupko.app,com.byurska.lumora,si.fixko.app"
