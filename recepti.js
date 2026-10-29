@@ -34,8 +34,8 @@
   // ---------- Moja kuhinja (zapomnjeno v napravi) ----------
   // set = uporabnik je šel skozi vodenje (1. aparati, 2. kaj je); prej so namesto receptov ti dve vprašanji
   var kit = { ap: APAR.map(function (a) { return a[0]; }), al: [], diet: 0, set: false }, su = 1;
-  try { var ks = JSON.parse(localStorage.getItem(KKEY) || "null"); if (ks && ks.ap) kit = { ap: ks.ap, al: ks.al || [], diet: ks.diet || 0, set: ks.set !== false }; } catch (e) { /* nič */ }
-  function saveKit() { try { localStorage.setItem(KKEY, JSON.stringify(kit)); } catch (e) { /* nič */ } }
+  try { var ks = JSON.parse(localStorage.getItem(KKEY) || "null"); if (ks && ks.ap) kit = { ap: ks.ap, al: ks.al || [], diet: ks.diet || 0, set: ks.set !== false && ks.v === 2 }; } catch (e) { /* nič */ }
+  function saveKit() { try { kit.v = 2; localStorage.setItem(KKEY, JSON.stringify(kit)); } catch (e) { /* nič */ } }
   function has(a) { return kit.ap.indexOf(a) >= 0; }
   function ok(r) {
     var ap = r[8] || [], al = r[9] || [];
@@ -132,12 +132,13 @@
     return '<div class="rstep">' + prog(k) + '<span class="rk">' + esc(T(k)) + "</span><h2>" + esc(h) + "</h2>" + (sub ? '<p class="rsub">' + esc(T(sub)) + "</p>" : "") + body + (skip ? '<button type="button" class="rskip" data-skip="1">' + esc(T(skip)) + "</button>" : "") + "</div>";
   }
   function kitBar() {
-    var n = kit.ap.length, bits = [T("Aparati") + ": " + n + "/" + APAR.length];
+    var mine = APAR.filter(function (a) { return has(a[0]); }).map(function (a) { return T(a[1]); });
+    var bits = [mine.length === APAR.length ? T("Vsi aparati") : mine.join(", ")], cnt = REC ? REC.jedi.filter(ok).length : 0;
     if (kit.diet) bits.push(T(DIETE[kit.diet]).toLowerCase());
     if (kit.al.indexOf("gluten") >= 0) bits.push(T("Brez glutena").toLowerCase());
     var al_ = kit.al.filter(function (a) { return a !== "gluten"; });
     if (al_.length) bits.push(T("Brez") + ": " + al_.map(function (a) { return T(ALER.filter(function (x) { return x[0] === a; })[0][1]).toLowerCase(); }).join(", "));
-    return '<button type="button" class="rkit" data-kit="1"><span class="rkit-ic">' + KIT_ICON + '</span><span class="rkit-tx"><b>' + esc(T("Recepti za tvojo kuhinjo")) + "</b><span>" +
+    return '<button type="button" class="rkit" data-kit="1"><span class="rkit-ic">' + KIT_ICON + '</span><span class="rkit-tx"><b>' + esc(jedi(cnt) + " " + T("za tvojo kuhinjo")) + "</b><span>" +
       esc(bits.join(" · ")) + '</span></span><span class="rkit-go">' + esc(T("Uredi")) + " ›</span></button>";
   }
   // prvo odprtje: vodenje v dveh korakih, šele potem recepti
@@ -164,7 +165,6 @@
     var q = norm($("rq").value), words = q.split(" ").filter(Boolean), h = kitBar();
     var sb = box.parentNode.querySelector(".rsearch"); if (sb) sb.hidden = !kit.set;
     if (!kit.set && !words.length) { box.innerHTML = setup(); drawKit(box); return; }
-    if (!rt) h = '<p class="rready">✓ ' + esc(T("Recepti so prilagojeni tvoji kuhinji.")) + "</p>" + h;
     if (words.length) {
       var mapa = {}; REC.mape.forEach(function (m) { mapa[m[0]] = m; });
       var all = REC.jedi.map(function (r, i) { return i; }).filter(function (i) {
@@ -189,7 +189,7 @@
       h += step("Korak 1 od 3", T("Koliko časa imaš?"), '<div class="ropts">' + CASI.map(function (c) {
         var n = pool(c[0]).length; if (!n) return "";
         return '<button type="button" class="ropt" data-t="' + c[0] + '"><b>' + esc(T(c[3])) + "</b><span>" + esc(T(c[4])) + "</span><small>" + jedi(n) + "</small></button>";
-      }).join("") + "</div>" + (ra ? "" : apBox()), "Vseeno mi je, pokaži vse");
+      }).join("") + "</div>", "Vseeno mi je, pokaži vse");
     } else if (!rd) {
       h += step("Korak 2 od 3", T("Kako zahtevno naj bo?"), '<div class="ropts">' + TEZ.map(function (t) {
         var n = pool(rt, null, t[0]).length; if (!n) return "";
@@ -263,7 +263,7 @@
       var on = kit.al.indexOf(a[0]) >= 0;
       return '<button type="button" class="kchip al' + (on ? " on" : "") + '" data-al="' + a[0] + '" aria-pressed="' + on + '">' + esc(T(a[1])) + "</button>";
     }).join("");
-    if ((e = w.querySelector(".kit-n"))) e.textContent = T("Primernih receptov") + ": " + n + " / " + (REC ? REC.jedi.length : 0);
+    if ((e = w.querySelector(".kit-n"))) e.textContent = T("Primernih receptov") + ": " + n;
   }
   // tap na aparat, prehrano ali alergen (v Moji kuhinji ali v vodenju)
   function togKit(b) {

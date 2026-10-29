@@ -102,6 +102,8 @@ NK_PACK("en", function (h) {
     "Teletina": "Veal",
     "Wasabi": "Wasabi",
     "Šparglji": "Asparagus",
+    "za tvojo kuhinjo": "for your kitchen",
+    "Vsi aparati": "All appliances",
     "Korak 1 od 3": "Step 1 of 3",
     "Korak 2 od 3": "Step 2 of 3",
     "Korak 3 od 3": "Step 3 of 3",

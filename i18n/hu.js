@@ -101,6 +101,8 @@ NK_PACK("hu", function (h) {
     "Teletina": "Borjúhús",
     "Wasabi": "Wasabi",
     "Šparglji": "Spárga",
+    "za tvojo kuhinjo": "a konyhádhoz",
+    "Vsi aparati": "Minden gép",
     "Korak 1 od 3": "1. lépés / 3",
     "Korak 2 od 3": "2. lépés / 3",
     "Korak 3 od 3": "3. lépés / 3",

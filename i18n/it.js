@@ -101,6 +101,8 @@ NK_PACK("it", function (h) {
     "Teletina": "Vitello",
     "Wasabi": "Wasabi",
     "Šparglji": "Asparagi",
+    "za tvojo kuhinjo": "per la tua cucina",
+    "Vsi aparati": "Tutti gli elettrodomestici",
     "Korak 1 od 3": "Passo 1 di 3",
     "Korak 2 od 3": "Passo 2 di 3",
     "Korak 3 od 3": "Passo 3 di 3",
