@@ -22,7 +22,7 @@ jobs:
           KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
-          EMAIL: ${{ inputs.email || 'andjela.collab@gmail.com' }}
-          IME: Andjela
-          PRIIMEK: Paunovic
+          EMAIL: ${{ inputs.email || 'nika.rihtaric@gmail.com' }}
+          IME: Nika
+          PRIIMEK: Rihtaric
         run: python .github/scripts/tester-povabi.py
