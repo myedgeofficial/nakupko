@@ -1,0 +1,36 @@
+name: App Store oddaja v pregled
+
+# Umakne verzijo iz pregleda (če je v njem), doda najnovejši App Store build in »Kaj je novega«, nato odda v pregled.
+# Zažene se ob pushu na vejo appstore-oddaja. Samo po uporabnikovem izrecnem OK.
+on:
+  push:
+    branches: [appstore-oddaja]
+
+jobs:
+  oddaj:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+    env:
+      KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+      KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+      BUNDLE_ID: si.nakupko.app
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - name: Verzija iz projekta
+        id: v
+        run: |
+          echo "verzija=$(grep -m1 -o 'MARKETING_VERSION = [0-9.]*' native/ios/App/App.xcodeproj/project.pbxproj | awk '{print $3}')" >> "$GITHUB_OUTPUT"
+          echo "najmanj=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M -- . ':!.github')" >> "$GITHUB_OUTPUT"
+      - run: pip install "pyjwt[crypto]"
+      - name: Umakni iz pregleda
+        env: { VERZIJA: "${{ steps.v.outputs.verzija }}", FAZA: umakni }
+        run: python .github/scripts/appstore-oddaj.py
+      - name: Dodaj build in Kaj je novega
+        env: { VERZIJA: "${{ steps.v.outputs.verzija }}", NAJMANJ_BUILD: "${{ steps.v.outputs.najmanj }}" }
+        run: python .github/scripts/appstore-verzija.py
+      - name: Oddaj v pregled
+        env: { VERZIJA: "${{ steps.v.outputs.verzija }}", FAZA: oddaj }
+        run: python .github/scripts/appstore-oddaj.py
