@@ -23,13 +23,14 @@ jobs:
         id: v
         run: |
           echo "verzija=$(grep -m1 -o 'MARKETING_VERSION = [0-9.]*' native/ios/App/App.xcodeproj/project.pbxproj | awk '{print $3}')" >> "$GITHUB_OUTPUT"
+          echo "build=$(cat .github/scripts/oddaja-build.txt 2>/dev/null)" >> "$GITHUB_OUTPUT"
           echo "najmanj=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y%m%d%H%M -- . ':!.github')" >> "$GITHUB_OUTPUT"
       - run: pip install "pyjwt[crypto]"
       - name: Umakni iz pregleda
         env: { VERZIJA: "${{ steps.v.outputs.verzija }}", FAZA: umakni }
         run: python .github/scripts/appstore-oddaj.py
       - name: Dodaj build in Kaj je novega
-        env: { VERZIJA: "${{ steps.v.outputs.verzija }}", NAJMANJ_BUILD: "${{ steps.v.outputs.najmanj }}" }
+        env: { VERZIJA: "${{ steps.v.outputs.verzija }}", NAJMANJ_BUILD: "${{ steps.v.outputs.najmanj }}", BUILD: "${{ steps.v.outputs.build }}" }
         run: python .github/scripts/appstore-verzija.py
       - name: Oddaj v pregled
         env: { VERZIJA: "${{ steps.v.outputs.verzija }}", FAZA: oddaj }

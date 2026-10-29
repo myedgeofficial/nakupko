@@ -50,7 +50,8 @@ print("Objava po odobritvi: samodejno; copyright:", attrs.get("copyright") or v[
 najmanj = os.environ.get("NAJMANJ_BUILD", "").strip()
 b = None
 for _ in range(80):  # build se po nalaganju še obdeluje
-    bs = klic("GET", f"/builds?filter[app]={app['id']}&filter[preReleaseVersion.version]={verzija}&sort=-uploadedDate&limit=1")["data"]
+    tocno = os.environ.get("BUILD", "").strip()  # točno določen build (npr. App Store build z reklamami)
+    bs = klic("GET", f"/builds?filter[app]={app['id']}&filter[preReleaseVersion.version]={verzija}" + (f"&filter[version]={tocno}" if tocno else "") + "&sort=-uploadedDate&limit=1")["data"]
     nov = bs and (not najmanj or bs[0]["attributes"]["version"] >= najmanj)
     if nov and bs[0]["attributes"]["processingState"] == "VALID":
         b = bs[0]; break
