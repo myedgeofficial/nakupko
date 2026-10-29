@@ -17,6 +17,6 @@ jobs:
           KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
           KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
-          BUNDLES: "si.nakupko.app,com.byurska.lumora,si.fixko.app"
+          BUNDLES: "com.byurska.lumora,si.fixko.app"
           EMAILS: "cani.fani@gmail.com"
           
