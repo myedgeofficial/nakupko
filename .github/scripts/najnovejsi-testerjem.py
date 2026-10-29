@@ -13,7 +13,11 @@ H = {"Authorization": f"Bearer {tok}", "Content-Type": "application/json"}
 
 
 def call(method, path, **kw):
-    r = requests.request(method, API + path, headers=H, timeout=60, **kw)
+    for _ in range(4):  # Apple občasno vrne 500
+        r = requests.request(method, API + path, headers=H, timeout=60, **kw)
+        if r.status_code < 500:
+            break
+        time.sleep(5)
     if r.status_code >= 400:
         print(f"::warning::{method} {path} -> {r.status_code} {' '.join(r.text.split())[:600]}")
     return r
@@ -43,6 +47,13 @@ for app in call("GET", "/apps", params={"limit": 50}).json()["data"]:
         r = call("POST", f"/betaGroups/{g['id']}/relationships/builds", json={"data": [{"type": "builds", "id": bid}]})
         zunanje |= not a.get("isInternalGroup")
         print(f"{ime}: skupina {a['name']} -> {'OK' if r.status_code < 300 else r.status_code}")
+    # Brez »Test Information« Apple gradnje ne sprejme v beta pregled.
+    if zunanje and not call("GET", f"/apps/{app['id']}/betaAppLocalizations").json().get("data"):
+        r = call("POST", "/betaAppLocalizations", json={"data": {"type": "betaAppLocalizations",
+                 "attributes": {"locale": "en-US", "feedbackEmail": "support@remako.si",
+                                "description": f"{ime} beta. Try the newest features and send feedback."},
+                 "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})
+        print(f"{ime}: opis za testerje {'dodan' if r.status_code < 300 else r.status_code}")
     if zunanje and det.get("externalBuildState") in ("READY_FOR_BETA_SUBMISSION", "MISSING_EXPORT_COMPLIANCE", None):
         r = call("POST", "/betaAppReviewSubmissions", json={"data": {"type": "betaAppReviewSubmissions",
                  "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}})
