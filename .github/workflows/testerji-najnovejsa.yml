@@ -1,0 +1,21 @@
+name: TestFlight najnovejša verzija vsem testerjem
+
+# Vsake 3 ure: v vseh aplikacijah ekipe najnovejšo gradnjo doda v vse skupine testerjev in jo pošlje v Applov beta pregled,
+# da vsak tester (notranji in zunanji) vedno dobi najnovejšo verzijo.
+on:
+  schedule:
+    - cron: "17 */3 * * *"
+  workflow_dispatch:
+
+jobs:
+  najnovejsa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pyjwt cryptography requests
+      - run: python3 .github/scripts/najnovejsi-testerjem.py
+        env:
+          KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
