@@ -47,13 +47,20 @@ for app in call("GET", "/apps", params={"limit": 50}).json()["data"]:
         r = call("POST", f"/betaGroups/{g['id']}/relationships/builds", json={"data": [{"type": "builds", "id": bid}]})
         zunanje |= not a.get("isInternalGroup")
         print(f"{ime}: skupina {a['name']} -> {'OK' if r.status_code < 300 else r.status_code}")
-    # Brez »Test Information« Apple gradnje ne sprejme v beta pregled.
-    if zunanje and not call("GET", f"/apps/{app['id']}/betaAppLocalizations").json().get("data"):
-        r = call("POST", "/betaAppLocalizations", json={"data": {"type": "betaAppLocalizations",
-                 "attributes": {"locale": "en-US", "feedbackEmail": "support@remako.si",
-                                "description": f"{ime} beta. Try the newest features and send feedback."},
-                 "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})
-        print(f"{ime}: opis za testerje {'dodan' if r.status_code < 300 else r.status_code}")
+    # Brez »Test Information« (v primarnem jeziku aplikacije) Apple gradnje ne sprejme v beta pregled.
+    if zunanje:
+        jezik = app["attributes"].get("primaryLocale") or "en-US"
+        locs = call("GET", f"/apps/{app['id']}/betaAppLocalizations").json().get("data", [])
+        print(f"{ime}: primarni jezik {jezik}, opisi: {[(l['attributes']['locale'], bool(l['attributes'].get('description')), l['attributes'].get('feedbackEmail')) for l in locs]}")
+        opis = {"feedbackEmail": "support@remako.si", "description": f"{ime} beta. Try the newest features and send feedback."}
+        for l in locs:
+            if not l["attributes"].get("description") or not l["attributes"].get("feedbackEmail"):
+                r = call("PATCH", f"/betaAppLocalizations/{l['id']}", json={"data": {"type": "betaAppLocalizations", "id": l["id"], "attributes": opis}})
+                print(f"{ime}: opis {l['attributes']['locale']} dopolnjen {r.status_code}")
+        if jezik not in [l["attributes"]["locale"] for l in locs]:
+            r = call("POST", "/betaAppLocalizations", json={"data": {"type": "betaAppLocalizations", "attributes": {"locale": jezik, **opis},
+                     "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})
+            print(f"{ime}: opis {jezik} dodan {r.status_code}")
     if zunanje and det.get("externalBuildState") in ("READY_FOR_BETA_SUBMISSION", "MISSING_EXPORT_COMPLIANCE", None):
         r = call("POST", "/betaAppReviewSubmissions", json={"data": {"type": "betaAppReviewSubmissions",
                  "relationships": {"build": {"data": {"type": "builds", "id": bid}}}}})
