@@ -809,3 +809,12 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .clanek .lead { font-size: 16.5px; }
 .clanek .note { background: var(--panel); border-radius: 14px; padding: 10px 12px; font-size: 13.5px; color: var(--muted); }
 .clanek a { color: var(--violet); }
+/* Zobnik za Nastavitve v glavi (2026-10-31: spodaj sta Seznam in Nasveti) */
+.brand .gear { margin-left: 8px; width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0; background: var(--violet-soft); color: var(--violet); display: grid; place-items: center; cursor: pointer; }
+.brand .gear svg { width: 19px; height: 19px; stroke-width: 2; }
+.brand .gear.on { background: var(--violet); color: #fff; }
+.tabs button { position: relative; }
+.tab-dot { position: absolute; top: 5px; left: calc(50% + 9px); width: 9px; height: 9px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--surface); }
+#nasvetiList { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+#nasvetiList .nasvet-card.prvi b { font-size: 19.5px; }
+.nasveti-uvod { margin: 4px 2px 0; font-size: 14px; }

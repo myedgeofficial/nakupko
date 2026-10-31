@@ -2289,12 +2289,14 @@
   }
 
   // ---------- Dogodki ----------
-  document.querySelectorAll(".tabs button").forEach(function (b) {
+  // Spodaj Seznam in Nasveti; Nastavitve so zobnik v glavi (data-tab="stores").
+  document.querySelectorAll("button[data-tab]").forEach(function (b) {
     b.addEventListener("click", function () {
-      document.querySelectorAll(".tabs button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      document.querySelectorAll("button[data-tab]").forEach(function (x) { x.classList.toggle("on", x === b); });
       document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("active", t.id === "tab-" + b.dataset.tab); });
       if (b.dataset.tab === "prices") renderPriceTable();
       if (b.dataset.tab === "stores") renderStores();
+      if (b.dataset.tab === "nasveti" && window.NK_NASVETI) window.NK_NASVETI.show();
       window.scrollTo(0, 0);
     });
   });

@@ -1,10 +1,10 @@
-// Nasveti o hrani in nakupovanju (zavihek Recepti, zgoraj).
+// Nasveti o hrani in nakupovanju (spodnji zavihek »Nasveti«).
 // Članki so na nakupko.com (vodnik); aplikacija ob odprtju prenese data/clanki.json, zato nov članek
 // ne potrebuje posodobitve v trgovini. Zadnji prenos je shranjen v napravi (deluje tudi brez povezave).
 // Članki so v slovenščini, zato jih kažemo samo v slovenskem jeziku.
 (function () {
   "use strict";
-  if ((window.NK_LANG || "sl") !== "sl") return;
+  var SL = (window.NK_LANG || "sl") === "sl";
   var URL = "https://nakupko.com/data/clanki.json", KEY = "nakupko-clanki", RKEY = "nakupko-clanki-prebrano";
   var data = null, read = {};
   try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { /* nič */ }
@@ -14,15 +14,19 @@
   function list() { return data && data.clanki ? data.clanki : []; }
   function datum(d) { var p = String(d || "").split("-"); return p.length === 3 ? +p[2] + ". " + +p[1] + ". " + p[0] : ""; }
 
+  // seznam v zavihku + pika na zavihku, ko je nov neprebran članek
   function card() {
-    var box = $("nasvet"); if (!box) return;
+    var dot = $("nasvetiDot"), box = $("nasvetiList");
     var a = list()[0];
-    box.classList.toggle("hidden", !a);
-    if (!a) return;
-    var novo = !read[a.id];
-    box.innerHTML = '<button type="button" class="nasvet-card" data-clanek="' + esc(a.id) + '">' +
-      '<span class="nasvet-k">' + (novo ? "Nov nasvet" : "Nasvet") + '</span><b>' + esc(a.naslov) + '</b><span class="nasvet-o">' + esc(a.opis) + "</span></button>" +
-      (list().length > 1 ? '<button type="button" class="nasvet-vsi" data-vsi="1">Vsi nasveti (' + list().length + ") ›</button>" : "");
+    if (dot) dot.classList.toggle("hidden", !SL || !a || !!read[a.id]);
+    if (!box) return;
+    if (!SL) { box.innerHTML = '<p class="muted">Nasveti so zaenkrat na voljo samo v slovenščini.</p>'; return; }
+    if (!list().length) { box.innerHTML = '<p class="muted">Nalagam nasvete …</p>'; return; }
+    box.innerHTML = list().map(function (a, i) {
+      return '<button type="button" class="nasvet-card' + (i === 0 ? " prvi" : "") + '" data-clanek="' + esc(a.id) + '">' +
+        '<span class="nasvet-k">' + esc(datum(a.datum)) + (read[a.id] ? "" : ' <i class="nasvet-nov">nov</i>') + "</span>" +
+        "<b>" + esc(a.naslov) + '</b><span class="nasvet-o">' + esc(a.opis) + "</span></button>";
+    }).join("");
   }
   function sheet(inner) {
     var old = $("nasvetWrap"); if (old) old.remove();
@@ -46,28 +50,23 @@
     var a = byId(id); if (!a) return;
     read[a.id] = 1; try { localStorage.setItem(RKEY, JSON.stringify(read)); } catch (e) { /* nič */ }
     // vsebina prihaja z naše strani nakupko.com (tools/generiraj.py), ne od uporabnikov
-    sheet('<article class="clanek"><p class="clanek-d">' + esc(datum(a.datum)) + "</p><h1>" + esc(a.naslov) + "</h1>" + a.html + "</article>" +
-      '<button type="button" class="btn full" data-vsi="1">Vsi nasveti ›</button>');
+    sheet('<article class="clanek"><p class="clanek-d">' + esc(datum(a.datum)) + "</p><h1>" + esc(a.naslov) + "</h1>" + a.html + "</article>");
     card();
   }
-  function all() {
-    sheet("<h1>Nasveti</h1>" + list().map(function (a) {
-      return '<button type="button" class="nasvet-li" data-clanek="' + esc(a.id) + '"><b>' + esc(a.naslov) + (read[a.id] ? "" : ' <i class="nasvet-nov">nov</i>') + "</b><span>" + esc(a.opis) + "</span></button>";
-    }).join(""));
-  }
   document.addEventListener("click", function (e) {
-    var b = e.target.closest && e.target.closest("[data-clanek], [data-vsi]");
-    if (!b || !(b.closest("#nasvet") || b.closest("#nasvetWrap"))) return;
-    if (b.dataset.clanek) open(b.dataset.clanek); else all();
+    var b = e.target.closest && e.target.closest("#nasvetiList [data-clanek]");
+    if (b) open(b.dataset.clanek);
   });
   function refresh() {
+    if (!SL) return;
     fetch(URL, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
       if (!d || !d.clanki) return;
       data = d; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { /* nič */ }
       card();
     }).catch(function () { /* brez povezave: ostane zadnji prenos */ });
   }
+  window.NK_NASVETI = { show: function () { card(); refresh(); } };
   card();
-  refresh();
+  if (SL) refresh();
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
 })();
