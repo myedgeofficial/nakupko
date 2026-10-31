@@ -691,6 +691,7 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .kh-k { font-weight: 900; letter-spacing: .12em; text-transform: uppercase; font-size: 14px; color: #c9b8ff; margin-bottom: 12px; }
 .kh-step { font-weight: 800; font-size: 28px; line-height: 1.28; margin: 0; }
 .kh-step.fin { font-size: 40px; }
+.kh-adapt { margin: 16px 0 0; font-weight: 700; font-size: 15px; line-height: 1.4; color: #c9b8ff; }
 .kh-ing { margin-top: 24px; border-radius: 16px; padding: 12px 14px; background: rgba(255,255,255,.07); }
 .kh-ing summary { font-weight: 900; font-size: 16px; }
 .kh-list { display: grid; gap: 6px; margin-top: 10px; }
@@ -736,6 +737,10 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rsug-w { margin: 8px 4px 0; color: #5B4A86; font-weight: 700; font-size: 13px; }
 .rhid { color: var(--muted); font-weight: 700; font-size: 13px; text-align: center; margin: 12px 0; }
 .rsh-al { display: block; color: var(--muted); font-weight: 700; font-size: 12.5px; margin-top: 3px; }
+.rsh-adapt { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--brand-soft); color: inherit; font-size: 13.5px; line-height: 1.4; }
+.rsh-adapt b { color: var(--brand); }
+.rsh-adapt small { display: block; margin-top: 4px; color: var(--muted); font-size: 12.5px; }
+.radapt { padding: 3px 6px; border-radius: 6px; background: var(--brand-soft); color: var(--brand); font-size: 10px; letter-spacing: .04em; }
 .rkit-sheet h1 { margin-top: 4px; }
 .kit-pic { margin: 4px 0 10px; }
 .kit { display: block; width: 100%; height: auto; }
