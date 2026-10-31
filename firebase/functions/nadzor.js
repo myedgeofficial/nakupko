@@ -128,7 +128,9 @@ async function apple(vendor, out, errors) {
   const today = ljToday();
   let fetched = 0;
   for (let day = START; day < today && fetched < 60; day = addDays(day, 1)) {
-    if (have[day] && have[day].koncno) continue;
+    // Zadnjih 7 dni beremo vedno znova: Apple poročilo včasih izide pozneje ali se dopolni
+    // (npr. 27. 10. je bil shranjen brez Popravkovih prenosov).
+    if (have[day] && have[day].koncno && day < addDays(today, -7)) continue;
     fetched++;
     try {
       const rows = await ascReport(jwt, {
