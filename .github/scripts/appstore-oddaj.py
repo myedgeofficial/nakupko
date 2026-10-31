@@ -29,6 +29,9 @@ vs = klic("GET", f"/apps/{app['id']}/appStoreVersions?filter[platform]=IOS&limit
 for x in vs[:4]:
     print("Verzija", x["attributes"]["versionString"], x["attributes"]["appStoreState"])
 v = next((x for x in vs if x["attributes"]["versionString"] == verzija), None)
+if not v and faza == "umakni":
+    print("Verzije " + verzija + " še ni: ustvari jo naslednji korak, umikati ni česa.")
+    sys.exit(0)
 if not v:
     sys.exit("::error::Verzije " + verzija + " ni v App Store Connect.")
 stanje = v["attributes"]["appStoreState"]
