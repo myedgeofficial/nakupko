@@ -785,3 +785,5 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .trash:active { background: #FDECEA; color: var(--danger); }
 .toast:has(.toast-act) { display: flex; align-items: center; white-space: nowrap; }
 .toast-act { margin-left: 14px; border: 0; background: transparent; color: #C9B8FF; font: 800 15px/1 var(--font); padding: 4px 2px; cursor: pointer; }
+/* »Iz vseh trgovin: najceneje Hofer · najbližje Hofer 220 m« pod priporočilom po izbiri uporabnika */
+.hero-all { margin-top: 8px; font: 700 12.5px/1.3 var(--font); color: var(--muted); }

@@ -1729,8 +1729,23 @@
       return { c: c, sum: sum, est: est, missing: missing };
     }).sort(function (a, b) { return (abroad() ? a.missing - b.missing : 0) || a.sum - b.sum; });
   }
+  // Mala vrstica pod glavnim priporočilom: kaj je najceneje in najbližje med VSEMI trgovinami,
+  // ko ima uporabnik izbrane svoje trgovine (pokaže le, kar se razlikuje od zgornjega).
+  function renderHeroAll(open, bigCheap, bigNear) {
+    var box = $("heroAll"), mineC = pricesOff() ? null : myChains(), parts = [];
+    if (mineC && mineC.length) {
+      var cheap = !SHOW_PRICES && open.length ? compareRows(open).filter(function (r) { return r.missing < open.length; })[0] : null;
+      if (cheap && cheap.c !== bigCheap) parts.push("najceneje " + CHAIN_BY_KEY[cheap.c].name);
+      var n = nearestOpenStore(true);
+      if (n && (!bigNear || n.s.chain !== bigNear.s.chain)) parts.push("najbližje " + ((CHAIN_BY_KEY[n.s.chain] || {}).name || n.s.short || n.s.name) + " " + fmtDist(n.d));
+    }
+    box.classList.toggle("hidden", !parts.length);
+    box.textContent = parts.length ? "Iz vseh trgovin: " + parts.join(" · ") : "";
+    if (parts.length) $("heroSide").classList.remove("hidden");
+  }
   function renderHero() {
     var open = state.items.filter(function (i) { return !i.done; });
+    $("heroAll").classList.add("hidden");
     $("heroCount").textContent = open.length;
     $("heroCount").parentNode.classList.toggle("long", open.length > 99);
     var near = renderHeroNear();
@@ -1738,12 +1753,24 @@
     $("heroSide").classList.toggle("hidden", pricesOff() && !near);
     if (pricesOff()) return;
     if (!SHOW_PRICES) { // samo priporočilo: najcenejša trgovina za seznam, brez zneska
-      var best = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length; })[0] : null;
+      var mineC = myChains();
+      if (mineC && mineC.length === 1) { // ena izbrana trgovina: primerjava nima smisla
+        $("heroCheap").classList.remove("hidden");
+        $("heroSide").classList.remove("hidden");
+        $("heroLabel").textContent = "Tvoja trgovina";
+        $("heroTotal").textContent = CHAIN_BY_KEY[mineC[0]].name;
+        $("heroBest").textContent = "";
+        renderHeroAll(open, mineC[0], near);
+        return;
+      }
+      // dve ali več izbranih: najceneje samo med njimi; brez izbire med vsemi velikimi verigami
+      var best = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length && (!mineC || mineC.indexOf(r.c) >= 0); })[0] : null;
       $("heroCheap").classList.toggle("hidden", !best);
       $("heroSide").classList.toggle("hidden", !best && !near);
       $("heroLabel").textContent = "Okvirno najceneje";
       $("heroTotal").textContent = best ? CHAIN_BY_KEY[best.c].name : "–";
       $("heroBest").textContent = "";
+      renderHeroAll(open, best ? best.c : null, near);
       return;
     }
     $("heroLabel").textContent = "Ocena košarice";
@@ -1762,13 +1789,15 @@
     $("heroBest").textContent = "(" + CHAIN_BY_KEY[rows[0].c].name + ")";
   }
   // »Okvirno najbližje«: najbližja odprta trgovina iz seznama verig (brez specializiranih), z razdaljo.
-  function nearestOpenStore() {
+  function nearestOpenStore(all) {
     var ref = lastPos || lastFetchPos, best = null, now = new Date();
     if (!ref || !state.settings.locOn) return null;
+    var mine = all || pricesOff() ? null : myChains();
     stores.forEach(function (s) {
       if (!s.chain || s.lat == null || /^test\//.test(s.id)) return;
       var ch = CHAIN_BY_KEY[s.chain];
       if (ch && ch.only) return;
+      if (mine && mine.indexOf(s.chain) < 0) return; // izbrane trgovine: najbližja med njimi
       if (openState(s, now).open === false) return;
       var d = distM(ref, s);
       if (d <= 15000 && (!best || d < best.d)) best = { s: s, d: d };
