@@ -65,8 +65,8 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private let refetchDistance: CLLocationDistance = 2500
     // Isto trgovino znova javimo po 3 minutah (GPS na robu parkirišča niha), partnerja pa po 45.
     private let renotifyAfter: TimeInterval = 3 * 60
-    // Obvestilo »trgovina je blizu«: največ enkrat na 15 minut (za vse trgovine skupaj), lahko izklopljeno.
-    private let nearEvery: TimeInterval = 15 * 60
+    // Obvestilo »trgovina je blizu«: največ enkrat na 30 minut (za vse trgovine skupaj), lahko izklopljeno.
+    private let nearEvery: TimeInterval = 30 * 60
     private let visitAgainAfter: TimeInterval = 45 * 60
 
     var onPosition: (([String: Any]) -> Void)?
@@ -435,7 +435,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         fetching = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "nakupko.stores")
         // Najprej država (is_in): zunaj Slovenije spremljamo vse trgovine z živili, ne le slovenskih verig.
-        let q = "[out:json][timeout:20];is_in(\(loc.coordinate.latitude),\(loc.coordinate.longitude))->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
+        let q = "[out:json][timeout:20];is_in(\(loc.coordinate.latitude),\(loc.coordinate.longitude))->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
         var req = URLRequest(url: URL(string: "https://overpass-api.de/api/interpreter")!)
         req.httpMethod = "POST"
         req.timeoutInterval = 25
@@ -467,11 +467,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                     }
                     // Samo verige in dežurne trgovine, kot v aplikaciji.
                     guard let kind = StoreRules.kind(text: text, hours: hours) else { return nil }
+                    // Nakupovalni center le, če je Jager center (kot v app.js).
+                    if (tags["shop"] as? String) == "mall" && kind.chain != "jager" { return nil }
                     return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
                                     chain: kind.chain, duty: kind.duty, hours: hours, only: kind.chain.flatMap { StoreRules.only[$0] })
                 }
                 guard !list.isEmpty else { return }
-                self.stores = list
+                // Poslovalnice Jager iz uradnega seznama (dodala jih je aplikacija) ostanejo.
+                self.stores = list + self.stores.filter { $0.id.hasPrefix("uradno/") }
                 self.lastFetch = loc
                 self.refreshRegions(around: loc)
             }
@@ -670,8 +673,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         guard let b = best else { return nil }
         let km = b.2 < 1000 ? "\(Int((b.2 / 10).rounded() * 10)) m" : String(format: "%.1f km", b.2 / 1000).replacingOccurrences(of: ".", with: ",")
-        let eur = String(format: "%.2f", b.1).replacingOccurrences(of: ".", with: ",")
-        return L10n.t("cheaper", [b.0.name, km, eur + " €"])
+        return L10n.t("cheaper", [b.0.name, km]) // brez zneska: cene so le okvirne
     }
 
     private func startArrivalWatch(_ a: Arrival) {
@@ -990,6 +992,31 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     }
 }
 
+// Začetek/osvežitev kuhanja na zaklenjenem zaslonu (samo v aplikaciji: Activity.request v razširitvi ni na voljo).
+extension LiveCook {
+    static func set(active: Bool, title: String, steps: [String], step: Int, done: String, lang: String) {
+        guard #available(iOS 16.2, *) else { return }
+        UserDefaults.standard.removeObject(forKey: stepKey)
+        let all = Activity<CookingAttributes>.activities
+        guard active, !steps.isEmpty else {
+            for a in all { Task { await a.end(nil, dismissalPolicy: .immediate) } }
+            return
+        }
+        let list = fit(steps)
+        let state = CookingAttributes.ContentState(step: max(0, min(list.count, step)), steps: list, lang: lang)
+        let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(6 * 3600))
+        if let a = all.first(where: { $0.attributes.title == title }) {
+            Task { await a.update(content) }
+            for o in all where o.id != a.id { Task { await o.end(nil, dismissalPolicy: .immediate) } }
+            return
+        }
+        for o in all { Task { await o.end(nil, dismissalPolicy: .immediate) } }
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        _ = try? Activity.request(attributes: CookingAttributes(title: title, done: done), content: content, pushType: nil)
+    }
+
+}
+
 // Most do spletnega dela (native.js).
 @objc(NakupkoGeoPlugin)
 public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -1007,7 +1034,9 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAlways", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "routeInfo", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "showRoute", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "showRoute", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "cook", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "takeCook", returnType: CAPPluginReturnPromise)
     ]
 
     override public func load() {
@@ -1016,6 +1045,36 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         geo.onError = { [weak self] data in self?.notifyListeners("locationError", data: data) }
         geo.onLeft = { [weak self] id in self?.notifyListeners("storeLeft", data: ["storeId": id]) }
         geo.onArrived = { [weak self] id in self?.notifyListeners("storeArrived", data: ["storeId": id]) }
+        // Korak, spremenjen na zaklenjenem zaslonu, medtem ko je aplikacija odprta.
+        NotificationCenter.default.addObserver(forName: Notification.Name("NakupkoCookStep"), object: nil, queue: .main) { [weak self] _ in
+            let d = UserDefaults.standard
+            guard let step = d.object(forKey: LiveCook.stepKey) as? Int else { return }
+            d.removeObject(forKey: LiveCook.stepKey)
+            self?.notifyListeners("cookStep", data: ["step": step])
+        }
+    }
+
+    // Kuhanje po korakih: korak recepta na zaklenjenem zaslonu (Nazaj/Naprej).
+    @objc func cook(_ call: CAPPluginCall) {
+        let active = call.getBool("active") ?? false
+        let title = call.getString("title") ?? "Nakupko"
+        let steps = (call.getArray("steps") as? [String]) ?? []
+        let step = call.getInt("step") ?? 0
+        let done = call.getString("done") ?? "Dober tek!"
+        let lang = call.getString("lang") ?? L10n.lang
+        DispatchQueue.main.async {
+            LiveCook.set(active: active, title: title, steps: steps, step: step, done: done, lang: lang)
+            call.resolve()
+        }
+    }
+
+    @objc func takeCook(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            let d = UserDefaults.standard
+            let step = d.object(forKey: LiveCook.stepKey) as? Int ?? -1
+            d.removeObject(forKey: LiveCook.stepKey)
+            call.resolve(["step": step])
+        }
     }
 
     @objc func startWatch(_ call: CAPPluginCall) {

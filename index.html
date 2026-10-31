@@ -38,9 +38,15 @@
         <div class="hero-num"><span id="heroCount">0</span><small>za kupiti</small></div>
       </div>
       <div id="heroSide" class="hero-side">
-        <div id="heroLabel" class="hero-label">Ocena košarice</div>
-        <div id="heroTotal" class="hero-total">–</div>
-        <div id="heroBest" class="hero-best"></div>
+        <div id="heroCheap">
+          <div id="heroLabel" class="hero-label">Ocena košarice</div>
+          <div id="heroTotal" class="hero-total">–</div>
+          <div id="heroBest" class="hero-best"></div>
+        </div>
+        <div id="heroNear" class="hero-near hidden">
+          <div class="hero-label">Okvirno najbližje</div>
+          <div class="hero-near-name"><span id="heroNearName"></span> <span id="heroNearDist" class="hero-near-dist"></span></div>
+        </div>
       </div>
     </div>
   </header>
@@ -75,6 +81,7 @@
 
       <div class="ftabs" role="tablist">
         <button id="ftList" class="ftab on" type="button" role="tab" aria-selected="true" aria-controls="paneList"><span>Seznam</span> <span id="countOpen" class="badge">0</span></button>
+        <button id="ftRecipes" class="ftab" type="button" role="tab" aria-selected="false" aria-controls="paneRecipes"><span>Recepti</span></button>
         <button id="ftStores" class="ftab" type="button" role="tab" aria-selected="false" aria-controls="paneStores"><span>Trgovine</span></button>
       </div>
 
@@ -89,6 +96,7 @@
             </div>
           </div>
         </div>
+        <div class="nk-moji hidden"></div>
         <ul id="list" class="list"></ul>
         <p id="listEmpty" class="empty">Seznam je prazen.</p>
         <button id="clearDone" class="link" type="button">Počisti kupljeno</button>
@@ -98,10 +106,19 @@
           <ul id="recoList" class="reco"></ul>
         </div>
 
-        <div class="card">
+        <div id="quickBox" class="card">
           <div class="card-head"><h2>Pogosto kupuješ</h2></div>
           <div id="quick" class="chips"></div>
         </div>
+      </div>
+
+      <div id="paneRecipes" class="panel pane-recipes hidden" role="tabpanel">
+        <div class="nk-moji hidden"></div>
+        <div class="rsearch">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="rq" type="search" autocomplete="off" placeholder="Poišči jed ali sestavino" aria-label="Poišči jed ali sestavino">
+        </div>
+        <div id="rflow"></div>
       </div>
 
       <div id="paneStores" class="panel pane-stores hidden" role="tabpanel">
@@ -112,7 +129,7 @@
         </div>
         <div id="storeGrid" class="sgrid"></div>
         <p id="storesNote" class="empty hidden"></p>
-        <p class="muted small price-note">Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.</p>
+        <p class="muted small price-note">Najcenejša trgovina je le okvirna ocena iz javno dostopnih cen, ki niso nujno točne ali aktualne. Dejanske cene, akcije in zaloga v trgovini se lahko razlikujejo. Nakupko za razlike ne odgovarja.</p>
       </div>
     </section>
 
@@ -158,10 +175,6 @@
       <details class="card">
         <summary><h2 class="inline">Moje trgovine</h2></summary>
         <div id="prefBox" class="pref-list"></div>
-        <div id="pref2Wrap">
-          <div class="card-head pref2-head"><h2>Druga izbira</h2><span class="muted small">neobvezno</span></div>
-          <div id="pref2Box" class="pref-list"></div>
-        </div>
       </details>
       <details class="card">
         <summary><h2 class="inline">Velikost prikaza</h2></summary>
@@ -220,7 +233,7 @@
           <li>Nadzorni center: povleci dol iz zgornjega desnega kota, pridrži prazno mesto, Dodaj kontrolnik → Bližnjica.</li>
         </ol>
       </details>
-      <p class="muted small">Cene so okvirne in se lahko razlikujejo od cen v trgovini. Ne vemo, ali je izdelek na zalogi.</p>
+      <p class="muted small">Najcenejša trgovina je le okvirna ocena iz javno dostopnih cen, ki niso nujno točne ali aktualne. Dejanske cene, akcije in zaloga v trgovini se lahko razlikujejo. Nakupko za razlike ne odgovarja.</p>
       <p class="muted small">Vir lokacij: © OpenStreetMap contributors. Urniki so informativni. Ikone izdelkov: Microsoft Fluent Emoji (MIT).</p>
     </section>
 
@@ -238,6 +251,7 @@
       </div>
       <div class="progress"><div id="smBar" class="progress-bar"></div></div>
       <div id="smProgress" class="sm-progress"></div>
+      <div id="smAsk" class="sm-ask hidden"></div>
     </div>
     <form id="smAdd" class="add-row sm-add" autocomplete="off">
       <input id="smInput" type="text" placeholder="Dodaj izdelek …" aria-label="Dodaj izdelek">
@@ -275,6 +289,9 @@
   <script src="i18n.js"></script>
   <script src="store-detect.js"></script>
   <script src="app.js"></script>
+  <script src="ikone-jedi.js"></script>
+  <script src="prilagodi.js"></script>
+  <script src="recepti.js"></script>
   <script src="household.js"></script>
   <script src="aktivni.js"></script>
 </body>

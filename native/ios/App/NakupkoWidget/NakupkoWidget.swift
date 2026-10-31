@@ -10,6 +10,7 @@ import WidgetKit
 struct NakupkoWidgets: WidgetBundle {
     var body: some Widget {
         ShoppingLiveActivity()
+        CookingLiveActivity()
     }
 }
 
@@ -216,6 +217,102 @@ struct ItemGrid: View {
                 }
             } else if hidden > 0 {
                 Text(L10n.t("more", ["\(hidden)"], lang: lang)).font(.caption).foregroundColor(.white.opacity(0.6))
+            }
+        }
+    }
+}
+
+// Kuhanje po korakih: en korak naenkrat, Nazaj/Naprej brez odklepanja telefona.
+struct CookingLiveActivity: Widget {
+    var body: some WidgetConfiguration {
+        ActivityConfiguration(for: CookingAttributes.self) { context in
+            CookView(title: context.attributes.title, done: context.attributes.done, state: context.state)
+                .widgetURL(URL(string: "nakupko://kuhaj"))
+                .activityBackgroundTint(glass.opacity(0.62))
+                .activitySystemActionForegroundColor(.white)
+        } dynamicIsland: { context in
+            let s = context.state
+            return DynamicIsland {
+                DynamicIslandExpandedRegion(.leading) {
+                    Label(context.attributes.title, systemImage: "fork.knife").font(.headline).lineLimit(1)
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    Text(s.step >= s.steps.count ? "✓" : "\(s.step + 1)/\(s.steps.count)").font(.headline).foregroundColor(lilac)
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    CookBody(done: context.attributes.done, state: s, big: false)
+                }
+            } compactLeading: {
+                Image(systemName: "fork.knife").foregroundColor(lilac)
+            } compactTrailing: {
+                Text(s.step >= s.steps.count ? "✓" : "\(s.step + 1)/\(s.steps.count)").foregroundColor(lilac)
+            } minimal: {
+                Image(systemName: "fork.knife").foregroundColor(lilac)
+            }
+        }
+    }
+}
+
+struct CookView: View {
+    let title: String
+    let done: String
+    let state: CookingAttributes.ContentState
+
+    var body: some View {
+        let n = state.steps.count
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label(title, systemImage: "fork.knife").font(.headline).foregroundColor(.white).lineLimit(1)
+                Spacer()
+                Text(state.step >= n ? "✓" : L10n.t("cookStep", ["\(state.step + 1)", "\(n)"], lang: state.lang))
+                    .font(.subheadline.weight(.semibold)).foregroundColor(lilacText)
+            }
+            ProgressLine(done: min(state.step + 1, n), total: n)
+            CookBody(done: done, state: state, big: true)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+    }
+}
+
+// Besedilo koraka in gumba. iOS dovoli Live Activity visoko ~160 pt, zato je korak največ v 3 vrsticah.
+struct CookBody: View {
+    let done: String
+    let state: CookingAttributes.ContentState
+    let big: Bool
+
+    var body: some View {
+        let n = state.steps.count, fin = state.step >= n
+        VStack(alignment: .leading, spacing: 7) {
+            Text(fin ? done : state.steps[state.step])
+                .font(big ? .body.weight(.semibold) : .callout.weight(.semibold))
+                .foregroundColor(.white)
+                .lineLimit(3)
+                .minimumScaleFactor(0.75)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 8) {
+                Button(intent: CookPrevIntent()) {
+                    Text(L10n.t("cookPrev", lang: state.lang))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14).padding(.vertical, 6)
+                        .background(Capsule().fill(Color.white.opacity(state.step == 0 ? 0.06 : 0.16)))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(state.step == 0)
+                Spacer()
+                if !fin {
+                    Button(intent: CookNextIntent()) {
+                        Text(L10n.t("cookNext", lang: state.lang))
+                            .font(.footnote.weight(.bold))
+                            .foregroundColor(brandBlue)
+                            .padding(.horizontal, 18).padding(.vertical, 6)
+                            .background(Capsule().fill(Color.white))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }

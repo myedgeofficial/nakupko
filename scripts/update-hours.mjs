@@ -269,23 +269,23 @@ async function eurospin() {
   await pages("eurospin", urls, (u) => /prodajna-mesta\/.+/.test(u));
 }
 
-// --- Jager: ena stran z vsemi poslovalnicami ---
+// --- Jager: ena stran z vsemi poslovalnicami (kartica na poslovalnico: ime, naslov, tabela z urnikom) ---
 async function jager() {
   const html = await getText("https://www.trgovinejager.com/Poslovalnice/");
   if (!html) return console.log("Jager: ni podatkov");
-  const text = strip(html);
-  // bloki se začnejo z »JAGER ...« in vsebujejo naslov s poštno številko
-  const blocks = text.split(/(?=JAGER\s)/).slice(1);
-  dbg.push("jager blokov " + blocks.length);
+  const cards = html.split(/<div class="serviserji dealermore"/).slice(1);
+  dbg.push("jager kartic " + cards.length);
   let shown = 0;
-  for (const b of blocks) {
-    const one = b.replace(/\s+/g, " ");
-    const m = one.match(/^JAGER\s.*?[-–]\s*[A-ZČŠŽ .]+?\s+([A-ZČŠŽ](?:[a-zčšž]|\s[a-zčšž])[^0-9]*?\s\d+[a-zA-Z]?)\s+(\d{4})\s+([A-ZČŠŽ][a-zčšž]+(?:\s(?:ob|na|pri|v|(?!Pon|Tor|Sre|Čet|Pet|Sob|Ned|Odpiral|Delovn)[A-ZČŠŽ][a-zčšž]+))*)/);
-    const week = parseDayText(b.slice(0, 600));
-    const addr = m ? (m[1].trim() + ", " + m[2] + " " + m[3].trim()) : "";
+  for (const c of cards) {
+    const name = ((c.match(/<h4[^>]*>([^<]+)<\/h4>/) || [])[1] || "").replace(/\s+/g, " ").trim();
+    const g = c.match(/class="gadresa">\s*<span>([^<]*)<\/span>\s*<span>([^<]*)<\/span>/);
+    const addr = g ? g[1].replace(/,\s*$/, "").trim() + ", " + g[2].trim() : "";
+    const table = (c.match(/contact-working-hours[\s\S]*?<\/table>/) || [""])[0];
+    const week = table ? parseDayText(strip(table)) : null;
     const h = week ? toOsm(week.map((d) => d || [])) : null;
-    if (shown++ < 2 || (!h && shown < 6)) { console.log("  vzorec jager |", addr, "|", h); dbg.push("jager vzorec | " + addr + " | " + h + " | " + b.slice(0, 450).replace(/\s+/g, " ")); }
-    if (addr) add("jager", { lat: null, lon: null, a: addr, h, n: addr });
+    if (shown++ < 3) console.log("  vzorec jager |", name, "|", addr, "|", h);
+    // Le trgovine z živili (brez železokrivnice, servisa in skladišča).
+    if (addr && !/skladi|servis|železo|zelezo/i.test(name)) add("jager", { lat: null, lon: null, a: addr, h, n: name });
   }
 }
 
