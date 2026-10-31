@@ -4,8 +4,9 @@
 // Članki so v slovenščini, zato jih kažemo samo v slovenskem jeziku.
 (function () {
   "use strict";
-  var SL = (window.NK_LANG || "sl") === "sl";
-  var URL = "https://nakupko.com/data/clanki.json", KEY = "nakupko-clanki", RKEY = "nakupko-clanki-prebrano";
+  var LANG = window.NK_LANG || "sl", SL = LANG === "sl";
+  var BASE = "https://nakupko.com/data/clanki", URL = BASE + (SL ? "" : "-" + LANG) + ".json";
+  var KEY = "nakupko-clanki" + (SL ? "" : "-" + LANG), RKEY = "nakupko-clanki-prebrano";
   var data = null, read = {};
   try { data = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { /* nič */ }
   try { read = JSON.parse(localStorage.getItem(RKEY) || "{}") || {}; } catch (e) { /* nič */ }
@@ -18,9 +19,8 @@
   function card() {
     var dot = $("nasvetiDot"), box = $("nasvetiList");
     var a = list()[0];
-    if (dot) dot.classList.toggle("hidden", !SL || !a || !!read[a.id]);
+    if (dot) dot.classList.toggle("hidden", !a || !!read[a.id]);
     if (!box) return;
-    if (!SL) { box.innerHTML = '<p class="muted">Nasveti so zaenkrat na voljo samo v slovenščini.</p>'; return; }
     if (!list().length) { box.innerHTML = '<p class="muted">Nalagam nasvete …</p>'; return; }
     box.innerHTML = list().map(function (a, i) {
       return '<button type="button" class="nasvet-card' + (i === 0 ? " prvi" : "") + '" data-clanek="' + esc(a.id) + '">' +
@@ -62,8 +62,11 @@
     if (b) open(b.dataset.clanek);
   });
   function refresh() {
-    if (!SL) return;
     fetch(URL, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      // jezik brez prevodov: angleščina
+      if ((!d || !d.clanki || !d.clanki.length) && LANG !== "en" && !SL) return fetch(BASE + "-en.json", { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; });
+      return d;
+    }).then(function (d) {
       if (!d || !d.clanki) return;
       data = d; try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) { /* nič */ }
       card();
@@ -71,6 +74,6 @@
   }
   window.NK_NASVETI = { show: function () { card(); refresh(); } };
   card();
-  if (SL) refresh();
+  refresh();
   document.addEventListener("visibilitychange", function () { if (!document.hidden) refresh(); });
 })();

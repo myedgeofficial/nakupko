@@ -430,6 +430,7 @@ NK_PACK("es", function (h) {
     "Kratki nasveti o zdravi prehrani, pametnem nakupovanju in shranjevanju hrane. Vsak dan nov.": "Consejos breves sobre alimentación sana, compras inteligentes y conservación de alimentos. Uno nuevo cada día.",
     "Nasveti so zaenkrat na voljo samo v slovenščini.": "Por ahora los consejos solo están disponibles en esloveno.",
     "Nalagam nasvete …": "Cargando consejos …",
+    "nov": "nuevo",
     "Razveljavi": "Deshacer",
     "Izbriši": "Eliminar",
     "Cene so izklopljene. Vklopiš jih v Nastavitvah pod »Moje trgovine«.": "Los precios están desactivados. Actívalos en Ajustes, en «Mis tiendas».",

@@ -430,6 +430,7 @@ NK_PACK("hu", function (h) {
     "Kratki nasveti o zdravi prehrani, pametnem nakupovanju in shranjevanju hrane. Vsak dan nov.": "Rövid tippek az egészséges étkezésről, okos vásárlásról és az élelmiszerek tárolásáról. Minden nap új.",
     "Nasveti so zaenkrat na voljo samo v slovenščini.": "A tippek egyelőre csak szlovénül érhetők el.",
     "Nalagam nasvete …": "Tippek betöltése …",
+    "nov": "új",
     "Razveljavi": "Visszavonás",
     "Izbriši": "Törlés",
     "Cene so izklopljene. Vklopiš jih v Nastavitvah pod »Moje trgovine«.": "Az árak ki vannak kapcsolva. A Beállítások „Üzleteim” részében kapcsolhatod be őket.",

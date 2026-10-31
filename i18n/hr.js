@@ -431,6 +431,7 @@ NK_PACK("hr", function (h) {
     "Kratki nasveti o zdravi prehrani, pametnem nakupovanju in shranjevanju hrane. Vsak dan nov.": "Kratki savjeti o zdravoj prehrani, pametnoj kupnji i čuvanju hrane. Svaki dan novi.",
     "Nasveti so zaenkrat na voljo samo v slovenščini.": "Savjeti su zasad dostupni samo na slovenskom.",
     "Nalagam nasvete …": "Učitavam savjete …",
+    "nov": "novo",
     "Razveljavi": "Poništi",
     "Izbriši": "Izbriši",
     "Cene so izklopljene. Vklopiš jih v Nastavitvah pod »Moje trgovine«.": "Cijene su isključene. Uključuješ ih u Postavkama pod »Moje trgovine«.",
