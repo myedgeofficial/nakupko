@@ -1740,7 +1740,7 @@
       if (n && (!bigNear || n.s.chain !== bigNear.s.chain)) parts.push("najbližje " + ((CHAIN_BY_KEY[n.s.chain] || {}).name || n.s.short || n.s.name) + " " + fmtDist(n.d));
     }
     box.classList.toggle("hidden", !parts.length);
-    box.textContent = parts.length ? "Iz vseh trgovin: " + parts.join(" · ") : "";
+    box.textContent = parts.length ? "Med vsemi trgovinami: " + parts.join(" · ") : "";
     if (parts.length) $("heroSide").classList.remove("hidden");
   }
   function renderHero() {
@@ -1767,7 +1767,7 @@
       var best = open.length ? compareRows(open).filter(function (r) { return r.missing < open.length && (!mineC || mineC.indexOf(r.c) >= 0); })[0] : null;
       $("heroCheap").classList.toggle("hidden", !best);
       $("heroSide").classList.toggle("hidden", !best && !near);
-      $("heroLabel").textContent = "Okvirno najceneje";
+      $("heroLabel").textContent = "Okvirno najceneje"; // »okvirno« ostane zaradi pravnega opozorila o cenah
       $("heroTotal").textContent = best ? CHAIN_BY_KEY[best.c].name : "–";
       $("heroBest").textContent = "";
       renderHeroAll(open, best ? best.c : null, near);
@@ -1813,6 +1813,9 @@
     $("heroNear").classList.toggle("hidden", !n);
     $("heroSide").classList.toggle("with-near", !!n);
     if (!n) return null;
+    var mineN = pricesOff() ? null : myChains();
+    // z izbranimi trgovinami je to najbližja med njimi, zato napis »Tvoja najbližja«
+    $("heroNearLabel").textContent = mineN && mineN.length ? "Tvoja najbližja" : "Okvirno najbližje";
     $("heroNearName").textContent = (CHAIN_BY_KEY[n.s.chain] || {}).name || n.s.short || n.s.name;
     $("heroNearDist").textContent = "· " + fmtDist(n.d);
     return n;
