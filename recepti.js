@@ -1,6 +1,7 @@
 // Recepti v aplikaciji: vodeno izbiranje (čas → denar → težavnost → mapa) ali iskanje,
 // recept z izbiro števila oseb in količinami, ki gredo na seznam.
-// »Moja kuhinja«: aparati, ki jih imaš, alergije in prehrana; recepti, ki jih ne moreš skuhati ali jesti, so skriti.
+// »Moja kuhinja«: aparati, ki jih imaš, alergije in prehrana. Recepte prilagodimo (prilagodi.js: npr. maslo → maslo brez laktoze);
+// skriti so le recepti, ki jih ne moreš skuhati ali jih ni mogoče prilagoditi.
 // Podatki so isti kot na nakupko.com (recepti.json, količine za 4 osebe; polja 8–10: aparati, alergeni, prehrana).
 (function () {
   "use strict";
@@ -38,12 +39,28 @@
   try { var ks = JSON.parse(localStorage.getItem(KKEY) || "null"); if (ks && ks.ap) kit = { ap: ks.ap, al: ks.al || [], diet: ks.diet || 0, set: ks.set !== false && ks.v === 2 }; } catch (e) { /* nič */ }
   function saveKit() { try { kit.v = 2; localStorage.setItem(KKEY, JSON.stringify(kit)); } catch (e) { /* nič */ } }
   function has(a) { return kit.ap.indexOf(a) >= 0; }
-  function ok(r) {
-    var ap = r[8] || [], al = r[9] || [];
-    if (!ap.every(function (x) { return x === "!" || x.split("|").some(has); })) return false;
-    if (al.some(function (x) { return kit.al.indexOf(x.replace("?", "")) >= 0; })) return false;
-    return (r[10] || 0) >= kit.diet;
+  // prilagoditev recepta alergijam in prehrani (null = ni mogoče); shranjeno, dokler se Moja kuhinja ne spremeni
+  function adapt(r) {
+    var k = kit.al.slice().sort().join(",") + "/" + kit.diet, P = window.NK_PRILAGODI;
+    if (r._ak !== k) {
+      r._ak = k;
+      if (P) r._a = P.adapt(r, kit.al, kit.diet);
+      else r._a = (r[9] || []).some(function (x) { return kit.al.indexOf(x.replace("?", "")) >= 0; }) || (r[10] || 0) < kit.diet ? null : { sw: {}, notes: [], n: 0 };
+    }
+    return r._a;
   }
+  // sestavine po prilagoditvi: [ime, količina za 4, enota, prvotno ime ali null]
+  function ings(r) { var P = window.NK_PRILAGODI, a = adapt(r); return P && a ? P.ingredients(r, a) : r[6].map(function (g) { return [g[0], g[1], g[2], null]; }); }
+  function ok(r) {
+    var ap = r[8] || [];
+    if (!ap.every(function (x) { return x === "!" || x.split("|").some(has); })) return false;
+    return !!adapt(r);
+  }
+  function swapTxt(r) {
+    return ings(r).filter(function (g) { return g[3]; }).map(function (g) { return T(g[3]).toLowerCase() + " → " + T(g[0]).toLowerCase(); })
+      .concat(r[6].filter(function (g, i) { var a = adapt(r); return a && a.sw[i] && !a.sw[i][0]; }).map(function (g) { return T(g[0]).toLowerCase() + " → " + T("izpusti"); }));
+  }
+  function noteTxt(r) { var a = adapt(r); return a ? a.notes.map(function (n) { return T(n[0]) + (n[1] ? ": " + n[1].map(function (x) { return T(x).toLowerCase(); }).join(", ") : ""); }) : []; }
 
   // ---------- okvirna cena jedi na osebo (katalog izdelkov + nočne cene iz trgovin) ----------
   var CAT = null, LIVE = null;
@@ -112,8 +129,9 @@
   function items() { var a = window.__nakupko; return a && a.state ? (a.state().items || []) : []; }
   function openSet() { var o = {}; items().forEach(function (y) { if (!y.done) o[norm(y.name)] = 1; }); return o; }
   function card(i, open, cls) {
-    var r = REC.jedi[i], hasAll = r[6].every(function (x) { return open[norm(x[0])]; });
-    return '<button type="button" class="rc' + (cls || "") + (hasAll ? " added" : "") + '" data-i="' + i + '"><span class="ric">' + ico(r[0]) + '</span><span class="rtx"><b>' + esc(nm(r)) + '</b><span class="rmeta">' + mins(r[3]) + dots(r[4]) + '<span class="rcost">' + esc(costTxt(r)) + "</span></span></span></button>";
+    var r = REC.jedi[i], hasAll = ings(r).every(function (x) { return open[norm(x[0])]; }), a = adapt(r);
+    return '<button type="button" class="rc' + (cls || "") + (hasAll ? " added" : "") + '" data-i="' + i + '"><span class="ric">' + ico(r[0]) + '</span><span class="rtx"><b>' + esc(nm(r)) + '</b><span class="rmeta">' + mins(r[3]) + dots(r[4]) + '<span class="rcost">' + esc(costTxt(r)) + "</span>" +
+      (a && a.n ? '<span class="radapt">' + esc(T("prilagojeno")) + "</span>" : "") + "</span></span></button>";
   }
   function cards(ids) { var open = openSet(); return '<div class="rgrid">' + ids.map(function (i) { return card(i, open); }).join("") + "</div>"; }
   // »Recepti za moj aparat«: samo aparati, ki jih imaš, in vsaj 3 jedi
@@ -153,7 +171,7 @@
       '<p class="rsub">' + esc(T("Recepte ti izberem glede na to, kaj imaš v kuhinji in kaj ješ. Tapni aparate, ki jih imaš.")) + "</p>" +
       '<div class="kit-pic"></div><div class="kit-ap kchips"></div><button type="button" class="btn primary full rnext" data-su="2">' + esc(T("Naprej")) + " ›</button></div>";
     return '<div class="rstep rsetup">' + rmap() + "<h2>" + esc(T("Kaj ješ?")) + "</h2>" +
-      '<p class="rsub">' + esc(T("Recepte, ki ti ne ustrezajo, skrijem.")) + "</p>" + kitDiet() +
+      '<p class="rsub">' + esc(T("Recepte prilagodim zate, npr. mleko brez laktoze ali moka brez glutena. Skrijem le tiste, ki jih ni mogoče prilagoditi.")) + "</p>" + kitDiet() +
       '<p class="kit-n"></p><button type="button" class="btn primary full rnext" data-su="3">' + esc(T("Pokaži recepte")) + ' ›</button><button type="button" class="rskip" data-su="1">‹ ' + esc(T("Nazaj")) + "</button></div>";
   }
   function kitDiet() {
@@ -265,7 +283,8 @@
       var on = kit.al.indexOf(a[0]) >= 0;
       return '<button type="button" class="kchip al' + (on ? " on" : "") + '" data-al="' + a[0] + '" aria-pressed="' + on + '">' + esc(T(a[1])) + "</button>";
     }).join("");
-    if ((e = w.querySelector(".kit-n"))) e.textContent = T("Primernih receptov") + ": " + n;
+    var na = REC && (kit.al.length || kit.diet) ? REC.jedi.filter(function (r) { return ok(r) && adapt(r).n; }).length : 0;
+    if ((e = w.querySelector(".kit-n"))) e.textContent = T("Primernih receptov") + ": " + n + (na ? " (" + T("prilagojenih") + ": " + na + ")" : "");
   }
   // tap na aparat, prehrano ali alergen (v Moji kuhinji ali v vodenju)
   function togKit(b) {
@@ -315,14 +334,17 @@
     sh.querySelector(".rsh-ic").innerHTML = ico(r[0]);
     sh.querySelector(".rsh-t").textContent = nm(r);
     sh.querySelector(".rsh-m").textContent = mins(r[3]) + " · " + T(TEZ[r[4] - 1][1]) + " · " + costTxt(r) + " " + T("na osebo");
-    var al = (r[9] || []).filter(function (a) { return a.indexOf("?") < 0; }).map(function (a) { return T(ALER.filter(function (x) { return x[0] === a; })[0][1]).toLowerCase(); });
+    var al = (r[9] || []).filter(function (a) { return a.indexOf("?") < 0 && kit.al.indexOf(a) < 0; }).map(function (a) { return T(ALER.filter(function (x) { return x[0] === a; })[0][1]).toLowerCase(); });
     sh.querySelector(".rsh-al").textContent = al.length ? T("Vsebuje") + ": " + al.join(", ") : "";
+    var sw = swapTxt(r), nt = noteTxt(r), ad = sh.querySelector(".rsh-adapt");
+    ad.hidden = !sw.length && !nt.length;
+    ad.innerHTML = (sw.length ? "<b>" + esc(T("Prilagojeno zate")) + "</b> " + esc(sw.join(", ")) : "") + nt.map(function (x) { return "<small>" + esc(x) + "</small>"; }).join("");
     sh.querySelector(".rsh-n").textContent = servings;
-    sh.querySelector(".rsh-list").innerHTML = r[6].map(function (g, i) {
+    sh.querySelector(".rsh-list").innerHTML = ings(r).map(function (g, i) {
       var a = amtOf(g), txt = a && api && api.amtText ? api.amtText(a) : T("po okusu");
       return '<button type="button" class="rsh-i' + (off[i] ? "" : " on") + '" data-i="' + i + '"><span class="rcb"></span><span class="rnm">' + esc(T(g[0])) + '</span><span class="ram">' + esc(txt) + "</span></button>";
     }).join("");
-    var n = r[6].filter(function (g, i) { return !off[i]; }).length, b = sh.querySelector(".rsh-add");
+    var n = ings(r).filter(function (g, i) { return !off[i]; }).length, b = sh.querySelector(".rsh-add");
     b.textContent = T("Dodaj na seznam") + " (" + n + ")"; b.disabled = !n;
   }
   function openRecipe(i) {
@@ -331,7 +353,7 @@
     w.className = "sheet-wrap"; w.id = "rsheetWrap";
     w.innerHTML = '<div class="sheet rsheet" id="rsheet" role="dialog" aria-modal="true"><div class="sheet-grip"></div>' +
       '<button type="button" class="sheet-x" aria-label="' + esc(T("Zapri")) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
-      '<div class="rsh-head"><span class="rsh-ic"></span><div><b class="rsh-t"></b><span class="rsh-m"></span><span class="rsh-al"></span></div></div>' +
+      '<div class="rsh-head"><span class="rsh-ic"></span><div><b class="rsh-t"></b><span class="rsh-m"></span><span class="rsh-al"></span></div></div><p class="rsh-adapt" hidden></p>' +
       '<div class="rsh-serv"><span>' + esc(T("Za koliko oseb?")) + '</span><span class="rsh-step"><button type="button" class="rsh-minus" aria-label="−">−</button><b class="rsh-n"></b><button type="button" class="rsh-plus" aria-label="+">+</button></span></div>' +
       '<div class="rsh-list"></div><p class="muted small">' + esc(T("Odkljukaj, kar že imaš doma.")) + '</p>' +
       '<button type="button" class="btn primary full rsh-add"></button>' +
@@ -353,7 +375,7 @@
   function close() { var w = $("rsheetWrap"); if (w) w.remove(); }
   function addAll() {
     var api = window.__nakupko, n = 0; if (!api) return;
-    cur[6].forEach(function (g, i) { if (off[i]) return; api.add(g[0], amtOf(g)); n++; });
+    ings(cur).forEach(function (g, i) { if (off[i]) return; api.add(g[0], amtOf(g)); n++; });
     saveMoj(cur[1], servings);
     close(); draw();
     if (api.toast) api.toast(SL ? "Na seznam dodano: " + n + " sestavin za " + osebe(servings) : T("Dodano na seznam") + ": " + n + " · " + osebe(servings));
@@ -387,7 +409,7 @@
     var w = document.createElement("div");
     w.className = "kuhaj"; w.id = "kuhaj";
     w.innerHTML = '<div class="kh-top"><button type="button" class="kh-x" aria-label="' + esc(T("Zapri")) + '">×</button><b class="kh-name"></b><span class="kh-cnt"></span></div>' +
-      '<div class="kh-bar"><i></i></div><div class="kh-body"><div class="kh-k"></div><p class="kh-step"></p>' +
+      '<div class="kh-bar"><i></i></div><div class="kh-body"><div class="kh-k"></div><p class="kh-step"></p><p class="kh-adapt" hidden></p>' +
       '<details class="kh-ing"><summary>' + esc(T("Sestavine")) + ' <span class="kh-os"></span></summary><div class="kh-list"></div></details></div>' +
       '<div class="kh-nav"><button type="button" class="kh-prev">' + esc(T("‹ Nazaj")) + '</button><button type="button" class="kh-next"></button></div>';
     document.body.appendChild(w);
@@ -412,7 +434,9 @@
     w.querySelector(".kh-k").textContent = fin ? "" : T("Korak") + " " + (ckStep + 1) + " / " + n;
     var p = w.querySelector(".kh-step"); p.textContent = fin ? T("Dober tek!") : st[ckStep]; p.classList.toggle("fin", fin);
     w.querySelector(".kh-os").textContent = "(" + (SL ? ckOs + (ckOs === 1 ? " oseba" : ckOs === 2 ? " osebi" : ckOs < 5 ? " osebe" : " oseb") : osebe(ckOs)) + ")";
-    w.querySelector(".kh-list").innerHTML = ck[6].map(function (g) {
+    var sw = swapTxt(ck), ad = w.querySelector(".kh-adapt");
+    ad.hidden = !sw.length || fin; ad.textContent = sw.length ? T("Prilagojeno zate") + ": " + sw.join(", ") : "";
+    w.querySelector(".kh-list").innerHTML = ings(ck).map(function (g) {
       var a = scaleAmt(g[1], g[2], ckOs / 4), m = null; if (a) { m = {}; m[a[1]] = a[0]; }
       return "<p>" + esc(T(g[0])) + "<span>" + esc(m && api && api.amtText ? api.amtText(m) : T("po okusu")) + "</span></p>";
     }).join("");
