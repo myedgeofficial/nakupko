@@ -204,11 +204,13 @@
     return isFinite(n) && n > 0 ? n : 1;
   }
   var toastTimer;
-  function toast(msg) {
+  function toast(msg, act) {
     var t = $("toast");
     t.textContent = msg; t.classList.remove("hidden");
+    // neobvezen gumb v obvestilu (npr. »Razveljavi« po brisanju)
+    if (act) t.appendChild(el("button", { type: "button", class: "toast-act", onclick: function (e) { e.stopPropagation(); t.classList.add("hidden"); act.fn(); } }, [act.label]));
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.add("hidden"); }, 2600);
+    toastTimer = setTimeout(function () { t.classList.add("hidden"); }, act ? 4500 : 2600);
   }
   function distM(a, b) {
     var R = 6371000, toR = Math.PI / 180;
@@ -679,8 +681,17 @@
     renderAll();
   }
   function removeItem(id) {
-    state.items = state.items.filter(function (i) { return i.id !== id; });
+    var idx = state.items.findIndex(function (i) { return i.id === id; });
+    if (idx < 0) return;
+    var gone = state.items[idx];
+    state.items.splice(idx, 1);
     save(); renderAll();
+    // Brisanje ni nakup: v zgodovino ne gre nič. Razveljavi vrne izdelek na isto mesto.
+    toast("Izbrisano: " + gone.name, { label: "Razveljavi", fn: function () {
+      if (state.items.some(function (i) { return i.id === gone.id; })) return;
+      state.items.splice(Math.min(idx, state.items.length), 0, gone);
+      save(); renderAll();
+    } });
   }
 
   function itemMeta(it) {
@@ -815,6 +826,7 @@
   }
 
   var CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+  var TRASH_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>';
   var X_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   // Cena v vrstici: cena za kos/pakiranje z enoto (»2,49 € / 250 g«), meso in sir na kg; akcija posebej.
   function priceChip(it, storeCtx) {
@@ -897,6 +909,9 @@
     // Brisanje: povleci vrstico v levo (gumb za njo) ali tapni ime in »Izbriši«.
     var del = el("button", { class: "del", type: "button", "aria-label": "Izbriši " + it.name, onclick: function () { removeItem(it.id); } });
     del.innerHTML = X_SVG;
+    // Viden koš v vrstici: izbriše izdelek, ne da bi ga označil kot kupljenega.
+    var trash = it.done ? null : el("button", { class: "trash", type: "button", "aria-label": "Izbriši " + it.name, onclick: function (e) { e.stopPropagation(); removeItem(it.id); } });
+    if (trash) trash.innerHTML = TRASH_SVG;
     // Tap na ime: izbira trgovine za ta izdelek.
     var tag = it.store ? el("span", { class: "store-tag" }, [CHAIN_BY_KEY[it.store] ? chainDot(it.store) : null, storeKeyName(it.store)]) : null;
     var q = it.amt && Object.keys(it.amt).length ? amtText(it.amt) + (it.qty > 1 ? " · " + qtyText(it.qty) : "") : qtyText(it.qty);
@@ -907,6 +922,7 @@
         it.done ? null : priceChip(it, storeCtx),
         meta || tag ? el("div", { class: "imeta" }, [tag, meta ? document.createTextNode((tag ? " · " : "") + meta) : null]) : null
       ]),
+      trash,
       check
     ]);
     var fresh = justAdded && justAdded.id === it.id;

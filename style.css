@@ -775,3 +775,13 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .kseg { flex: 1; font: 800 13.5px var(--font); color: var(--muted); background: none; border: 0; border-radius: 11px; padding: 9px 4px; }
 .kseg.on { background: var(--surface); color: var(--violet); box-shadow: var(--shadow); }
 .kit-n { text-align: center; font-weight: 800; color: var(--violet); margin: 4px 0 10px !important; }
+
+/* Koš v vrstici izdelka: izbriše brez označitve kot kupljeno (2026-10-31). */
+.trash {
+  width: 36px; height: 36px; flex: 0 0 36px; border: 0; border-radius: 50%; padding: 0; margin-right: -4px;
+  background: transparent; color: #A9A0C2; display: grid; place-items: center; cursor: pointer;
+}
+.trash svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.trash:active { background: #FDECEA; color: var(--danger); }
+.toast:has(.toast-act) { display: flex; align-items: center; white-space: nowrap; }
+.toast-act { margin-left: 14px; border: 0; background: transparent; color: #C9B8FF; font: 800 15px/1 var(--font); padding: 4px 2px; cursor: pointer; }
