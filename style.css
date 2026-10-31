@@ -818,3 +818,9 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 #nasvetiList { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 #nasvetiList .nasvet-card.prvi b { font-size: 19.5px; }
 .nasveti-uvod { margin: 4px 2px 0; font-size: 14px; }
+.clanek .vedel { background: var(--violet-soft); border-radius: 14px; padding: 11px 13px; margin: 12px 0; font-size: 14.5px; }
+.clanek .vedel b { display: block; color: var(--violet); }
+.clanek .recept-box { margin: 16px 0 12px; background: var(--panel); border-radius: 16px; padding: 13px 15px; }
+.clanek .recept-box span { display: block; font: 800 11.5px/1 var(--font); letter-spacing: .07em; text-transform: uppercase; color: var(--violet); margin-bottom: 5px; }
+.clanek .recept-box a { font: 900 18px/1.2 var(--font); color: var(--ink); text-decoration: none; }
+.clanek .recept-box a::after { content: " ›"; color: var(--violet); }

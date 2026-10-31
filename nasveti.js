@@ -39,9 +39,13 @@
       if (e.target === w || (e.target.closest && e.target.closest(".sheet-x"))) { w.remove(); return; }
       var l = e.target.closest && e.target.closest("a[href]");
       if (l) { // povezave na druge članke odpremo v aplikaciji, ostale v brskalniku
-        var h = l.getAttribute("href"), m = h.match(/\/vodnik\/([a-z0-9-]+)\.html/);
+        var h = l.getAttribute("href"), m = h.match(/\/vodnik\/([a-z0-9-]+)\.html/), r = h.match(/\/recept\/([a-z0-9-]+)\.html/);
+        var web = function () { window.open(/^https?:/.test(h) ? h : "https://nakupko.com" + h, "_blank"); };
         e.preventDefault();
-        if (m && byId(m[1])) open(m[1]); else window.open(/^https?:/.test(h) ? h : "https://nakupko.com" + h, "_blank");
+        if (m && byId(m[1])) open(m[1]);
+        else if (r && window.NK_RECEPTI && window.NK_RECEPTI.openSlug) { // recept odpremo kar v aplikaciji (doda sestavine na seznam)
+          window.NK_RECEPTI.openSlug(r[1], function (ok) { if (ok) w.remove(); else web(); });
+        } else web();
       }
     });
   }

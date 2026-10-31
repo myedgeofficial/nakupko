@@ -494,8 +494,15 @@
   });
   document.addEventListener("input", function (e) { if (e.target && e.target.id === "rq") draw(); });
 
+  function slugOf(n) { return String(n).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
   window.NK_RECEPTI = {
     show: function () { draw(); load(); },
+    // recept iz članka (povezava /recept/<slug>.html, slug kot na nakupko.com); false = ga ni
+    openSlug: function (slug, cb) {
+      function go() { for (var i = 0; i < REC.jedi.length; i++) if (slugOf(REC.jedi[i][1]) === slug) { openRecipe(i); cb && cb(true); return; } cb && cb(false); }
+      if (REC) { go(); return; }
+      fetch("recepti.json").then(function (r) { return r.json(); }).then(function (d) { REC = REC || d; go(); }).catch(function () { cb && cb(false); });
+    },
     // korak, spremenjen na zaklenjenem zaslonu (native.js ob vrnitvi v aplikacijo)
     step: function (n) { if (!ck || typeof n !== "number") return; ckStep = Math.max(0, Math.min(steps(ck).length, n)); drawCook(); }
   };
