@@ -24,7 +24,7 @@
   function $(id) { return document.getElementById(id); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
   function norm(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim(); }
-  function icoKat(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ((window.IKONE_KAT || {})[k] || "") + "</svg>"; }
+  function icoKat(k) { return '<i><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ((window.IKONE_KAT || {})[k] || "") + "</svg></i>"; }
   function ico(k) { return '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ((window.IKONE_JEDI || {})[k] || "") + "</svg>"; }
   function mins(m) { if (m < 60) return m + " min"; var h = Math.floor(m / 60), r = m % 60; return h + " h" + (r ? " " + r + " min" : ""); }
   function dots(n) { return '<span class="rdots">' + [1, 2, 3].map(function (i) { return '<i class="' + (i <= n ? "on" : "") + '"></i>'; }).join("") + "</span>"; }
@@ -200,7 +200,8 @@
       h += step("Korak 3 od 3", T("Na kaj imaš danes apetit?"), '<div class="rfold">' + REC.mape.map(function (m) {
         var ids = pool(rt, null, rd, m[0]); if (!ids.length) return "";
         var ics = (window.IKONE_MAP || {})[m[0]] || [];
-        return '<button type="button" class="rf" data-m="' + m[0] + '"><span class="rfi">' + ics.map(icoKat).join("") + "</span><b>" + esc(mapName(m)) + "</b><span>" + jedi(ids.length) + "</span></button>";
+        var bc = (window.IKONE_BARVE || {})[m[0]] || ["", ""];
+        return '<button type="button" class="rf" data-m="' + m[0] + '"><span class="rfi" style="--kc:' + bc[0] + ";--kb:" + bc[1] + '">' + ics.map(icoKat).join("") + "</span><b>" + esc(mapName(m)) + "</b><span>" + jedi(ids.length) + "</span></button>";
       }).join("") + "</div>");
     } else {
       // izbran proračun: najcenejše najprej

@@ -94,3 +94,9 @@ window.IKONE_MAP = {
   sladice: ["cake-slice", "cookie", "donut"],
   zar: ["grill", "burger", "flame"]
 };
+// Barve kategorij: [ikona, ozadje]
+window.IKONE_BARVE = {
+  testenine: ["#D97706", "#FEF3C7"], juhe: ["#EA580C", "#FFEDD5"], meso: ["#DC2626", "#FEE2E2"], ribe: ["#2563EB", "#DBEAFE"],
+  zelenjava: ["#16A34A", "#DCFCE7"], solate: ["#0D9488", "#CCFBF1"], svet: ["#7C3AED", "#EDE9FE"], klasika: ["#0284C7", "#E0F2FE"],
+  zajtrk: ["#CA8A04", "#FEF9C3"], sladice: ["#DB2777", "#FCE7F3"], zar: ["#475569", "#E2E8F0"]
+};
