@@ -1,0 +1,412 @@
+Agar agar ← 11663 Seaweed, agar, dried
+Ajdova kaša ← 20009 Buckwheat groats, roasted, dry
+Ajdova moka ← 20011 Buckwheat flour, whole-groat
+Ajvar ← 11821 Peppers, sweet, red, raw + 11209 Eggplant, raw + 4053 Oil, olive, salad or cooking
+Ananas ← 9266 Pineapple, raw, all varieties
+Ananas v pločevinki ← 9354 Pineapple, canned, juice pack, drained
+Arašidi ← 16087 Peanuts, all types, raw
+Arašidovo maslo ← 16098 Peanut butter, smooth style, with salt (Includes foods for USDA's Food Distribution Program)
+Artičoke ← 11007 Artichokes, (globe or french), raw
+Avokado ← 9037 Avocados, raw, all commercial varieties
+Bageta ← 18029 Bread, french or vienna (includes sourdough)
+Bakalar (polenovka) ← 15018 Fish, cod, Atlantic, dried and salted
+Balzamični kis ← 2069 Vinegar, balsamic
+Banane ← 9040 Bananas, raw
+Bazilika ← 2044 Basil, fresh
+Beluši ← 11011 Asparagus, raw
+Blitva ← 11147 Chard, swiss, raw
+Borovnice ← 9050 Blueberries, raw
+Brancin ← 15091 Fish, sea bass, mixed species, raw
+Breskve ← 9236 Peaches, yellow, raw
+Brokoli ← 11090 Broccoli, raw
+Bulgur ← 20012 Bulgur, dry
+Bučka hokaido ← 11643 Squash, winter, all varieties, raw
+Bučke ← 11477 Squash, summer, zucchini, includes skin, raw
+Bučna semena ← 12014 Seeds, pumpkin and squash seed kernels, dried
+Bučno olje ← 4528 Oil, walnut
+Cel piščanec ← 5006 Chicken, broilers or fryers, meat and skin, raw
+Chia semena ← 12006 Seeds, chia seeds, dried
+Ciabatta ← 18029 Bread, french or vienna (includes sourdough)
+Cimet ← 2010 Spices, cinnamon, ground
+Coca-Cola ← 14148 Beverages, carbonated, cola, regular
+Cvetača ← 11135 Cauliflower, raw
+Debrecinke ← 7950 Frankfurter, meat
+Dimljena paprika ← 2028 Spices, paprika
+Dimljeni losos ← 15077 Fish, salmon, chinook, smoked
+Dimljeni tofu ← 16426 Tofu, raw, firm, prepared with calcium sulfate
+Drobnjak ← 11156 Chives, raw
+Falafel ← 16138 Falafel, home-prepared
+Feta ← 1019 Cheese, feta
+Fige ← 9089 Figs, raw
+Fižol suh ← 16049 Beans, white, mature seeds, raw
+Fižol v pločevinki ← 16051 Beans, white, mature seeds, canned
+Garam masala ← 2015 Spices, curry powder
+Gobe jurčki (suhi) ← 11268 Mushrooms, shiitake, dried
+Gobe šampinjoni ← 11260 Mushrooms, white, raw
+Gorčica ← 2046 Mustard, prepared, yellow
+Govedska juha v kocki ← 6076 Soup, beef broth, cubed, dry
+Goveje meso za juho ← 23093 Beef, chuck for stew, separable lean and fat, all grades, raw
+Goveji file ← 23601 Beef, tenderloin, steak, separable lean only, trimmed to 1/8" fat, all grades, raw
+Goveji golaž ← 23093 Beef, chuck for stew, separable lean and fat, all grades, raw
+Goveji rostbif ← 13095 Beef, rib, eye, small end (ribs 10-12), separable lean and fat, trimmed to 0" fat, choice, raw
+Goveji zrezek ← 23609 Beef, round, top round, steak, separable lean only, trimmed to 1/8" fat, all grades, raw
+Goveji zrezki ← 23609 Beef, round, top round, steak, separable lean only, trimmed to 1/8" fat, all grades, raw
+Granola ← 8037 Cereals ready-to-eat, granola, homemade
+Grozdje ← 9132 Grapes, red or green (European type, such as Thompson seedless), raw
+Grški jogurt ← 1293 Yogurt, Greek, plain, whole milk
+Hamburger žemlje ← 18350 Rolls, hamburger or hotdog, plain
+Hobotnica ← 15166 Mollusks, octopus, common, raw
+Hot dog štručke ← 18350 Rolls, hamburger or hotdog, plain
+Hren ← 2055 Horseradish, prepared
+Hren v kozarcu ← 2055 Horseradish, prepared
+Hrenovke ← 7950 Frankfurter, meat
+Hruške ← 9252 Pears, raw
+Hummus ← 16158 Hummus, commercial
+Indijski oreščki ← 12087 Nuts, cashew nuts, raw
+Ingver ← 11216 Ginger root, raw
+Instant rezanci ← 6583 Soup, ramen noodle, any flavor, dry
+Inćuni ← 15002 Fish, anchovy, european, canned in oil, drained solids
+Jabolka ← 9003 Apples, raw, with skin (Includes foods for USDA's Food Distribution Program)
+Jabolčni kis ← 2048 Vinegar, cider
+Jagnjetina ← 17015 Lamb, leg, shank half, separable lean and fat, trimmed to 1/4" fat, choice, raw
+Jagode ← 9316 Strawberries, raw
+Jajca ← 1123 Egg, whole, raw, fresh
+Jajčevci ← 11209 Eggplant, raw
+Jajčne testenine (rezanci) ← 20109 Noodles, egg, dry, enriched
+Jalapeno ← 11979 Peppers, jalapeno, raw
+Javorjev sirup ← 19353 Syrups, maple
+Ješprenj ← 20005 Barley, pearled, raw
+Jogurt navadni ← 1116 Yogurt, plain, whole milk
+Jušna kocka ← 6081 Soup, chicken broth cubes, dry
+Jušne zvezdice ← 20120 Pasta, dry, enriched
+Kakav v prahu ← 19165 Cocoa, dry powder, unsweetened
+Kalčki ← 11043 Mung beans, mature seeds, sprouted, raw
+Kapre ← 2054 Capers, canned
+Kari (curry) začimba ← 2015 Spices, curry powder
+Kari pasta ← 2015 Spices, curry powder + 4053 Oil, olive, salad or cooking + 11819 Peppers, hot chili, red, raw
+Kava mleta ← 14209 Beverages, coffee, brewed, prepared with tap water
+Kava za espresso ← 14210 Beverages, coffee, brewed, espresso, restaurant-prepared
+Kefir ← 1289 Kefir, lowfat, plain, LIFEWAY
+Ketchup ← 11935 Catsup
+Kis ← 2053 Vinegar, distilled
+Kisla repa ← 11439 Sauerkraut, canned, solids and liquids
+Kisla smetana ← 1056 Cream, sour, cultured
+Kisle kumarice ← 11937 Pickles, cucumber, dill or kosher dill
+Kislo mleko ← 1116 Yogurt, plain, whole milk
+Kislo zelje ← 11439 Sauerkraut, canned, solids and liquids
+Kitajski rezanci ← 20113 Noodles, chinese, chow mein
+Kitajsko zelje ← 11119 Cabbage, chinese (pe-tsai), raw
+Kivi ← 9148 Kiwifruit, green, raw
+Klobase za žar ← 7015 Bratwurst, pork, beef, link
+Kokosova aminos omaka ← 16124 Soy sauce made from soy (tamari)
+Kokosova moka (nariban kokos) ← 12108 Nuts, coconut meat, dried (desiccated), not sweetened
+Kokosovo mleko ← 12118 Nuts, coconut milk, canned (liquid expressed from grated meat and water)
+Koleraba ← 11241 Kohlrabi, raw
+Koper ← 2045 Dill weed, fresh
+Korenje ← 11124 Carrots, raw
+Koriander (svež) ← 11165 Coriander (cilantro) leaves, raw
+Koruza v pločevinki ← 11172 Corn, sweet, yellow, canned, whole kernel, drained solids
+Koruzna moka ← 20020 Cornmeal, whole-grain, yellow
+Koruzni kosmiči ← 8506 Cereals ready-to-eat, RALSTON Corn Flakes
+Koruzni zdrob (polenta) ← 20022 Cornmeal, degermed, enriched, yellow
+Koruzni škrob ← 20027 Cornstarch
+Kostanj ← 12098 Nuts, chestnuts, european, raw, peeled
+Kozice ← 15270 Crustaceans, shrimp, raw
+Kozji sir ← 1159 Cheese, goat, soft type
+Kranjska klobasa ← 7968 Kielbasa, fully cooked, grilled
+Krekerji ← 18229 Crackers, standard snack-type, regular
+Kremni sir ← 1017 Cheese, cream
+Kristalka ← 11253 Lettuce, green leaf, raw
+Krompir ← 11352 Potatoes, flesh and skin, raw
+Kruh beli ← 18069 Bread, white, commercially prepared (includes soft bread crumbs)
+Kruh polnozrnati ← 18075 Bread, whole-wheat, commercially prepared
+Kruh s semeni ← 28397 Bread, multi-grain (includes whole-grain)
+Kruh črni ← 18060 Bread, rye
+Krušne drobtine ← 18079 Bread, crumbs, dry, grated, plain
+Krvavice ← 7005 Blood sausage
+Kuhana rdeča pesa ← 11081 Beets, cooked, boiled, drained
+Kumare ← 11205 Cucumber, with peel, raw
+Kumina ← 2014 Spices, cumin seed
+Kurkuma ← 2043 Spices, turmeric, ground
+Kus kus ← 20028 Couscous, dry
+Kvas (suhi) ← 18375 Leavening agents, yeast, baker's, active dry
+Kvas (sveži) ← 18374 Leavening agents, yeast, baker's, compressed
+Kvinoja ← 20035 Quinoa, uncooked
+Lanena semena ← 12220 Seeds, flaxseed
+Lepinje ← 18041 Bread, pita, white, enriched
+Leča ← 16069 Lentils, raw
+Lešniki ← 12120 Nuts, hazelnuts or filberts
+Lešniki mleti ← 12120 Nuts, hazelnuts or filberts
+Lešnikov namaz ← 19125 Chocolate-flavored hazelnut spread
+Lignji ← 15175 Mollusks, squid, mixed species, raw
+Limete ← 9159 Limes, raw
+Limone ← 9150 Lemons, raw, without peel
+Lističi za lazanjo ← 20120 Pasta, dry, enriched
+Listnato testo ← 18337 Puff pastry, frozen, ready-to-bake
+Losos file ← 15236 Fish, salmon, Atlantic, farmed, raw
+Lovorjev list ← 2004 Spices, bay leaf
+Lubenica ← 9326 Watermelon, raw
+Majaron ← 2023 Spices, marjoram, dried
+Majoneza ← 4025 Salad dressing, mayonnaise, regular
+Mak ← 2033 Spices, poppy seed
+Makaroni ← 20120 Pasta, dry, enriched
+Maline ← 9302 Raspberries, raw
+Mandlji ← 12061 Nuts, almonds
+Mandlji mleti ← 12061 Nuts, almonds
+Mango ← 9176 Mangos, raw
+Marelice ← 9021 Apricots, raw
+Marmelada ← 19297 Jams and preserves
+Mascarpone ← 1017 Cheese, cream + 1053 Cream, fluid, heavy whipping
+Maslena buča ← 11485 Squash, winter, butternut, raw
+Maslo ← 1145 Butter, without salt
+Mast ← 4002 Lard
+Med ← 19296 Honey
+Mehiška začimba ← 2009 Spices, chili powder
+Melona ← 9181 Melons, cantaloupe, raw
+Meta ← 2065 Spearmint, fresh
+Mešana solata ← 11253 Lettuce, green leaf, raw
+Mešani morski sadeži ← 15270 Crustaceans, shrimp, raw + 15175 Mollusks, squid, mixed species, raw + 15164 Mollusks, mussel, blue, raw
+Mešanica za palačinke ← 18289 Pancakes, plain, dry mix, complete (includes buttermilk)
+Mlada čebula ← 11291 Onions, spring or scallions (includes tops and bulb), raw
+Mlada špinača (baby) ← 11457 Spinach, raw
+Mladi krompir ← 11352 Potatoes, flesh and skin, raw
+Mleko ← 1079 Milk, reduced fat, fluid, 2% milkfat, with added vitamin A and vitamin D
+Mleto goveje meso ← 23572 Beef, ground, 80% lean meat / 20% fat, raw
+Mleto meso ← 23572 Beef, ground, 80% lean meat / 20% fat, raw + 10219 Pork, fresh, ground, raw
+Mleto svinjsko meso ← 10219 Pork, fresh, ground, raw
+Mlinci ← 20120 Pasta, dry, enriched
+Moka bela ← 20081 Wheat flour, white, all-purpose, enriched, bleached
+Moka polnozrnata ← 20080 Wheat flour, whole-grain (Includes foods for USDA's Food Distribution Program)
+Moka za pico (tip 00) ← 20081 Wheat flour, white, all-purpose, enriched, bleached
+Morska sol ← 2047 Salt, table
+Motovilec ← 11253 Lettuce, green leaf, raw
+Mozzarella ← 1026 Cheese, mozzarella, whole milk
+Muškatni orešček ← 2025 Spices, nutmeg, ground
+Nariban sir ← 1022 Cheese, gouda
+Njoki ← 11352 Potatoes, flesh and skin, raw + 20081 Wheat flour, white, all-purpose, enriched, bleached
+Njoki (sveži) ← 11352 Potatoes, flesh and skin, raw + 20081 Wheat flour, white, all-purpose, enriched, bleached
+Nori listi ← 11446 Seaweed, laver, raw
+Ocvirki ← 19041 Snacks, pork skins, plain
+Ohrovt ← 11114 Cabbage, savoy, raw
+Olive ← 9193 Olives, ripe, canned (small-extra large)
+Olivno olje ← 4053 Oil, olive, salad or cooking
+Olje sončnično ← 4506 Oil, sunflower, linoleic, (approx. 65%)
+Olje za cvrtje ← 4506 Oil, sunflower, linoleic, (approx. 65%)
+Omaka BBQ ← 6150 Sauce, barbecue
+Orada ← 15101 Fish, snapper, mixed species, raw
+Orehi ← 12155 Nuts, walnuts, english
+Origano ← 2027 Spices, oregano, dried
+Oslič file ← 15132 Fish, whiting, mixed species, raw
+Ostra paprika ← 11819 Peppers, hot chili, red, raw
+Ovseni kosmiči ← 8120 Cereals, oats, regular and quick, not fortified, dry
+Ovseni napitek ← 8120 Cereals, oats, regular and quick, not fortified, dry + 4506 Oil, sunflower, linoleic, (approx. 65%)
+Palčke slane ← 19047 Snacks, pretzels, hard, plain, salted
+Paprika ← 11333 Peppers, sweet, green, raw
+Paradižnik ← 11529 Tomatoes, red, ripe, raw, year round average
+Paradižnikov koncentrat ← 11546 Tomato products, canned, paste, without salt added (Includes foods for USDA's Food Distribution Program)
+Paradižnikova mezga ← 11547 Tomato products, canned, puree, without salt added
+Paradižnikova omaka (pasata) ← 11547 Tomato products, canned, puree, without salt added
+Parmezan ← 1033 Cheese, parmesan, hard
+Pastinak ← 11298 Parsnips, raw
+Pašteta ← 7055 Pate, liver, not specified, canned
+Pecilni prašek ← 18369 Leavening agents, baking powder, double-acting, sodium aluminum sulfate
+Pehtran ← 2041 Spices, tarragon, dried
+Pelati ← 11531 Tomatoes, red, ripe, canned, packed in tomato juice
+Pesa ← 11080 Beets, raw
+Pesto ← 6626 Sauce, pesto, ready-to-serve, refrigerated
+Pesto rosso ← 6626 Sauce, pesto, ready-to-serve, refrigerated
+Peteršilj ← 11297 Parsley, fresh
+Peteršiljeva korenina ← 11298 Parsnips, raw
+Petit beurre ← 18155 Cookies, butter, commercially prepared, enriched
+Pečena paprika v kozarcu ← 11916 Peppers, sweet, red, canned, solids and liquids
+Pečenice ← 7015 Bratwurst, pork, beef, link
+Pire krompir v prahu ← 11378 Potatoes, mashed, dehydrated, flakes without milk, dry form
+Pirina moka ← 20140 Spelt, uncooked
+Pita kruh ← 18041 Bread, pita, white, enriched
+Pivo ← 14003 Alcoholic beverage, beer, regular, all
+Piškoti ← 18155 Cookies, butter, commercially prepared, enriched
+Piškoti za tiramisu ← 18175 Cookies, ladyfingers, with lemon juice and rind
+Piščančja bedra ← 5091 Chicken, broilers or fryers, thigh, meat and skin, raw
+Piščančja jetrca ← 5027 Chicken, liver, all classes, raw
+Piščančja krača ← 5091 Chicken, broilers or fryers, thigh, meat and skin, raw
+Piščančje perutničke ← 5100 Chicken, broilers or fryers, wing, meat and skin, raw
+Piščančji bobrčki ← 5066 Chicken, broilers or fryers, drumstick, meat and skin, raw
+Piščančji file ← 5062 Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw
+Piščančji nuggetsi ← 5323 Chicken patty, frozen, uncooked
+Pleskavice za žar ← 23572 Beef, ground, 80% lean meat / 20% fat, raw + 10219 Pork, fresh, ground, raw
+Polži (testenine za juho) ← 20120 Pasta, dry, enriched
+Pomaranče ← 9200 Oranges, raw, all commercial varieties
+Pomfri ← 11842 Potatoes, french fried, all types, salt not added in processing, frozen, as purchased
+Poper ← 2030 Spices, pepper, black
+Poper v zrnju ← 2030 Spices, pepper, black
+Por ← 11246 Leeks, (bulb and lower leaf-portion), raw
+Postrv ← 15240 Fish, trout, rainbow, farmed, raw
+Prekajena šunka ← 7029 Ham, sliced, regular (approximately 11% fat)
+Prosena kaša ← 20031 Millet, raw
+Provansalska zelišča ← 2042 Spices, thyme, dried
+Pršut ← 10136 Pork, cured, ham, boneless, regular (approximately 11% fat), roasted
+Puding v prahu ← 19206 Puddings, vanilla, dry mix, regular
+Puranje prsi narezek ← 7081 Turkey breast, sliced, prepackaged
+Puranji file ← 5219 Turkey, whole, breast, meat only, raw
+Puranji zrezki ← 5219 Turkey, whole, breast, meat only, raw
+Pšenični zdrob ← 20066 Semolina, enriched
+Rabarbara ← 9307 Rhubarb, raw
+Raca ← 5139 Duck, domesticated, meat and skin, raw
+Radič ← 11952 Radicchio, raw
+Rastlinska sladka smetana ← 1073 Dessert topping, semi solid, frozen
+Rastlinska smetana za kuhanje ← 12118 Nuts, coconut milk, canned (liquid expressed from grated meat and water) + 14639 Beverages, rice milk, unsweetened
+Rastlinske hrenovke ← 43130 Frankfurter, meatless
+Rastlinski burger ← 16147 Veggie burgers or soyburgers, unprepared
+Rastlinski jogurt ← 16252 SILK Plain soy yogurt
+Rastlinski sladoled ← 19283 Frozen novelties, ice type, pop
+Rastlinsko maslo ← 4617 Margarine, regular, 80% fat, composite, stick, without salt
+Rastlinsko mleto meso ← 16106 Meat extender
+Ravioli ← 20093 Pasta, fresh-refrigerated, plain, as purchased + 1036 Cheese, ricotta, whole milk
+Rdeča leča ← 16144 Lentils, pink or red, raw
+Rdeča paprika ← 11821 Peppers, sweet, red, raw
+Rdeča čebula ← 11282 Onions, raw
+Rdeče zelje ← 11112 Cabbage, red, raw
+Rdeči fižol v pločevinki ← 16145 Beans, kidney, red, mature seeds, canned, drained solids
+Redkvica ← 11429 Radishes, raw
+Ribje palčke ← 15027 Fish, fish sticks, frozen, prepared
+Ricotta ← 1036 Cheese, ricotta, whole milk
+Riž ← 20044 Rice, white, long-grain, regular, raw, enriched
+Riž basmati ← 20044 Rice, white, long-grain, regular, raw, enriched
+Riž jasmin ← 20044 Rice, white, long-grain, regular, raw, enriched
+Riž za mlečni riž ← 20452 Rice, white, short-grain, raw, unenriched
+Riž za rižoto ← 20050 Rice, white, medium-grain, raw, enriched
+Riž za suši ← 20452 Rice, white, short-grain, raw, unenriched
+Rižev kis ← 2053 Vinegar, distilled
+Rižev napitek ← 14639 Beverages, rice milk, unsweetened
+Riževi rezanci ← 20133 Rice noodles, dry
+Rjavi sladkor ← 19334 Sugars, brown
+Robide ← 9042 Blackberries, raw
+Rogljiček ← 18239 Croissants, butter
+Rozine ← 9298 Raisins, dark, seedless (Includes foods for USDA's Food Distribution Program)
+Rožmarin ← 2063 Rosemary, fresh
+Rukola ← 11959 Arugula, raw
+Salama ← 7072 Salami, dry or hard, pork, beef
+Salsa omaka ← 6164 Sauce, salsa, ready-to-serve
+Sardele (sveže) ← 15001 Fish, anchovy, european, raw
+Sardine ← 15088 Fish, sardine, Atlantic, canned in oil, drained solids with bone
+Seitan ← 48052 Vital wheat gluten
+Sezam ← 12023 Seeds, sesame seeds, whole, dried
+Sezamovo olje ← 4058 Oil, sesame, salad or cooking
+Sir Cheddar ← 1270 Cheese, cheddar, sharp, sliced
+Sir Edamec ← 1018 Cheese, edam
+Sir Ementalec ← 1040 Cheese, swiss
+Sir Gauda ← 1022 Cheese, gouda
+Sir Gorgonzola ← 1004 Cheese, blue
+Sir Halloumi ← 1026 Cheese, mozzarella, whole milk + 1019 Cheese, feta
+Sir Pecorino ← 1038 Cheese, romano
+Sir Tolminc ← 1023 Cheese, gruyere
+Sir v lističih ← 1022 Cheese, gouda
+Sir za pico ← 1029 Cheese, mozzarella, low moisture, part-skim
+Sir za žar ← 1026 Cheese, mozzarella, whole milk + 1019 Cheese, feta
+Sirni namaz ← 1048 Cheese spread, pasteurized process, American
+Skuta ← 1015 Cheese, cottage, lowfat, 2% milkfat
+Skuše v pločevinki ← 15048 Fish, mackerel, jack, canned, drained solids
+Sladka koruza (storž) ← 11167 Corn, sweet, yellow, raw
+Sladka paprika ← 2028 Spices, paprika
+Sladka smetana ← 1053 Cream, fluid, heavy whipping
+Sladki krompir ← 11507 Sweet potato, raw, unprepared (Includes foods for USDA's Food Distribution Program)
+Sladkor ← 19335 Sugars, granulated
+Sladkor v prahu ← 19336 Sugars, powdered
+Sladoled ← 19095 Ice creams, vanilla
+Slanina ← 10123 Pork, cured, bacon, unprepared
+Slive ← 9279 Plums, raw
+Smetana za kuhanje ← 1050 Cream, fluid, light (coffee cream or table cream)
+Smoki ← 16087 Peanuts, all types, raw + 19008 Snacks, corn-based, extruded, puffs or twists, cheese-flavor
+Soda bikarbona ← 18372 Leavening agents, baking soda
+Sojina omaka ← 16123 Soy sauce made from soy and wheat (shoyu)
+Sok pomarančni ← 9206 Orange juice, raw (Includes foods for USDA's Food Distribution Program)
+Sol ← 2047 Salt, table
+Solata (zelena) ← 11253 Lettuce, green leaf, raw
+Solata ledenka ← 11252 Lettuce, iceberg (includes crisphead types), raw
+Solata rimska ← 11251 Lettuce, cos or romaine, raw
+Solatni preliv ← 4114 Salad dressing, italian dressing, commercial, regular
+Sončnična semena ← 12036 Seeds, sunflower seed kernels, dried
+Stročji fižol ← 11052 Beans, snap, green, raw
+Suhe brusnice ← 9079 Cranberries, dried, sweetened (Includes foods for USDA's Food Distribution Program)
+Suhe marelice ← 9032 Apricots, dried, sulfured, uncooked
+Suhe slive ← 9291 Plums, dried (prunes), uncooked
+Svinjska pečenka ← 10020 Pork, fresh, loin, whole, separable lean and fat, raw
+Svinjska plečka ← 10070 Pork, fresh, shoulder, whole, separable lean and fat, raw
+Svinjska rebrca ← 10088 Pork, fresh, spareribs, separable lean and fat, raw
+Svinjska ribica ← 10218 Pork, fresh, loin, tenderloin, separable lean and fat, raw
+Svinjska vratovina ← 10080 Pork, fresh, shoulder, (Boston butt), blade (steaks), separable lean and fat, raw
+Svinjski kotleti ← 10020 Pork, fresh, loin, whole, separable lean and fat, raw
+Svinjski zrezki ← 10024 Pork, fresh, loin, whole, separable lean only, raw
+Sweet chili omaka ← 27050 Sauce, sweet and sour, ready-to-serve
+Taco školjke ← 18360 Taco shells, baked
+Tahini (sezamova pasta) ← 12166 Seeds, sesame butter, tahini, from roasted and toasted kernels (most common type)
+Tamari omaka ← 16124 Soy sauce made from soy (tamari)
+Tatarska omaka ← 4025 Salad dressing, mayonnaise, regular
+Teletina ← 17088 Veal, composite of trimmed retail cuts, separable lean and fat, raw
+Telečji zrezki ← 17094 Veal, leg (top round), separable lean and fat, raw
+Temna čokolada za kuhanje ← 19904 Chocolate, dark, 70-85% cacao solids
+Tempeh ← 16114 Tempeh
+Teriyaki omaka ← 6112 Sauce, teriyaki, ready-to-serve
+Testenine fusilli ← 20120 Pasta, dry, enriched
+Testenine metuljčki ← 20120 Pasta, dry, enriched
+Testenine peresniki ← 20120 Pasta, dry, enriched
+Testenine polnozrnate ← 20124 Pasta, whole-wheat, dry (Includes foods for USDA's Food Distribution Program)
+Testenine polžki ← 20120 Pasta, dry, enriched
+Testenine tagliatelle ← 20109 Noodles, egg, dry, enriched
+Testenine špageti ← 20120 Pasta, dry, enriched
+Testo za pico ← 20081 Wheat flour, white, all-purpose, enriched, bleached + 4053 Oil, olive, salad or cooking + 2047 Salt, table
+Timijan ← 2049 Thyme, fresh
+Toast kruh ← 18069 Bread, white, commercially prepared (includes soft bread crumbs)
+Tofu ← 16426 Tofu, raw, firm, prepared with calcium sulfate
+Topinambur ← 11226 Jerusalem-artichokes, raw
+Tortelini (sveži) ← 20093 Pasta, fresh-refrigerated, plain, as purchased + 1036 Cheese, ricotta, whole milk
+Tortilja čips ← 19056 Snacks, tortilla chips, plain, white corn, salted
+Tortilje ← 18364 Tortillas, ready-to-bake or -fry, flour, refrigerated
+Tuna file (svež) ← 15127 Fish, tuna, fresh, yellowfin, raw
+Tuna v olju ← 15119 Fish, tuna, light, canned in oil, drained solids
+Tuna v pločevinki ← 15121 Fish, tuna, light, canned in water, drained solids (Includes foods for USDA's Food Distribution Program)
+Vanilijev sladkor ← 19335 Sugars, granulated
+Veganska majoneza ← 4145 Salad dressing, mayonnaise, soybean oil, without salt
+Veganski kremni sir ← 12087 Nuts, cashew nuts, raw
+Veganski pesto ← 4053 Oil, olive, salad or cooking + 2044 Basil, fresh + 12036 Seeds, sunflower seed kernels, dried
+Veganski sir ← 4047 Oil, coconut + 20027 Cornstarch
+Vino belo ← 14106 Alcoholic beverage, wine, table, white
+Vino rdeče ← 14096 Alcoholic beverage, wine, table, red
+Vinski kis ← 2068 Vinegar, red wine
+Vlečeno testo ← 18338 Phyllo dough
+Wasabi ← 11990 Wasabi, root, raw
+Worcester omaka ← 6971 Sauce, worcestershire
+Zamrznjena kitajska mešanica ← 11583 Vegetables, mixed, frozen, unprepared
+Zamrznjena mešanica za juho ← 11583 Vegetables, mixed, frozen, unprepared
+Zamrznjena zelenjava ← 11583 Vegetables, mixed, frozen, unprepared
+Zamrznjena špinača ← 11463 Spinach, frozen, chopped or leaf, unprepared (Includes foods for USDA's Food Distribution Program)
+Zamrznjene jagode ← 9318 Strawberries, frozen, unsweetened (Includes foods for USDA's Food Distribution Program)
+Zamrznjene kozice ← 15270 Crustaceans, shrimp, raw
+Zamrznjeni file postrvi ← 15240 Fish, trout, rainbow, farmed, raw
+Zamrznjeni grah ← 11312 Peas, green, frozen, unprepared (Includes foods for USDA's Food Distribution Program)
+Zamrznjeni štruklji ← 20081 Wheat flour, white, all-purpose, enriched, bleached + 1015 Cheese, cottage, lowfat, 2% milkfat + 1123 Egg, whole, raw, fresh + 1145 Butter, without salt
+Zamrznjeno sadje ← 9318 Strawberries, frozen, unsweetened (Includes foods for USDA's Food Distribution Program)
+Začimba za piščanca ← 2034 Spices, poultry seasoning
+Začimba za žar ← 2028 Spices, paprika
+Zelena (gomolj) ← 11141 Celeriac, raw
+Zelje ← 11109 Cabbage, raw
+Čebula ← 11282 Onions, raw
+Česen ← 11215 Garlic, raw
+Česen v prahu ← 2020 Spices, garlic powder
+Čevapčiči ← 23572 Beef, ground, 80% lean meat / 20% fat, raw + 10219 Pork, fresh, ground, raw
+Češnje ← 9070 Cherries, sweet, raw
+Češnjev paradižnik ← 11529 Tomatoes, red, ripe, raw, year round average
+Čili v prahu ← 2009 Spices, chili powder
+Čips ← 19411 Snacks, potato chips, plain, salted
+Čičerika ← 16358 Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids
+Čokolada za kuhanje ← 19903 Chocolate, dark, 60-69% cacao solids
+Čokoladne kapljice ← 19080 Candies, semisweet chocolate
+Čorizo ← 7019 Sausage, pork, chorizo, link or ground, raw
+Šitake ← 11238 Mushrooms, shiitake, raw
+Školjke (dagnje) ← 15164 Mollusks, mussel, blue, raw
+Šparglji ← 11011 Asparagus, raw
+Špinača ← 11457 Spinach, raw
+Šunka ← 7029 Ham, sliced, regular (approximately 11% fat)
+Žafran ← 2037 Spices, saffron
+Želatina ← 19177 Gelatins, dry powder, unsweetened
+Žemlje ← 18350 Rolls, hamburger or hotdog, plain
