@@ -1,0 +1,33 @@
+name: Google Play oddaja
+
+# Odda zadnji Nakupko.aab iz izdaje "android" v Google Play. »Kaj je novega« vzame iz kaj-je-novega.json na veji rabis-kaj.
+# V production samo z izrecnim OK uporabnika (pravilo o popolni izdaji: reklame, verzija, funkcije).
+on:
+  workflow_dispatch:
+    inputs:
+      tir:
+        description: "internal | alpha | beta | production"
+        default: "internal"
+      status:
+        description: "completed | draft"
+        default: "completed"
+
+jobs:
+  oddaja:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          gh release download android -p Nakupko.aab -D "$RUNNER_TEMP"
+          git fetch -q origin rabis-kaj && git show origin/rabis-kaj:.github/scripts/kaj-je-novega.json > "$RUNNER_TEMP/opombe.json" || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - run: pip install google-api-python-client google-auth
+      - run: python3 .github/scripts/play-oddaja.py
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PAKET: si.nakupko.app
+          AAB: ${{ runner.temp }}/Nakupko.aab
+          OPOMBE: ${{ runner.temp }}/opombe.json
+          TIR: ${{ inputs.tir }}
+          STATUS: ${{ inputs.status }}
