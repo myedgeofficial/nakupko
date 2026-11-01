@@ -1441,6 +1441,93 @@
     { a: "Cesta pod Rifnikom 24, 3230 Šentjur", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.20811, lon: 15.39979 },
     { a: "Kolodvorska ulica 2a, 3240 Šmarje pri Jelšah", h: "Mo-Fr 07:00-20:00; Sa 07:00-19:00; Su off", lat: 46.22993, lon: 15.51968 }
   ];
+  // Uradni seznam Eurospin (eurospin.si/prodajna-mesta, 1. 11. 2026): OpenStreetMap jih nima vseh.
+  // Delovni čas: pon–sob 8–20 (na strani je bila sobota 31. 10. praznik, zato »zaprto«).
+  var EUROSPIN_STORES = [
+    { a: "Šeškova ulica 1, 2212 Šentilj", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.67432, lon: 15.65641 },
+    { a: "Zemljičeva ulica 36, 2000 Maribor", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.54594, lon: 15.68133 },
+    { a: "Poljska ulica 1, 2000 Maribor", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.53612, lon: 15.65939 },
+    { a: "Partizanska cesta 86, 6210 Sežana", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.70587, lon: 13.85762 },
+    { a: "Arclin 103, 3211 Škofja vas", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.28012, lon: 15.30133 },
+    { a: "Ulica Štefana Kovaca 40a, 9000 Murska Sobota", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.66291, lon: 16.14734 },
+    { a: "Skladišcna ulica 17, 4270 Jesenice", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.43019, lon: 14.06388 },
+    { a: "Vilharjeva cesta 42, 1000 Ljubljana", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.05979, lon: 14.51842 },
+    { a: "Šmarska cesta 4, 6000 Koper-Capodistria", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.53388, lon: 13.7345 },
+    { a: "Bleiweisova cesta 30, 4000 Kranj", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.25355, lon: 14.35163 },
+    { a: "Cesta bratstva in enotnosti 134, 8330 Metlika", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.63835, lon: 15.32154 },
+    { a: "Ljutomerska cesta 13 A, 9250 Gornja Radgona", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.67015, lon: 15.99749 },
+    { a: "Hardek 44 H, 2270 Ormož", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.41069, lon: 16.16147 },
+    { a: "Industrijska cesta 9 C, 6310 Izola-Isola", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.53537, lon: 13.67109 },
+    { a: "Cesta svobode 12, 8250 Brežice", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.90816, lon: 15.60234 },
+    { a: "Pot Rdecega križa 61, 1000 Ljubljana", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.04571, lon: 14.46096 },
+    { a: "Cesta Jaka Platiše 16, 4000 Kranj", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.23765, lon: 14.36923 },
+    { a: "Liminjanska cesta 102 B, 6320 Portorož - Portorose", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.50648, lon: 13.61632 },
+    { a: "Tržaška cesta 67, 2000 Maribor", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.52152, lon: 15.65269 },
+    { a: "Kidriceva ulica 10, 2380 Slovenj Gradec", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.51596, lon: 15.08106 },
+    { a: "Podpeška cesta 16, 1351 Brezovica pri Ljubljani", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.0212, lon: 14.41635 },
+    { a: "Cesta proletarskih brigad 101, 2000 Maribor", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.54629, lon: 15.62126 },
+    { a: "Stantetova 9, 1295 Ivancna Gorica", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.93773, lon: 14.8033 },
+    { a: "Prihova ul. 56, 3331 Nazarje", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.32208, lon: 14.94751 },
+    { a: "Bazoviška cesta 17, 6240 Kozina", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.6088, lon: 13.93428 },
+    { a: "Podskrajnik 16 B, 1380 Cerknica", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.79685, lon: 14.33701 },
+    { a: "Spodnja recica 10, 3270 Laško", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.16259, lon: 15.22426 },
+    { a: "Kocevarjeva ulica 5, 8000 Novo Mesto", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.81481, lon: 15.15426 },
+    { a: "Nove Fužine 28, 1120 Ljubljana", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.05676, lon: 14.55573 },
+    { a: "Kolodvorska cesta 3, 6000 Koper-Capodistria", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.54333, lon: 13.73519 },
+    { a: "Ob Poleni 35, 2230 Lenart v Slovenskih Goricah", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.57448, lon: 15.82297 },
+    { a: "Pod Gonjami 79A, 2391 Prevalje", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.54605, lon: 14.92973 },
+    { a: "Lendavska ulica 66C, 9000 Murska Sobota", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.6668, lon: 16.18004 },
+    { a: "Avšiceva ulica 2 A, 8000 Novo Mesto", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.79608, lon: 15.17928 },
+    { a: "Celjska cesta 4, 3320 Velenje", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.35557, lon: 15.11696 },
+    { a: "Ormoška cesta 3A, 2250 Ptuj", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.41879, lon: 15.87684 },
+    { a: "Vilharjeva cesta 33b, 6250 Ilirska Bistrica", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.57521, lon: 14.23227 },
+    { a: "Kidriceva cesta 45 a, 4220 Škofja Loka", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.17265, lon: 14.32591 },
+    { a: "Ljubljanska cesta 45, 1241 Kamnik", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.20025, lon: 14.59471 },
+    { a: "Cesta talcev 10, 1370 Logatec", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.91495, lon: 14.22164 },
+    { a: "Adamiceva cesta 42, 1290 Grosuplje", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.95551, lon: 14.6644 },
+    { a: "Hraška cesta 24, 4248 Lesce", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.36679, lon: 14.16122 },
+    { a: "Dunajska cesta 421, 1231 Ljubljana", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.10566, lon: 14.53692 },
+    { a: "Kolodvorska 2D, 9220 Lendava", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.56228, lon: 16.45008 },
+    { a: "Spodnje Negonje 27/b, 3250 Rogaška Slatina", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.25403, lon: 15.61807 },
+    { a: "Trg tigrovcev 3, 5220 Tolmin", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.18231, lon: 13.72767 },
+    { a: "Vipavska cesta 4, 5270 Ajdovšcina", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.88396, lon: 13.90422 },
+    { a: "Deckova cesta 41a, 3000 Celje", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.24071, lon: 15.25658 },
+    { a: "Ul. Ivanke Uranjek 1, 3310 Žalec", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.25083, lon: 15.16808 },
+    { a: "Italijanska ulica 7, 1000 Ljubljana", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.06678, lon: 14.54402 },
+    { a: "Obrtniška ulica 32, 8210 Trebnje", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.91101, lon: 15.02648 },
+    { a: "Žnidarciceva ulica 3, 5290 Šempeter pri Gorici", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.93034, lon: 13.63681 },
+    { a: "Obrežje 3, 1433 Radece", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.06528, lon: 15.19046 },
+    { a: "Liptovska ulica 40 b, 3210 Slovenske Konjice", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.34136, lon: 15.41736 },
+    { a: "Tržaška cesta 61, 6230 Postojna", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.77191, lon: 14.19906 },
+    { a: "Mokraška vas 3, 5280 Idrija", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.02229, lon: 14.03006 },
+    { a: "Vojkova cesta 49, 5000 Nova Gorica", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.96294, lon: 13.64999 },
+    { a: "Ulica mladinskih del. brigad 2, 8273 Leskovec pri Krškem", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.93936, lon: 15.48416 },
+    { a: "Ljubljanska cesta 36A, 1330 Kočevje", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.64796, lon: 14.85485 },
+    { a: "Premrlova ulica 14, 1000 Ljubljana", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.0281, lon: 14.52943 }
+  ];
+  // Dežurne trgovine, ki jih v OpenStreetMap ni (Teo, 1. 11. 2026). Delovni čas ni znan, zato ga ne izmišljujemo.
+  var DUTY_STORES = [
+    { n: "Market Ekspres", a: "Šentiljska cesta 71, Maribor", lat: 46.5763, lon: 15.65745 },
+    { n: "Market Korenček", a: "Jurančičeva ulica 9A, Maribor", lat: 46.54532, lon: 15.67182 },
+    { n: "Market Betka", a: "Zagernikova ulica 14, Maribor", lat: 46.54204, lon: 15.6872 },
+    { n: "Market Betka", a: "Cesta XIV. divizije 106, Maribor", lat: 46.54446, lon: 15.67706 },
+    { n: "Market Betka", a: "Ulica borcev 1B, Maribor", lat: 46.53634, lon: 15.68835 }
+  ];
+  // Iz uradnih seznamov dodamo trgovine v okolici, ki jih OpenStreetMap nima (ista veriga ali dežurna v 250 m).
+  function missingOfficial(p, list) {
+    var out = [];
+    [["eurospin", "Eurospin", EUROSPIN_STORES]].forEach(function (c) {
+      c[2].forEach(function (j) {
+        if (distM(p, j) > 3000 || list.some(function (s) { return s.chain === c[0] && distM(s, j) < 250; })) return;
+        out.push({ id: "uradno/" + c[0] + "/" + j.lat + "," + j.lon, name: c[1] + ", " + j.a, short: c[1], chain: c[0], duty: false, lat: j.lat, lon: j.lon, hours: j.h });
+      });
+    });
+    DUTY_STORES.forEach(function (j) {
+      if (distM(p, j) > 3000 || list.some(function (s) { return s.duty && distM(s, j) < 250; })) return;
+      out.push({ id: "uradno/duty/" + j.lat + "," + j.lon, name: j.n + ", " + j.a, short: j.n, chain: null, duty: true, lat: j.lat, lon: j.lon, hours: "" });
+    });
+    return out;
+  }
   function missingJager(p, list) {
     return JAGER_STORES.filter(function (j) {
       if (distM(p, j) > 3000) return false;
@@ -1500,7 +1587,7 @@
             var addr = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
             return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || defHours || "" };
           }).filter(Boolean);
-          if (!tuj) stores = stores.concat(missingJager(p, stores));
+          if (!tuj) stores = stores.concat(missingJager(p, stores), missingOfficial(p, stores));
           applyOfficial(stores);
           lastFetchPos = { lat: p.lat, lon: p.lon };
           state.storesCache = { pos: lastFetchPos, list: stores, at: Date.now(), country: ctry };
