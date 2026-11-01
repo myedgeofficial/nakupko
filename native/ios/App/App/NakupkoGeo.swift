@@ -5,6 +5,7 @@ import UserNotifications
 import Capacitor
 import ActivityKit
 import MapKit
+import WebKit
 
 // Nakupko: zaznavanje trgovin tudi, ko je aplikacija zaprta.
 //
@@ -1367,5 +1368,13 @@ class MainViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         bridge?.registerPluginInstance(NakupkoGeoPlugin())
         bridge?.registerPluginInstance(NakupkoPayPlugin())
+        // Regija iz Nastavitve → Splošno → Jezik in regija (od kod je človek, ne kje je zdaj).
+        // i18n.js jo prebere ob zagonu: Slovenija → slovenščina, tudi če je iPhone v angleščini.
+        let region: String?
+        if #available(iOS 16, *) { region = Locale.current.region?.identifier } else { region = Locale.current.regionCode }
+        if let r = region, r.count == 2, r.allSatisfy({ $0.isLetter }) {
+            let script = WKUserScript(source: "window.NK_HOME=\"\(r.uppercased())\";", injectionTime: .atDocumentStart, forMainFrameOnly: true)
+            webView?.configuration.userContentController.addUserScript(script)
+        }
     }
 }

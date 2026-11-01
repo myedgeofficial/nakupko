@@ -1,8 +1,9 @@
 // Nakupko v več jezikih: prevede besedila na zaslonu (slovenska koda ostane nespremenjena).
 //
-// Jezik: ročna izbira v Nastavitvah, sicer samodejno po državi, v kateri je telefon (drzave.js),
-// in ne po jeziku telefona. Dokler države še ne poznamo, jezik telefona (če prevod obstaja).
-// Če za jezik države prevoda še ni, angleščina.
+// Jezik: ročna izbira v Nastavitvah. Sicer v aplikaciji po tem, od kod je človek (regija iPhona oz.
+// država SIM na Androidu): Slovenija → slovenščina, tudi če je telefon v angleščini; ostali → jezik
+// telefona (turist v Sloveniji dobi svoj jezik). Na spletu in brez te podatke po državi, v kateri je
+// telefon (drzave.js). Če prevoda ni, angleščina.
 //
 // Prevodi so v i18n/xx.js (en jezik = ena datoteka, ključi so slovenska besedila); nov jezik dodaš
 // z novo datoteko in vrstico v PACKS. Pogon (tr, opazovanje strani, pogovorna okna) je skupen.
@@ -36,7 +37,17 @@
     try { if (Intl.DateTimeFormat().resolvedOptions().timeZone === "Europe/Ljubljana") return "SI"; } catch (e) { /* nič */ }
     return null;
   }
+  // Domača država iz telefona: iOS regija (window.NK_HOME, MainViewController), Android država SIM
+  // (window.NakupkoHome.region(), NakupkoGeoPlugin). Na spletu je ni.
+  function home() {
+    try {
+      var h = window.NK_HOME || (window.NakupkoHome && window.NakupkoHome.region && window.NakupkoHome.region());
+      return h && /^[A-Za-z]{2}$/.test(h) ? String(h).toUpperCase() : null;
+    } catch (e) { return null; }
+  }
+  var HOME = home();
   function autoLang() {
+    if (HOME) return HOME === "SI" ? "sl" : (supported((navigator.languages && navigator.languages[0]) || navigator.language) || "en");
     var c = country();
     if (c && c !== "XX") return countryLang(c);
     return supported((navigator.languages && navigator.languages[0]) || navigator.language) || "en";
@@ -48,7 +59,8 @@
   var ALKEY = "nakupko-lang-auto-2", ASKKEY = "nakupko-lang-asked";
   var saved = get(KEY);
   var MODE = saved && PACKS[saved] ? saved : "auto";
-  var LANG = MODE !== "auto" ? MODE : (supported(get(ALKEY)) || autoLang());
+  // Z domačo državo jezik ni odvisen od tega, kje si, zato shranjenega ne beremo.
+  var LANG = MODE !== "auto" ? MODE : ((!HOME && supported(get(ALKEY))) || autoLang());
   if (MODE === "auto" && get(ALKEY) !== LANG) set(ALKEY, LANG);
   window.NK_LANG = LANG;
   window.NK_LANG_MODE = MODE;
@@ -95,7 +107,7 @@
   window.NK_COUNTRY = function (c, canReload) {
     if (!c || c === "XX") return false;
     if (get(CKEY) !== c) set(CKEY, c);
-    if (MODE !== "auto") return false;
+    if (MODE !== "auto" || HOME) return false;
     var other = countryLang(c) || "en";
     if (other === LANG) { set(ASKKEY, c); return false; }
     if (get(ASKKEY) === c || !canReload || !document.body) return false;
