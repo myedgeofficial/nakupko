@@ -30,7 +30,11 @@
   function country() {
     var c = get(CKEY);
     if (c) return c;
-    try { var st = JSON.parse(get("nakupko-v2") || "null"); return (st && st.storesCache && st.storesCache.country) || null; } catch (e) { return null; }
+    try { var st = JSON.parse(get("nakupko-v2") || "null"); if (st && st.storesCache && st.storesCache.country) return st.storesCache.country; } catch (e) { /* nič */ }
+    // Ob prvem zagonu trgovine še niso naložene: slovenski časovni pas pomeni Slovenijo
+    // (iPhone v angleščini v Sloveniji naj ima Nakupko v slovenščini).
+    try { if (Intl.DateTimeFormat().resolvedOptions().timeZone === "Europe/Ljubljana") return "SI"; } catch (e) { /* nič */ }
+    return null;
   }
   function autoLang() {
     var c = country();
