@@ -677,6 +677,16 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rsh-i.on .rcb { background: var(--violet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E") center/14px no-repeat; border-color: var(--violet); }
 .rsh-i:not(.on) .rnm, .rsh-i:not(.on) .ram { opacity: .4; text-decoration: line-through; }
 .rsheet .rsh-add { margin-top: 8px; }
+/* okvirne prehranske vrednosti (hranila.js) */
+.rsh-nutri { margin-top: 14px; background: var(--panel); border-radius: 16px; padding: 12px 14px; }
+.rsh-nutri > summary { cursor: pointer; list-style: none; font-weight: 800; color: var(--ink); }
+.rsh-nutri > summary::after { content: "›"; float: right; color: var(--violet); font-size: 21px; line-height: 1; transition: transform .2s; }
+.rsh-nutri[open] > summary::after { transform: rotate(90deg); }
+.rsh-nv { display: grid; margin-top: 8px; }
+.rsh-nv div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); font-weight: 700; }
+.rsh-nv div:last-child { border-bottom: 0; }
+.rsh-nv b { color: var(--violet); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rsh-nutri p { margin: 8px 0 0; }
 
 /* kuhanje po korakih */
 .rsheet .rsh-cook { margin-top: 10px; background: var(--surface); color: var(--violet); border: 2px solid var(--violet); }

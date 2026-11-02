@@ -1,11 +1,14 @@
 package si.nakupko.app;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
+import android.telephony.TelephonyManager;
+import android.webkit.JavascriptInterface;
 import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import com.getcapacitor.JSArray;
@@ -18,6 +21,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import org.json.JSONArray;
+import java.util.Locale;
 
 // Most do spletnega dela (native.js) – enak vmesnik kot NakupkoGeo na iPhonu.
 @CapacitorPlugin(
@@ -28,10 +32,25 @@ import org.json.JSONArray;
 )
 public class NakupkoGeoPlugin extends Plugin {
     private GeoManager geo;
+
+    private String homeRegion() {
+        try {
+            TelephonyManager tm = (TelephonyManager) getContext().getSystemService(Context.TELEPHONY_SERVICE);
+            String sim = tm != null ? tm.getSimCountryIso() : null;
+            if (sim != null && sim.length() == 2) return sim.toUpperCase(Locale.ROOT);
+        } catch (Exception e) { /* brez SIM */ }
+        String c = Locale.getDefault().getCountry();
+        return c != null && c.length() == 2 ? c.toUpperCase(Locale.ROOT) : "";
+    }
     private boolean askedExtra, askedNotifications, alwaysRequested;
 
     @Override
     public void load() {
+        // Domača država (od kod je človek, ne kje je zdaj): država SIM, sicer regija telefona.
+        // i18n.js jo prebere ob zagonu: Slovenija → slovenščina, tudi če je telefon v angleščini.
+        getBridge().getWebView().addJavascriptInterface(new Object() {
+            @JavascriptInterface public String region() { return homeRegion(); }
+        }, "NakupkoHome");
         geo = GeoManager.get(getContext());
         geo.foreground = true;
         geo.setListener(new GeoManager.Listener() {

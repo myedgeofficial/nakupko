@@ -7,7 +7,7 @@
     "backgroundColor": "#FDF9FD"
   },
   "android": {
-    "includePlugins": [],
+    "includePlugins": ["@capacitor-community/admob"],
     "backgroundColor": "#FDF9FD"
   }
 }

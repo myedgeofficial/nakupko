@@ -67,6 +67,8 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/Nakupko.apk"
           # Google Play: ista koda, a z reklamami in naročnino (window.NAKUPKO_RELEASE).
           (cd .. && NAKUPKO_RELEASE=1 npm run sync:android)
+          # Brez vtičnika AdMob v gradnji Android ne prikaže nobenega oglasa (tako je bilo do 1.3.7).
+          grep -q '"AdMob"\|admob' app/src/main/assets/capacitor.plugins.json || { echo "::error::AdMob vtičnik ni v gradnji (capacitor.plugins.json)"; exit 1; }
           ./gradlew --no-daemon bundleRelease -PversionCode=${{ github.run_number }} -PadmobAppId="$ADMOB_APP_ID"
           cp app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/out/Nakupko.aab"
           if [ "$HAS_KEY" != "true" ]; then
