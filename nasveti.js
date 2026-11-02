@@ -49,12 +49,29 @@
       }
     });
   }
+  // številke z enoto (5 g, 2,5, 100 g, 30 %) izstopajo, da oko hitro najde bistvo
+  var NUM = /(\d+(?:[.,]\d+)?\s?(?:%|g|kg|mg|ml|dl|l|kcal|€|minut|min)(?![\wčšžćđ])|\d+,\d+)/g;
+  function poudari(root) {
+    if (!root) return;
+    var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], n;
+    while ((n = tw.nextNode())) if ((NUM.lastIndex = 0, NUM.test(n.nodeValue)) && !n.parentNode.closest("a,h1,h2,h3,.clanek-d,.hl")) nodes.push(n);
+    nodes.forEach(function (t) {
+      var f = document.createDocumentFragment(), parts = t.nodeValue.split(NUM);
+      parts.forEach(function (s, i) {
+        if (!s) return;
+        if (i % 2) { var m = document.createElement("span"); m.className = "hl"; m.textContent = s; f.appendChild(m); }
+        else f.appendChild(document.createTextNode(s));
+      });
+      t.parentNode.replaceChild(f, t);
+    });
+  }
   function byId(id) { return list().filter(function (a) { return a.id === id; })[0]; }
   function open(id) {
     var a = byId(id); if (!a) return;
     read[a.id] = 1; try { localStorage.setItem(RKEY, JSON.stringify(read)); } catch (e) { /* nič */ }
     // vsebina prihaja z naše strani nakupko.com (tools/generiraj.py), ne od uporabnikov
     sheet('<article class="clanek"><p class="clanek-d">' + esc(datum(a.datum)) + "</p><h1>" + esc(a.naslov) + "</h1>" + a.html + "</article>");
+    poudari(document.querySelector("#nasvetWrap .clanek"));
     card();
   }
   document.addEventListener("click", function (e) {
