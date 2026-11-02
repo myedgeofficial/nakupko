@@ -185,7 +185,9 @@
     Ads.addListener("bannerAdFailedToLoad", function () {
       ad.loaded = false; ad.shown = false; setAdHeight(0);
       clearTimeout(ad.retry);
-      ad.retry = setTimeout(renderAds, Math.min(20000 * Math.pow(2, ad.fails++), 300000));
+      // Ponovni poskus mora veljati tudi, če je napaka prišla pred koncem klica showBanner
+      // (ta potem nastavi ad.shown = true in renderAds bi mislil, da banner že je).
+      ad.retry = setTimeout(function () { ad.shown = false; renderAds(); }, Math.min(20000 * Math.pow(2, ad.fails++), 300000));
     });
     // Privolitev (EU): Googlov obrazec se pokaže samo, če ga zakon zahteva in še ni odgovora.
     // Če se Googlov obrazec ali odgovor zatakne, reklame ne smejo čakati v nedogled (prej banner potem ni prišel nikoli).
