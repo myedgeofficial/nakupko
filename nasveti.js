@@ -51,8 +51,18 @@
   }
   // številke z enoto (5 g, 2,5, 100 g, 30 %) izstopajo, da oko hitro najde bistvo
   var NUM = /(\d+(?:[.,]\d+)?\s?(?:%|g|kg|mg|ml|dl|l|kcal|€|minut|min)(?![\wčšžćđ])|\d+,\d+)/g;
+  // vsak razdelek (od h2 do naslednjega h2) dobi svojo barvo: naslov, krepke besede, številke in oznake
+  var BARVE = ["#7C3AED", "#2563EB", "#DB2777", "#0D9488", "#EA580C"];
+  function pobarvaj(root) {
+    var k = -1;
+    [].forEach.call(root.children, function (el) {
+      if (el.tagName === "H2") k++;
+      if (k >= 0) el.style.setProperty("--c", BARVE[k % BARVE.length]);
+    });
+  }
   function poudari(root) {
     if (!root) return;
+    pobarvaj(root);
     var tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), nodes = [], n;
     while ((n = tw.nextNode())) if ((NUM.lastIndex = 0, NUM.test(n.nodeValue)) && !n.parentNode.closest("a,h1,h2,h3,.clanek-d,.hl")) nodes.push(n);
     nodes.forEach(function (t) {
