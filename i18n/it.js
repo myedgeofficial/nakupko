@@ -3,6 +3,14 @@ NK_PACK("it", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
     // Moji nakupi (nakupi.js)
+    "Skozi čas": "Nel tempo",
+    "Izdelkov na teden": "Articoli a settimana",
+    "Izdelkov na mesec": "Articoli al mese",
+    "V primerjavi s prejšnjimi 30 dnevi": "Rispetto ai 30 giorni precedenti",
+    "V primerjavi z lanskim letom do danes": "Rispetto all'anno scorso a oggi",
+    "Približno enako kot prej": "Più o meno come prima",
+    "Kdaj nakupuješ": "Quando fai la spesa",
+    "Nakupi po dnevih v tednu": "Spese per giorno della settimana",
     "Moji nakupi": "I miei acquisti",
     "Kaj si kupil, po skupinah in dnevih.": "Cosa hai comprato, per gruppo e per giorno.",
     "30 dni": "30 giorni",

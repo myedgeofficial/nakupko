@@ -3,6 +3,14 @@ NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
     // Moji nakupi (nakupi.js)
+    "Skozi čas": "Időben",
+    "Izdelkov na teden": "Termék hetente",
+    "Izdelkov na mesec": "Termék havonta",
+    "V primerjavi s prejšnjimi 30 dnevi": "Az előző 30 naphoz képest",
+    "V primerjavi z lanskim letom do danes": "A tavalyi évhez képest a mai napig",
+    "Približno enako kot prej": "Nagyjából ugyanannyi, mint korábban",
+    "Kdaj nakupuješ": "Mikor vásárolsz",
+    "Nakupi po dnevih v tednu": "Vásárlások a hét napjai szerint",
     "Moji nakupi": "Vásárlásaim",
     "Kaj si kupil, po skupinah in dnevih.": "Mit vettél, csoportok és napok szerint.",
     "30 dni": "30 nap",

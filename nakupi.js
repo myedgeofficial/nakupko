@@ -16,6 +16,16 @@
     var od = obdobje === "30" ? Date.now() - 30 * DAN : obdobje === "leto" ? new Date(new Date().getFullYear(), 0, 1).getTime() : 0;
     return h.filter(function (x) { return x && x.ts >= od; });
   }
+  function vsi() { var a = api(); return a && a.state ? a.state().history || [] : []; }
+  function kratko(d, o) { try { return d.toLocaleDateString(LANG, o); } catch (e) { return d.getDate() + "." + (d.getMonth() + 1) + "."; } }
+  // stolpčni graf: [[oznaka, vrednost]], najvišji stolpec poudarjen; števila so v svojih elementih
+  function stolpci(v, cls) {
+    var max = Math.max.apply(null, v.map(function (x) { return x[1]; }).concat([1]));
+    return '<div class="nk-graf' + (cls ? " " + cls : "") + '">' + v.map(function (x) {
+      return '<div class="nk-st' + (x[1] === max && x[1] > 0 ? " naj" : "") + '"><span class="nk-st-n">' + (x[1] || "") + "</span>" +
+        '<i style="height:' + Math.max(3, Math.round(100 * x[1] / max)) + '%"></i><span class="nk-st-o">' + esc(x[0]) + "</span></div>";
+    }).join("") + "</div>";
+  }
   function catOf(n) { var a = api(); return (a && a.catOf && a.catOf(n)) || "Drugo"; }
   function datum(ts) {
     try { return new Date(ts).toLocaleDateString(LANG, { weekday: "long", day: "numeric", month: "long" }); }
@@ -46,6 +56,26 @@
       '<div><b>' + Object.keys(trg).length + "</b><span>Trgovin</span></div></div>" +
       (naj ? '<p class="nk-naj"><span>Največkrat v trgovini</span> <b>' + esc(naj) + "</b></p>" : "");
 
+    // 1) skozi čas: 30 dni po tednih, sicer po mesecih
+    var cas = [], zdaj = new Date();
+    if (obdobje === "30") {
+      // 4 tedni, najstarejši zajame še 2 dneva do 30
+      for (var t = 3; t >= 0; t--) {
+        var od = t === 3 ? Date.now() - 30 * DAN : Date.now() - (t + 1) * 7 * DAN, do_ = Date.now() - t * 7 * DAN;
+        cas.push([kratko(new Date(od + DAN), { day: "numeric", month: "numeric" }), z.filter(function (x) { return x.ts > od && x.ts <= do_; }).length]);
+      }
+    } else {
+      var prvi = obdobje === "leto" ? new Date(zdaj.getFullYear(), 0, 1) : new Date(Math.min.apply(null, z.map(function (x) { return x.ts; })));
+      var m = new Date(prvi.getFullYear(), prvi.getMonth(), 1);
+      while (m <= zdaj) {
+        var n = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+        cas.push([kratko(m, { month: "short" }), z.filter(function (x) { return x.ts >= m.getTime() && x.ts < n.getTime(); }).length]);
+        m = n;
+      }
+      cas = cas.slice(-12);
+    }
+    h += '<h2 class="nk-h">Skozi čas</h2><div class="nk-card"><p class="nk-pod">' + (obdobje === "30" ? "Izdelkov na teden" : "Izdelkov na mesec") + "</p>" + stolpci(cas) + "</div>";
+
     // po skupinah
     var sk = {};
     z.forEach(function (x) { var c = catOf(x.name); sk[c] = (sk[c] || 0) + 1; });
@@ -54,8 +84,32 @@
       return '<i style="flex:' + sk[c] + ";background:" + (BARVE[c] || "#C9C3D9") + '"></i>';
     }).join("") + "</div>" + vrste.map(function (c) {
       return '<div class="nk-row"><i style="background:' + (BARVE[c] || "#C9C3D9") + '"></i><span class="nk-ime">' + esc(c) + "</span>" +
-        '<span class="nk-n">' + sk[c] + '</span><b class="nk-p">' + Math.round(100 * sk[c] / z.length) + " %</b></div>";
+        '<span class="nk-n">' + sk[c] + '</span><b class="nk-p">' + (Math.round(100 * sk[c] / z.length) || "<1") + " %</b></div>";
     }).join("") + "</div>";
+
+    // 2) primerjava s prejšnjim obdobjem (30 dni prej oz. lani do istega dne)
+    if (obdobje !== "vse") {
+      var pOd, pDo;
+      if (obdobje === "30") { pOd = Date.now() - 60 * DAN; pDo = Date.now() - 30 * DAN; }
+      else { pOd = new Date(zdaj.getFullYear() - 1, 0, 1).getTime(); pDo = new Date(zdaj.getFullYear() - 1, zdaj.getMonth(), zdaj.getDate() + 1).getTime(); }
+      var prej = vsi().filter(function (x) { return x && x.ts >= pOd && x.ts < pDo; });
+      if (prej.length) {
+        var ps = {};
+        prej.forEach(function (x) { var c = catOf(x.name); ps[c] = (ps[c] || 0) + 1; });
+        var raz = Object.keys(sk).concat(Object.keys(ps).filter(function (c) { return !sk[c]; })).map(function (c) { return [c, (sk[c] || 0) - (ps[c] || 0)]; })
+          .filter(function (x) { return Math.abs(x[1]) >= 2; }).sort(function (a, b) { return Math.abs(b[1]) - Math.abs(a[1]); }).slice(0, 4);
+        h += '<div class="nk-card"><p class="nk-pod">' + (obdobje === "30" ? "V primerjavi s prejšnjimi 30 dnevi" : "V primerjavi z lanskim letom do danes") + "</p>" +
+          '<div class="nk-chips nk-raz">' + (raz.length ? raz.map(function (x) {
+            return '<span><span>' + esc(x[0]) + '</span> <b class="' + (x[1] > 0 ? "gor" : "dol") + '">' + (x[1] > 0 ? "+" : "−") + Math.abs(x[1]) + "</b></span>";
+          }).join("") : "<span>Približno enako kot prej</span>") + "</div></div>";
+      }
+    }
+
+    // 3) kdaj nakupuješ: nakupi po dnevih v tednu (pon–ned)
+    var dnevi = [0, 0, 0, 0, 0, 0, 0];
+    po.forEach(function (g) { dnevi[(new Date(g.ts).getDay() + 6) % 7]++; });
+    h += '<h2 class="nk-h">Kdaj nakupuješ</h2><div class="nk-card"><p class="nk-pod">Nakupi po dnevih v tednu</p>' +
+      stolpci(dnevi.map(function (n, i) { return [kratko(new Date(2024, 0, 1 + i), { weekday: "short" }), n]; }), "nk-dnevi") + "</div>";
 
     // največkrat kupljeno
     var iz = {};

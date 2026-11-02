@@ -906,3 +906,13 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .nk-vec { display: block; margin: 6px auto 0; }
 .nk-op { margin-top: 14px !important; text-align: center; }
 .nk-prazno { text-align: center; padding: 24px 8px; }
+.nk-pod { margin: 2px 0 8px !important; font-size: 13px !important; color: var(--muted); font-weight: 700; }
+.nk-graf { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 4px; }
+.nk-st { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.nk-st i { display: block; width: 100%; max-width: 34px; border-radius: 8px 8px 4px 4px; background: #CFC6F7; }
+.nk-st.naj i { background: var(--grad-d); }
+.nk-st-n { font-size: 12px; font-weight: 800; color: var(--violet); min-height: 14px; }
+.nk-st-o { font-size: 11.5px; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.nk-raz b { font-weight: 900; }
+.nk-raz b.gor { color: var(--violet); }
+.nk-raz b.dol { color: #C2577E; }
