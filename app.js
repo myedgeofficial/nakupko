@@ -2380,8 +2380,16 @@
 
   // ---------- Dogodki ----------
   // Spodaj Seznam in Nasveti; Nastavitve so zobnik v glavi (data-tab="stores").
+  var lastTab = "list"; // zobnik v odprtih Nastavitvah vrne na zavihek, s katerega si prišel
   document.querySelectorAll("button[data-tab]").forEach(function (b) {
     b.addEventListener("click", function () {
+      var cur = document.querySelector(".tab.active"), curId = cur ? cur.id.replace("tab-", "") : "";
+      if (b.dataset.tab === "stores" && curId === "stores") {
+        var back = document.querySelector('.tabs button[data-tab="' + lastTab + '"]') || document.querySelector('.tabs button[data-tab="list"]');
+        if (back) back.click();
+        return;
+      }
+      if (b.dataset.tab === "stores" && curId) lastTab = curId;
       document.querySelectorAll("button[data-tab]").forEach(function (x) { x.classList.toggle("on", x === b); });
       document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("active", t.id === "tab-" + b.dataset.tab); });
       if (b.dataset.tab === "prices") renderPriceTable();
