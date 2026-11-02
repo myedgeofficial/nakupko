@@ -48,6 +48,7 @@ jobs:
           node tests/store-detect.test.js
           node tests/drzave.test.js
           node tests/i18n.test.js
+          node tests/hranila.test.js
 
       - name: Pripravi spletni del in Capacitor
         env:
