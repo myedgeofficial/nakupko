@@ -669,13 +669,21 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rsh-step button { width: 38px; height: 38px; border-radius: 12px; border: 0; background: var(--surface); color: var(--violet); font: 900 22px/1 var(--font); box-shadow: var(--shadow); }
 .rsh-step b { min-width: 24px; text-align: center; font-size: 20px; font-variant-numeric: tabular-nums; }
 .rsh-list { display: grid; }
-.rsh-i { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; font: 800 16px var(--font); color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 11px 2px; }
+.rsh-i { border-bottom: 1px solid var(--line); }
+.rsh-tg { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; font: 800 16px var(--font); color: var(--ink); background: none; border: 0; padding: 11px 2px; cursor: pointer; }
 .rsh-i:last-child { border-bottom: 0; }
 .rsh-i .rnm { flex: 1; }
+/* »Imam doma« / »Brez tega« pod odkljukano sestavino */
+.rsh-o { display: flex; gap: 8px; padding: 0 0 11px 35px; }
+.rsh-o button { border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); font: 800 13.5px/1 var(--font); border-radius: 99px; padding: 8px 13px; cursor: pointer; }
+.rsh-o button.on { border-color: var(--violet); background: var(--violet-soft); color: var(--violet); }
+.rsh-i.brez .rsh-o button.on { border-color: var(--danger); background: #FDECEA; color: var(--danger); }
+.rsh-i.doma .rnm, .rsh-i.doma .ram { opacity: .55; text-decoration: none; }
+.kh-skip { opacity: .5; text-decoration: line-through; }
 .rsh-i .ram { color: var(--violet); white-space: nowrap; }
 .rcb { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid #CFC5E4; }
 .rsh-i.on .rcb { background: var(--violet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E") center/14px no-repeat; border-color: var(--violet); }
-.rsh-i:not(.on) .rnm, .rsh-i:not(.on) .ram { opacity: .4; text-decoration: line-through; }
+.rsh-i.brez .rnm, .rsh-i.brez .ram { opacity: .4; text-decoration: line-through; }
 .rsheet .rsh-add { margin-top: 8px; }
 /* okvirne prehranske vrednosti (hranila.js) */
 .rsh-nutri { margin-top: 14px; background: var(--panel); border-radius: 16px; padding: 12px 14px; }
