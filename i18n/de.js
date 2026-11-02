@@ -2,6 +2,29 @@
 NK_PACK("de", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    // Moji nakupi (nakupi.js)
+    "Skozi čas": "Im Zeitverlauf",
+    "Izdelkov na teden": "Artikel pro Woche",
+    "Izdelkov na mesec": "Artikel pro Monat",
+    "V primerjavi s prejšnjimi 30 dnevi": "Im Vergleich zu den vorherigen 30 Tagen",
+    "V primerjavi z lanskim letom do danes": "Im Vergleich zum Vorjahr bis heute",
+    "Približno enako kot prej": "Etwa wie vorher",
+    "Kdaj nakupuješ": "Wann du einkaufst",
+    "Nakupi po dnevih v tednu": "Einkäufe nach Wochentag",
+    "Moji nakupi": "Meine Einkäufe",
+    "Kaj si kupil, po skupinah in dnevih.": "Was du gekauft hast, nach Gruppen und Tagen.",
+    "30 dni": "30 Tage",
+    "Letos": "Dieses Jahr",
+    "Izdelkov": "Artikel",
+    "Nakupov": "Einkäufe",
+    "Trgovin": "Geschäfte",
+    "Največkrat v trgovini": "Am häufigsten bei",
+    "Po skupinah": "Nach Gruppen",
+    "Največkrat kupiš": "Am häufigsten kaufst du",
+    "Zgodovina": "Verlauf",
+    "Pokaži več": "Mehr anzeigen",
+    "Ko v trgovini odkljukaš izdelke, jih vidiš tukaj.": "Wenn du im Geschäft Artikel abhakst, siehst du sie hier.",
+    "Šteje odkljukane izdelke s seznama, brez cen. Podatki ostanejo v telefonu.": "Zählt abgehakte Artikel deiner Liste, ohne Preise. Die Daten bleiben auf deinem Handy.",
     // Moje trgovine (vsaka posebej)
     "Izberi vse trgovine, v katere rad hodiš. Lahko jih izbereš več.": "Wähle alle Geschäfte, in denen du gern einkaufst. Du kannst mehrere wählen.",
     "Nakupko ti pokaže, kje bo tvoj nakup najcenejši.": "Nakupko zeigt dir, wo dein Einkauf am günstigsten ist.",
