@@ -9,7 +9,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // GitHub Actions poda zaporedno številko gradnje (vsaka gradnja mora imeti višjo).
         versionCode((project.findProperty("versionCode") ?: "1") as Integer)
-        versionName "1.3." + (project.findProperty("versionCode") ?: "1")
+        versionName "1.3.7"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         // AdMob ID Android aplikacije (REMAKO); privzeto Googlov preizkusni ID.
         // -PnoBackground: brez lokacije »Vedno« (Google Play jo dovoli šele po posebnem pregledu z videom).
