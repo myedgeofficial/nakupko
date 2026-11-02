@@ -346,6 +346,23 @@
     }).join("");
     var n = ings(r).filter(function (g, i) { return !off[i]; }).length, b = sh.querySelector(".rsh-add");
     b.textContent = T("Dodaj na seznam") + " (" + n + ")"; b.disabled = !n;
+    drawNutri();
+  }
+
+  // ---------- okvirne prehranske vrednosti na porcijo (hranila.js + hranila.json, brez klicev na splet) ----------
+  var HR = null, hrLoading = false;
+  function num(v, d) { var s = (Math.round(v * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d); return (window.NK_LANG || "sl") === "en" ? s : s.replace(".", ","); }
+  function drawNutri() {
+    var sh = $("rsheet"), box = sh && sh.querySelector(".rsh-nv"), N = window.NK_HRANILA; if (!box || !N) return;
+    if (!HR) {
+      if (!hrLoading) { hrLoading = true; fetch("hranila.json").then(function (x) { return x.json(); }).then(function (d) { HR = d; drawNutri(); }).catch(function () { hrLoading = false; }); }
+      return;
+    }
+    var res = N.forRecipe(HR, cur[1], ings(cur)), v = res.v, n = res.n;
+    var g = function (x) { return (x < 10 ? num(x, 1) : num(x, 0)) + " g"; };
+    var rows = [["Energija", "≈ " + num(Math.round(v[0] / 10) * 10, 0) + " kcal"], ["Beljakovine", g(v[1])], ["Ogljikovi hidrati", g(v[2])], ["Maščobe", g(v[3])], ["Vlaknine", g(v[4])], ["Sol", num(v[5], 1) + " g"]];
+    if (n !== 4) rows.push(["Porcij v celi jedi", String(n)]);
+    box.innerHTML = rows.map(function (x) { return "<div><span>" + esc(T(x[0])) + "</span><b>" + esc(x[1]) + "</b></div>"; }).join("");
   }
   function openRecipe(i) {
     cur = REC.jedi[i]; off = {};
@@ -357,7 +374,10 @@
       '<div class="rsh-serv"><span>' + esc(T("Za koliko oseb?")) + '</span><span class="rsh-step"><button type="button" class="rsh-minus" aria-label="−">−</button><b class="rsh-n"></b><button type="button" class="rsh-plus" aria-label="+">+</button></span></div>' +
       '<div class="rsh-list"></div><p class="muted small">' + esc(T("Odkljukaj, kar že imaš doma.")) + '</p>' +
       '<button type="button" class="btn primary full rsh-add"></button>' +
-      '<button type="button" class="btn full rsh-cook">' + esc(T("Kuhaj po korakih ›")) + "</button></div>";
+      '<button type="button" class="btn full rsh-cook">' + esc(T("Kuhaj po korakih ›")) + "</button>" +
+      '<details class="rsh-nutri"><summary>' + esc(T("Okvirne vrednosti na porcijo")) + '</summary><div class="rsh-nv"></div>' +
+      '<p class="muted small">' + esc(T("Ocena iz sestavin in količin recepta, ne meritev. Odvisna je od izdelkov in priprave.")) + "</p>" +
+      '<p class="muted small">' + esc(T("Vir: USDA FoodData Central (javna domena).")) + "</p></details></div>";
     document.body.appendChild(w);
     w.addEventListener("click", function (e) {
       if (e.target === w || (e.target.closest && e.target.closest(".sheet-x"))) { close(); return; }
