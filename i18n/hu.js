@@ -2,6 +2,21 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    // Moji nakupi (nakupi.js)
+    "Moji nakupi": "Vásárlásaim",
+    "Kaj si kupil, po skupinah in dnevih.": "Mit vettél, csoportok és napok szerint.",
+    "30 dni": "30 nap",
+    "Letos": "Idén",
+    "Izdelkov": "Termék",
+    "Nakupov": "Vásárlás",
+    "Trgovin": "Üzlet",
+    "Največkrat v trgovini": "Leggyakrabban itt:",
+    "Po skupinah": "Csoportok szerint",
+    "Največkrat kupiš": "Leggyakrabban veszed",
+    "Zgodovina": "Előzmények",
+    "Pokaži več": "Több",
+    "Ko v trgovini odkljukaš izdelke, jih vidiš tukaj.": "Ha az üzletben kipipálod a termékeket, itt látod őket.",
+    "Šteje odkljukane izdelke s seznama, brez cen. Podatki ostanejo v telefonu.": "A listáról kipipált termékeket számolja, árak nélkül. Az adatok a telefonodon maradnak.",
     // Moje trgovine (vsaka posebej)
     "Izberi vse trgovine, v katere rad hodiš. Lahko jih izbereš več.": "Válaszd ki az összes boltot, ahol szívesen vásárolsz. Többet is választhatsz.",
     "Nakupko ti pokaže, kje bo tvoj nakup najcenejši.": "A Nakupko megmutatja, hol lesz a legolcsóbb a bevásárlásod.",

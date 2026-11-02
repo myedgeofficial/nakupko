@@ -2,6 +2,21 @@
 NK_PACK("es", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    // Moji nakupi (nakupi.js)
+    "Moji nakupi": "Mis compras",
+    "Kaj si kupil, po skupinah in dnevih.": "Lo que compraste, por grupos y por días.",
+    "30 dni": "30 días",
+    "Letos": "Este año",
+    "Izdelkov": "Artículos",
+    "Nakupov": "Compras",
+    "Trgovin": "Tiendas",
+    "Največkrat v trgovini": "Más a menudo en",
+    "Po skupinah": "Por grupos",
+    "Največkrat kupiš": "Lo que más compras",
+    "Zgodovina": "Historial",
+    "Pokaži več": "Mostrar más",
+    "Ko v trgovini odkljukaš izdelke, jih vidiš tukaj.": "Cuando marques artículos en la tienda, los verás aquí.",
+    "Šteje odkljukane izdelke s seznama, brez cen. Podatki ostanejo v telefonu.": "Cuenta los artículos marcados de tu lista, sin precios. Tus datos se quedan en tu móvil.",
     // Moje trgovine (vsaka posebej)
     "Izberi vse trgovine, v katere rad hodiš. Lahko jih izbereš več.": "Elige todas las tiendas en las que te gusta comprar. Puedes elegir varias.",
     "Nakupko ti pokaže, kje bo tvoj nakup najcenejši.": "Nakupko te muestra dónde tu compra será más barata.",

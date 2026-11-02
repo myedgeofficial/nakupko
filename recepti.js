@@ -116,7 +116,9 @@
     var api = window.__nakupko, s = api && api.moneyScale ? api.moneyScale() : 1;
     return api && api.eur ? api.eur(v * s) : v.toFixed(2).replace(".", ",") + " €";
   }
-  function costTxt(r) { return "≈ " + money(cost(r)); }
+  // Cene se v aplikaciji (še) ne prikazujejo (app.js SHOW_PRICES); brez njih ni ne cene jedi ne filtra po ceni.
+  var CENE = window.NAKUPKO_SHOW_PRICES === true;
+  function costTxt(r) { return CENE ? "≈ " + money(cost(r)) : ""; }
   function denOf(r) { var c = cost(r); return DENAR.filter(function (b) { return c > b[1] && c <= b[2] || (b[1] === 0 && c <= b[2]); })[0][0]; }
 
   function pool(t, b, d, m) {
@@ -130,7 +132,7 @@
   function openSet() { var o = {}; items().forEach(function (y) { if (!y.done) o[norm(y.name)] = 1; }); return o; }
   function card(i, open, cls) {
     var r = REC.jedi[i], hasAll = ings(r).every(function (x) { return open[norm(x[0])]; }), a = adapt(r);
-    return '<button type="button" class="rc' + (cls || "") + (hasAll ? " added" : "") + '" data-i="' + i + '"><span class="ric">' + ico(r[0]) + '</span><span class="rtx"><b>' + esc(nm(r)) + '</b><span class="rmeta">' + mins(r[3]) + dots(r[4]) + '<span class="rcost">' + esc(costTxt(r)) + "</span>" +
+    return '<button type="button" class="rc' + (cls || "") + (hasAll ? " added" : "") + '" data-i="' + i + '"><span class="ric">' + ico(r[0]) + '</span><span class="rtx"><b>' + esc(nm(r)) + '</b><span class="rmeta">' + mins(r[3]) + dots(r[4]) + (CENE ? '<span class="rcost">' + esc(costTxt(r)) + "</span>" : "") +
       (a && a.n ? '<span class="radapt">' + esc(T("prilagojeno")) + "</span>" : "") + "</span></span></button>";
   }
   function cards(ids) { var open = openSet(); return '<div class="rgrid">' + ids.map(function (i) { return card(i, open); }).join("") + "</div>"; }
@@ -226,10 +228,10 @@
       if (rb) now.sort(function (a, b) { return cost(REC.jedi[a]) - cost(REC.jedi[b]); });
       var all = pool(rt, null, rd, rm);
       h += step("Izberi jed", mapName(REC.mape.filter(function (m) { return m[0] === rm; })[0]),
-        '<div class="rbud"><span>' + esc(T("Cena na osebo")) + "</span>" + [["", T("Vse")]].concat(DENAR.slice(0, 3).map(function (b) { return [b[0], budLabel(b)]; })).map(function (b) {
+        (CENE ? '<div class="rbud"><span>' + esc(T("Cena na osebo")) + "</span>" + [["", T("Vse")]].concat(DENAR.slice(0, 3).map(function (b) { return [b[0], budLabel(b)]; })).map(function (b) {
           var n = b[0] ? pool(rt, b[0], rd, rm).length : all.length; if (b[0] && !n) return "";
           return '<button type="button" class="' + ((rb || "") === b[0] ? "on" : "") + '" data-bud="' + b[0] + '">' + esc(b[1]) + "</button>";
-        }).join("") + "</div>" + (now.length ? cards(now) : '<p class="empty">' + esc(T("Za to ceno ni jedi.")) + "</p>"));
+        }).join("") + "</div>" : "") + (now.length ? cards(now) : '<p class="empty">' + esc(T("Za to ceno ni jedi.")) + "</p>"));
     }
     box.innerHTML = h;
   }
@@ -333,7 +335,7 @@
     var r = cur, api = window.__nakupko, sh = $("rsheet"); if (!sh || !r) return;
     sh.querySelector(".rsh-ic").innerHTML = ico(r[0]);
     sh.querySelector(".rsh-t").textContent = nm(r);
-    sh.querySelector(".rsh-m").textContent = mins(r[3]) + " · " + T(TEZ[r[4] - 1][1]) + " · " + costTxt(r) + " " + T("na osebo");
+    sh.querySelector(".rsh-m").textContent = mins(r[3]) + " · " + T(TEZ[r[4] - 1][1]) + (CENE ? " · " + costTxt(r) + " " + T("na osebo") : "");
     var al = (r[9] || []).filter(function (a) { return a.indexOf("?") < 0 && kit.al.indexOf(a) < 0; }).map(function (a) { return T(ALER.filter(function (x) { return x[0] === a; })[0][1]).toLowerCase(); });
     sh.querySelector(".rsh-al").textContent = al.length ? T("Vsebuje") + ": " + al.join(", ") : "";
     var sw = swapTxt(r), nt = noteTxt(r), ad = sh.querySelector(".rsh-adapt");
