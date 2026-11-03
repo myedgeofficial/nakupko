@@ -30,6 +30,9 @@ public class StoreRulesTest {
         assertEquals(false, StoreRules.sells(StoreRules.ONLY.get("dm"), "Mlečni izdelki Mleko"));
         assertEquals(true, StoreRules.kind("Korenček", "").duty);
         assertEquals(true, StoreRules.kind("Market", "24/7").duty);
+        assertEquals(true, StoreRules.kind("Market Griček", "Mo-Sa 07:00-19:00; Su 07:00-12:00").duty);
+        assertEquals(true, StoreRules.kind("Trgovina", "Mo-Su 07:00-21:00").duty);
+        assertEquals(null, StoreRules.kind("Trgovina", "Mo-Sa 07:00-20:00; Su off"));
         assertNull(StoreRules.kind("Indijska trgovina", ""));
     }
 
