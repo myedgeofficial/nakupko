@@ -226,10 +226,17 @@
 
   // Prikažemo samo prave trgovine: velike verige in dežurne trgovine (Korenček, Betka, Market Ekspres ...).
   var DUTY_MATCH = /koren[cč]ek|betka|ekspres|de[zž]urn|non ?-?stop/i;
+  // Trgovina, ki je po OSM urniku odprta v nedeljo ali na praznik, je dežurna (kjerkoli v Sloveniji).
+  function opensSunday(hours) {
+    return (hours || "").split(/\s*[;,]\s*/).some(function (r) {
+      var m = r.match(/^([A-Za-z ,-]+?)\s+\d{1,2}:\d{2}/);
+      return !!m && /(^|[^A-Za-z])(Su|PH)([^A-Za-z]|$)/.test(m[1]);
+    });
+  }
   function storeKind(text, hours) {
     var c = chainOf(text);
     if (c) return c;
-    if (DUTY_MATCH.test(text || "") || /24\/7/.test(hours || "")) return "duty";
+    if (DUTY_MATCH.test(text || "") || /24\/7/.test(hours || "") || opensSunday(hours)) return "duty";
     return null;
   }
   function allowedStore(s) { return s && s.id && (s.id.indexOf("test/") === 0 || !!(s.chain || s.duty)); }
@@ -1505,13 +1512,13 @@
     { a: "Ljubljanska cesta 36A, 1330 Kočevje", h: "Mo-Sa 08:00-20:00; Su off", lat: 45.64796, lon: 14.85485 },
     { a: "Premrlova ulica 14, 1000 Ljubljana", h: "Mo-Sa 08:00-20:00; Su off", lat: 46.0281, lon: 14.52943 }
   ];
-  // Dežurne trgovine, ki jih v OpenStreetMap ni (Teo, 1. 11. 2026). Delovni čas ni znan, zato ga ne izmišljujemo.
+  // Dežurne trgovine, ki jih v OpenStreetMap ni (Teo, 1. 11. 2026). Urnik samo, kjer ga trgovina objavi (korencek.si, betka.si, 4. 11. 2026).
   var DUTY_STORES = [
     { n: "Market Ekspres", a: "Šentiljska cesta 71, Maribor", lat: 46.5763, lon: 15.65745 },
-    { n: "Market Korenček", a: "Jurančičeva ulica 9A, Maribor", lat: 46.54532, lon: 15.67182 },
+    { n: "Market Korenček", a: "Jurančičeva ulica 9A, Maribor", h: "Mo-Su,PH 07:00-21:00", lat: 46.54532, lon: 15.67182 },
     { n: "Market Betka", a: "Zagernikova ulica 14, Maribor", lat: 46.54204, lon: 15.6872 },
     { n: "Market Betka", a: "Cesta XIV. divizije 106, Maribor", lat: 46.54446, lon: 15.67706 },
-    { n: "Market Betka", a: "Ulica borcev 1B, Maribor", lat: 46.53634, lon: 15.68835 }
+    { n: "Market Betka", a: "Ulica borcev 1B, Maribor", h: "Mo-Sa 07:00-20:00; Su,PH 08:00-18:00", lat: 46.53634, lon: 15.68835 }
   ];
   // Iz uradnih seznamov dodamo trgovine v okolici, ki jih OpenStreetMap nima (ista veriga ali dežurna v 250 m).
   function missingOfficial(p, list) {
@@ -1524,7 +1531,7 @@
     });
     DUTY_STORES.forEach(function (j) {
       if (distM(p, j) > 3000 || list.some(function (s) { return s.duty && distM(s, j) < 250; })) return;
-      out.push({ id: "uradno/duty/" + j.lat + "," + j.lon, name: j.n + ", " + j.a, short: j.n, chain: null, duty: true, lat: j.lat, lon: j.lon, hours: "" });
+      out.push({ id: "uradno/duty/" + j.lat + "," + j.lon, name: j.n + ", " + j.a, short: j.n, chain: null, duty: true, lat: j.lat, lon: j.lon, hours: j.h || "" });
     });
     return out;
   }
