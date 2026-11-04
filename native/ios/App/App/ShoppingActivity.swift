@@ -25,6 +25,7 @@ struct ShoppingAttributes: ActivityAttributes {
         var total: Int
         var page: Int? = nil   // stran izdelkov (gumb »Naprej ›«)
         var lang: String? = nil  // jezik besedil na zaklenjenem zaslonu (iz aplikacije)
+        var size: Int? = nil     // izdelkov naenkrat: 4 (privzeto), 6 ali 8 (Nastavitve → Zaklenjen zaslon)
     }
     var store: String
 }
@@ -44,10 +45,16 @@ enum LiveList {
         defaults.set(Array(l.suffix(30)), forKey: "geo.log")
     }
 
+    // Izbrani prikaz v aplikaciji (native.js → setConfig): 4, 6 ali 8 izdelkov naenkrat.
+    static var size: Int {
+        let s = defaults.integer(forKey: "geo.liveSize")
+        return s == 6 || s == 8 ? s : perPage
+    }
+
     // Stran, ki še obstaja (po odkljukanju se seznam skrajša).
-    static func clampPage(_ page: Int?, count: Int) -> Int {
+    static func clampPage(_ page: Int?, count: Int, per: Int = perPage) -> Int {
         let p = page ?? 0
-        return p * perPage < count ? p : 0
+        return p * per < count ? p : 0
     }
 
     // Live Activity sprejme največ 4 KB: omejimo število in dolžino imen.
@@ -74,7 +81,7 @@ enum LiveList {
             guard let idx = s.items.firstIndex(where: { $0.id == id }) else { continue }
             s.items.remove(at: idx)
             s.done += 1
-            s.page = clampPage(s.page, count: s.items.count)
+            s.page = clampPage(s.page, count: s.items.count, per: s.size ?? perPage)
             await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
         }
         // Skupen seznam: odkljukano vidijo tudi ostali člani.
@@ -103,7 +110,7 @@ struct NextPageIntent: LiveActivityIntent {
         for a in Activity<ShoppingAttributes>.activities {
             var s = a.content.state
             let next = (s.page ?? 0) + 1
-            s.page = next * LiveList.perPage < s.items.count ? next : 0
+            s.page = next * (s.size ?? LiveList.perPage) < s.items.count ? next : 0
             LiveList.log("  stran \(s.page ?? 0), izdelkov \(s.items.count)")
             await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
         }

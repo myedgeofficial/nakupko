@@ -863,7 +863,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let list = LiveList.fit(items)
         let state: [String: Any] = [
             "items": list.map { ["id": $0.id, "label": $0.label, "icon": $0.icon] },
-            "done": 0, "total": list.count, "lang": L10n.lang
+            "done": 0, "total": list.count, "lang": L10n.lang, "size": LiveList.size
         ]
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
@@ -910,7 +910,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 let prev = a.content.state
                 // Kar je izginilo s seznama, je kupljeno; novi izdelki povečajo skupno število.
                 let d = prev.done + max(0, (prev.total - prev.done) - list.count)
-                let st = ShoppingAttributes.ContentState(items: fitted, done: d, total: d + list.count, page: LiveList.clampPage(prev.page, count: fitted.count), lang: L10n.lang)
+                let st = ShoppingAttributes.ContentState(items: fitted, done: d, total: d + list.count, page: LiveList.clampPage(prev.page, count: fitted.count, per: LiveList.size), lang: L10n.lang, size: LiveList.size)
                 Task { await a.update(ActivityContent(state: st, staleDate: Date().addingTimeInterval(4 * 3600))) }
             }
             return
@@ -920,7 +920,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         let title = session?.store.name ?? store
         let doneHere = list.count == all.count ? done : 0
         let keepPage = current.first(where: { $0.attributes.store == title })?.content.state.page
-        let state = ShoppingAttributes.ContentState(items: fitted, done: doneHere, total: doneHere + list.count, page: LiveList.clampPage(keepPage, count: fitted.count), lang: L10n.lang)
+        let state = ShoppingAttributes.ContentState(items: fitted, done: doneHere, total: doneHere + list.count, page: LiveList.clampPage(keepPage, count: fitted.count, per: LiveList.size), lang: L10n.lang, size: LiveList.size)
         let content = ActivityContent(state: state, staleDate: Date().addingTimeInterval(4 * 3600))
         if let a = current.first(where: { $0.attributes.store == title }) {
             Task { await a.update(content) }
@@ -1139,6 +1139,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         let dbUrl = call.getString("dbUrl")
         let nearNotify = call.getBool("nearNotify") ?? true
         let lang = call.getString("lang")
+        let liveSize = call.getInt("liveSize")
         var costs: [String: Double] = [:]
         if let c = call.getObject("chainCost") { for (k, v) in c { if let n = v as? NSNumber { costs[k] = n.doubleValue } } }
         let stores: [GeoStore] = (call.getArray("stores", JSObject.self) ?? []).compactMap { s in
@@ -1157,6 +1158,7 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
             UserDefaults.standard.set(costs, forKey: "geo.chainCost")
             UserDefaults.standard.set(nearNotify, forKey: "geo.nearNotify")
             if let l = lang, !l.isEmpty { UserDefaults.standard.set(l, forKey: "geo.lang") }
+            if let s = liveSize { UserDefaults.standard.set(s, forKey: "geo.liveSize") }
             GeoManager.shared.configure(enabled: on, radius: radius, dwell: dwell, stores: stores, groups: groups, items: items, household: hh)
             call.resolve()
         }

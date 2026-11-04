@@ -195,7 +195,7 @@
     var s = api.state();
     // Brez naročnine Nakupko Plus (če jo ta način zahteva) iPhone trgovin v ozadju ne spremlja.
     var on = !!(s.settings && s.settings.locOn) && !(window.__nakupkoPlus && window.__nakupkoPlus.locked("background"));
-    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 30, dwell: (s.settings && s.settings.delay) || 15, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn(), lang: window.NK_LANG || "sl" };
+    var cfg = { enabled: on, radius: (s.settings && s.settings.radius) || 30, dwell: (s.settings && s.settings.delay) || 15, stores: [], groups: [], items: [], dbUrl: window.NAKUPKO_SYNC_URL || "https://nakupko-8ad19-default-rtdb.europe-west1.firebasedatabase.app", household: window.__nakupkoHousehold ? window.__nakupkoHousehold() : null, nearNotify: nearNotifyOn(), lang: window.NK_LANG || "sl", liveSize: (s.settings && s.settings.lockSize) || 4 };
     if (on) {
       var list = (s.storesCache && s.storesCache.list) || [];
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.

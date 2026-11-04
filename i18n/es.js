@@ -2,6 +2,15 @@
 NK_PACK("es", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Zaklenjen zaslon": "Pantalla de bloqueo",
+    "Običajno": "Estándar",
+    "Več izdelkov": "Más productos",
+    "Največ izdelkov": "El máximo de productos",
+    "4 izdelki, z emojiji in gumbom »Odpri seznam«": "4 productos, con emojis y el botón «Abrir lista»",
+    "6 izdelkov, puščica za naprej zgoraj": "6 productos, flecha de siguiente arriba",
+    "8 manjših izdelkov, brez emojijev": "8 productos más pequeños, sin emojis",
+    "Seznam na zaklenjenem zaslonu": "Lista en la pantalla de bloqueo",
+    "Koliko izdelkov naj bo vidnih naenkrat, ko si v trgovini? Spremeniš lahko kadar koli v Nastavitvah.": "¿Cuántos productos quieres ver a la vez cuando estás en la tienda? Puedes cambiarlo cuando quieras en Ajustes.",
     "Vse trgovine ▾": "Todas las tiendas ▾",
     "Skrij trgovine ▴": "Ocultar tiendas ▴",
     "Koliko?": "¿Cuánto?",

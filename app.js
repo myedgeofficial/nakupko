@@ -2230,6 +2230,40 @@
     renderSizeChoices($("onboardBox"), function (k) { setSize(k); $("onboard").classList.add("hidden"); toast("Prikaz: " + SIZES[k].label); });
     $("onboard").classList.remove("hidden");
   }
+  // ---------- Zaklenjen zaslon (iPhone): koliko izdelkov naenkrat ----------
+  // Privzeto 4 (kot doslej); po 10 odprtjih aplikacija enkrat ponudi izbiro, sicer v Nastavitvah.
+  var LOCKS = {
+    4: { label: "Običajno", sub: "4 izdelki, z emojiji in gumbom »Odpri seznam«" },
+    6: { label: "Več izdelkov", sub: "6 izdelkov, puščica za naprej zgoraj" },
+    8: { label: "Največ izdelkov", sub: "8 manjših izdelkov, brez emojijev" }
+  };
+  function isIos() { try { return window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() === "ios"; } catch (e) { return false; } }
+  function renderLockChoices(box, onPick) {
+    if (!box) return;
+    box.innerHTML = "";
+    var cur = state.settings.lockSize || 4;
+    [4, 6, 8].forEach(function (k) {
+      box.appendChild(el("button", { class: "pref-opt" + (cur === k ? " on" : ""), type: "button", onclick: function () { onPick(k); } }, [
+        el("div", { class: "pref-text" }, [el("b", { text: LOCKS[k].label }), el("span", { text: LOCKS[k].sub })]),
+        el("span", { class: "size-aa", text: String(k) })
+      ]));
+    });
+  }
+  function setLock(k) {
+    state.settings.lockSize = k; save();
+    renderLockChoices($("lockBox"), setLock);
+  }
+  function maybeAskLock() {
+    if (!isIos() || state.settings.lockAsked) return false;
+    state.settings.opens = (state.settings.opens || 0) + 1; save();
+    if (state.settings.opens < 10 || !$("onboard").classList.contains("hidden")) return false;
+    state.settings.lockAsked = true; save();
+    $("obTitle").textContent = "Seznam na zaklenjenem zaslonu";
+    $("obText").textContent = "Koliko izdelkov naj bo vidnih naenkrat, ko si v trgovini? Spremeniš lahko kadar koli v Nastavitvah.";
+    renderLockChoices($("onboardBox"), function (k) { setLock(k); $("onboard").classList.add("hidden"); var T = window.NK_T || function (x) { return x; }; toast(T("Zaklenjen zaslon") + ": " + T(LOCKS[k].label)); });
+    $("onboard").classList.remove("hidden");
+    return true;
+  }
   function maybeOnboard() {
     migratePrefs();
     if (state.settings.pricePref && !state.settings.size) { askSize(); return; }
@@ -2674,6 +2708,7 @@
   // ---------- Zagon ----------
   applySize();
   renderSizeChoices($("sizeBox"), setSize);
+  if (isIos()) { $("lockCard").classList.remove("hidden"); renderLockChoices($("lockBox"), setLock); }
   (function () {
     // Jezik: samodejno po državi, kjer si (privzeto), ali ročna izbira, ki jo aplikacija ohrani.
     var box = $("langBox"), mode = window.NK_LANG_MODE || "auto", langs = window.NK_LANGS || { sl: "Slovenščina", en: "English" };
@@ -2687,6 +2722,7 @@
   })();
   renderPrefs();
   maybeOnboard();
+  if (state.settings.pricePref && state.settings.size) maybeAskLock();
   priceKeysClean();
   renderAll();
   renderStores();

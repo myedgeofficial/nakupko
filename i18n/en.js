@@ -3,6 +3,15 @@
 NK_PACK("en", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Zaklenjen zaslon": "Lock Screen",
+    "Običajno": "Standard",
+    "Več izdelkov": "More items",
+    "Največ izdelkov": "Most items",
+    "4 izdelki, z emojiji in gumbom »Odpri seznam«": "4 items, with emojis and an “Open list” button",
+    "6 izdelkov, puščica za naprej zgoraj": "6 items, next arrow at the top",
+    "8 manjših izdelkov, brez emojijev": "8 smaller items, no emojis",
+    "Seznam na zaklenjenem zaslonu": "List on the Lock Screen",
+    "Koliko izdelkov naj bo vidnih naenkrat, ko si v trgovini? Spremeniš lahko kadar koli v Nastavitvah.": "How many items should show at once when you're in a store? You can change it any time in Settings.",
     "Vse trgovine ▾": "All stores ▾",
     "Skrij trgovine ▴": "Hide stores ▴",
     "Koliko?": "How much?",

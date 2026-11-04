@@ -2,6 +2,15 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Zaklenjen zaslon": "Zárolási képernyő",
+    "Običajno": "Normál",
+    "Več izdelkov": "Több termék",
+    "Največ izdelkov": "A legtöbb termék",
+    "4 izdelki, z emojiji in gumbom »Odpri seznam«": "4 termék, emojikkal és „Lista megnyitása” gombbal",
+    "6 izdelkov, puščica za naprej zgoraj": "6 termék, tovább nyíl felül",
+    "8 manjših izdelkov, brez emojijev": "8 kisebb termék, emojik nélkül",
+    "Seznam na zaklenjenem zaslonu": "Lista a zárolási képernyőn",
+    "Koliko izdelkov naj bo vidnih naenkrat, ko si v trgovini? Spremeniš lahko kadar koli v Nastavitvah.": "Hány termék látszódjon egyszerre, amikor a boltban vagy? Bármikor módosíthatod a Beállításokban.",
     "Vse trgovine ▾": "Összes bolt ▾",
     "Skrij trgovine ▴": "Boltok elrejtése ▴",
     "Koliko?": "Mennyit?",

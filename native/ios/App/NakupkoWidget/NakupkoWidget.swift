@@ -120,15 +120,23 @@ struct LockScreenList: View {
 
     var body: some View {
         // iOS dovoli Live Activity visoko največ ~160 pt: tanka črta napredka, ostalo izdelki.
-        VStack(alignment: .leading, spacing: 5) {
+        // 6 ali 8 izdelkov (Nastavitve): »Naprej« je puščica v glavi, spodnje vrstice z gumbi ni.
+        let size = state.size ?? maxShown
+        VStack(alignment: .leading, spacing: size == maxShown ? 5 : 4) {
             HStack {
                 Label(store, systemImage: "basket.fill").font(.headline).foregroundColor(.white).lineLimit(1)
                 Spacer()
                 Text(state.items.isEmpty ? L10n.t("allDone", lang: state.lang) : "\(state.done)/\(state.total)")
                     .font(.headline).foregroundColor(lilacText)
+                if size != maxShown && state.items.count > size {
+                    Button(intent: NextPageIntent()) {
+                        Image(systemName: "chevron.right.circle.fill").font(.title3).foregroundColor(.white)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             ProgressLine(done: state.done, total: state.total)
-            ItemGrid(items: state.items, page: state.page ?? 0, shown: maxShown, dark: true, big: true, lang: state.lang)
+            ItemGrid(items: state.items, page: state.page ?? 0, shown: size, dark: true, big: size == maxShown, compact: size, lang: state.lang)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
@@ -159,6 +167,7 @@ struct ItemGrid: View {
     let shown: Int
     let dark: Bool
     let big: Bool
+    var compact: Int = LiveList.perPage   // 6 ali 8 izdelkov na zaklenjenem zaslonu: nižje vrstice
     var lang: String? = nil
 
     var body: some View {
@@ -172,15 +181,15 @@ struct ItemGrid: View {
                     ForEach(row, id: \.self) { item in
                         Button(intent: CheckItemIntent(itemId: item.id)) {
                             HStack(spacing: 5) {
-                                Image(systemName: "circle").font(big ? .body : .footnote).foregroundColor(orange)
-                                Text(item.icon + " " + item.label)
-                                    .font(big ? .callout.weight(.medium) : .footnote)
+                                Image(systemName: "circle").font(big || compact == 6 ? .body : .footnote).foregroundColor(orange)
+                                Text((compact == 8 ? "" : item.icon + " ") + item.label)
+                                    .font(big || compact == 6 ? .callout.weight(.medium) : compact == 8 ? .footnote.weight(.medium) : .footnote)
                                     .foregroundColor(dark ? .white : .black)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                                 Spacer(minLength: 0)
                             }
-                            .padding(.vertical, big ? 7 : 5)
+                            .padding(.vertical, big ? 7 : compact == 6 ? 4 : compact == 8 ? 3 : 5)
                             .padding(.horizontal, big ? 9 : 7)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(RoundedRectangle(cornerRadius: 9).fill(dark ? Color.white.opacity(0.09) : orange.opacity(0.08)))
@@ -215,7 +224,7 @@ struct ItemGrid: View {
                         .buttonStyle(.plain)
                     }
                 }
-            } else if hidden > 0 {
+            } else if hidden > 0 && compact == LiveList.perPage {
                 Text(L10n.t("more", ["\(hidden)"], lang: lang)).font(.caption).foregroundColor(.white.opacity(0.6))
             }
         }
