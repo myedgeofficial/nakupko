@@ -3,6 +3,11 @@
 NK_PACK("hr", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Ga imaš doma ali kuhaš brez njega?": "Imaš li ga kod kuće ili kuhaš bez njega?",
+    "🏠 Imam doma": "🏠 Imam kod kuće",
+    "🚫 Kuham brez": "🚫 Kuham bez",
+    "V redu, imaš doma.": "U redu, imaš kod kuće.",
+    "Kuhaš brez tega: recept je prilagojen.": "Kuhaš bez toga: recept je prilagođen.",
     "Revija Nakupko": "Nakupko magazin",
     "Listaj kot katalog ›": "Listaj kao katalog ›",
     "starejših člankov": "starijih članaka",

@@ -2,6 +2,11 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Ga imaš doma ali kuhaš brez njega?": "Otthon van, vagy nélküle főzöl?",
+    "🏠 Imam doma": "🏠 Van otthon",
+    "🚫 Kuham brez": "🚫 Nélküle főzök",
+    "V redu, imaš doma.": "Rendben, van otthon.",
+    "Kuhaš brez tega: recept je prilagojen.": "Nélküle főzöl: a recept módosult.",
     "Revija Nakupko": "Nakupko magazin",
     "Listaj kot katalog ›": "Lapozd, mint egy katalógust ›",
     "starejših člankov": "régebbi cikk",

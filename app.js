@@ -694,11 +694,31 @@
     state.items.splice(idx, 1);
     save(); renderAll();
     // Brisanje ni nakup: v zgodovino ne gre nič. Razveljavi vrne izdelek na isto mesto.
-    toast("Izbrisano: " + gone.name, { label: "Razveljavi", fn: function () {
+    var undo = function () {
       if (state.items.some(function (i) { return i.id === gone.id; })) return;
       state.items.splice(Math.min(idx, state.items.length), 0, gone);
       save(); renderAll();
-    } });
+    };
+    var rec = window.NK_RECEPTI && window.NK_RECEPTI.recipeFor ? window.NK_RECEPTI.recipeFor(gone.name) : null;
+    if (rec) askRecipeRemove(gone, rec, undo);
+    else toast("Izbrisano: " + gone.name, { label: "Razveljavi", fn: undo });
+  }
+  // Sestavina iz recepta: »Imam doma« (hranila ostanejo) ali »Kuham brez« (recept se prilagodi).
+  function askRecipeRemove(it, rec, undo) {
+    var old = $("recAsk"); if (old) old.remove();
+    var T = window.NK_T || function (s) { return s; };
+    var close = function () { box.remove(); };
+    var box = el("div", { class: "rec-ask", id: "recAsk", role: "dialog" }, [
+      el("p", null, [el("b", { text: T(it.name) }), document.createTextNode(" · " + rec.name)]),
+      el("p", { class: "rec-ask-q", text: "Ga imaš doma ali kuhaš brez njega?" }),
+      el("div", { class: "rec-ask-b" }, [
+        el("button", { type: "button", class: "chip", onclick: function () { close(); toast("V redu, imaš doma."); } }, ["🏠 Imam doma"]),
+        el("button", { type: "button", class: "chip", onclick: function () { close(); rec.skip(); toast("Kuhaš brez tega: recept je prilagojen."); } }, ["🚫 Kuham brez"]),
+        el("button", { type: "button", class: "chip rec-ask-undo", onclick: function () { close(); undo(); } }, ["Razveljavi"])
+      ])
+    ]);
+    document.body.appendChild(box);
+    setTimeout(function () { if (box.parentNode) close(); }, 12000);
   }
 
   function itemMeta(it) {

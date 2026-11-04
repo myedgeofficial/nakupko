@@ -545,6 +545,23 @@
       if (REC) { go(); return; }
       fetch("recepti.json").then(function (r) { return r.json(); }).then(function (d) { REC = REC || d; go(); }).catch(function () { cb && cb(false); });
     },
+    // Izdelek, ki ga brišeš s seznama, je sestavina enega od »Tvojih receptov«: app.js vpraša, ali ga imaš
+    // doma ali kuhaš brez njega. skip() ga zapiše kot »Brez tega« (hranila in koraki recepta se prilagodijo).
+    recipeFor: function (name) {
+      if (!REC) return null;
+      var key = String(name || "").trim().toLowerCase(), m = getMoji();
+      for (var k = 0; k < m.length; k++) {
+        var i = byName(m[k].n); if (i < 0) continue;
+        var list = ings(REC.jedi[i]);
+        for (var j = 0; j < list.length; j++) {
+          if (String(list[j][0]).toLowerCase() !== key && String(T(list[j][0])).toLowerCase() !== key) continue;
+          return (function (x, j) {
+            return { name: nm(REC.jedi[byName(x.n)]), skip: function () { var b = (x.b || []).slice(); if (b.indexOf(j) < 0) b.push(j); saveMoj(x.n, x.o, b); } };
+          })(m[k], j);
+        }
+      }
+      return null;
+    },
     // korak, spremenjen na zaklenjenem zaslonu (native.js ob vrnitvi v aplikacijo)
     step: function (n) { if (!ck || typeof n !== "number") return; ckStep = Math.max(0, Math.min(steps(ck).length, n)); drawCook(); }
   };
