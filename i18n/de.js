@@ -2,6 +2,13 @@
 NK_PACK("de", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Revija Nakupko": "Nakupko-Magazin",
+    "Listaj kot katalog ›": "Blättern wie im Prospekt ›",
+    "starejših člankov": "ältere Artikel",
+    "Vsi starejši nasveti na enem mestu.": "Alle älteren Tipps an einem Ort.",
+    "Listaj levo in desno, kot katalog.": "Wische nach links und rechts, wie im Prospekt.",
+    "Kazalo": "Inhalt",
+    "Beri članek ›": "Artikel lesen ›",
     "Zaklenjen zaslon": "Sperrbildschirm",
     "Običajno": "Standard",
     "Več izdelkov": "Mehr Artikel",

@@ -22,11 +22,63 @@
     if (dot) dot.classList.toggle("hidden", !a || !!read[a.id]);
     if (!box) return;
     if (!list().length) { box.innerHTML = '<p class="muted">Nalagam nasvete …</p>'; return; }
-    box.innerHTML = list().map(function (a, i) {
+    // V zavihku samo 6 najnovejših; starejši gredo sproti v Revijo (listaš jo kot katalog).
+    var rest = list().slice(NOVI);
+    box.innerHTML = list().slice(0, NOVI).map(function (a, i) {
       return '<button type="button" class="nasvet-card' + (i === 0 ? " prvi" : "") + '" data-clanek="' + esc(a.id) + '">' +
         '<span class="nasvet-k">' + esc(datum(a.datum)) + (read[a.id] ? "" : ' <i class="nasvet-nov">nov</i>') + "</span>" +
         "<b>" + esc(a.naslov) + '</b><span class="nasvet-o">' + esc(a.opis) + "</span></button>";
-    }).join("");
+    }).join("") + (rest.length ? '<button type="button" class="revija-teaser" data-revija="0">' +
+      '<span class="rt-book" aria-hidden="true"><i></i><i></i><i></i></span>' +
+      '<span class="rt-txt"><span class="rt-k">Revija Nakupko</span><b>Listaj kot katalog ›</b>' +
+      '<span class="rt-o"><b>' + rest.length + "</b> <span>starejših člankov</span></span></span></button>" : "");
+  }
+
+  // ---------- Revija: starejši članki, listaš jih kot tedenski katalog ----------
+  var NOVI = 6;
+  function revija(start) {
+    var rest = list().slice(NOVI); if (!rest.length) return;
+    var old = $("revija"); if (old) old.remove();
+    var w = document.createElement("div");
+    w.id = "revija"; w.className = "revija"; w.setAttribute("role", "dialog"); w.setAttribute("aria-modal", "true");
+    var pages = ['<section class="rv-page rv-cover"><div class="rv-in"><p class="rv-k">Revija Nakupko</p>' +
+      "<h2>Vsi starejši nasveti na enem mestu.</h2><p class=\"rv-hint\">Listaj levo in desno, kot katalog.</p>" +
+      '<p class="rv-k rv-toc-k">Kazalo</p><ol class="rv-toc">' + rest.map(function (a, i) {
+        return '<li><button type="button" data-rv="' + (i + 1) + '"><span>' + (i + 2) + "</span>" + esc(a.naslov) + "</button></li>";
+      }).join("") + "</ol></div></section>"].concat(rest.map(function (a, i) {
+        return '<section class="rv-page" style="--c:' + BARVE[i % BARVE.length] + '"><div class="rv-in">' +
+          '<p class="rv-k">' + esc(datum(a.datum)) + "</p><h2>" + esc(a.naslov) + '</h2><p class="rv-o">' + esc(a.opis) + "</p>" +
+          '<button type="button" class="rv-beri" data-clanek="' + esc(a.id) + '">Beri članek ›</button>' +
+          '<span class="rv-st">' + (i + 2) + "</span></div></section>";
+      }));
+    w.innerHTML = '<div class="rv-top"><b class="rv-t">📖 <span>Revija Nakupko</span></b><span class="rv-n"></span>' +
+      '<button type="button" class="rv-x" aria-label="Zapri"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
+      '<div class="rv-pages">' + pages.join("") + "</div>" +
+      '<div class="rv-nav"><button type="button" class="rv-prev" aria-label="Nazaj">‹</button><button type="button" class="rv-next" aria-label="Naprej">›</button></div>';
+    document.body.appendChild(w);
+    document.body.style.overflow = "hidden";
+    var box = w.querySelector(".rv-pages"), all = w.querySelectorAll(".rv-page"), n = w.querySelector(".rv-n");
+    function go(i) { box.scrollTo({ left: Math.max(0, Math.min(all.length - 1, i)) * box.clientWidth, behavior: "smooth" }); }
+    // listanje: stran se ob robu nagne kot list v katalogu
+    function tilt() {
+      var x = box.scrollLeft / Math.max(1, box.clientWidth);
+      [].forEach.call(all, function (p, i) {
+        var d = Math.max(-1, Math.min(1, i - x));
+        p.firstChild.style.transform = "perspective(1400px) rotateY(" + (-d * 32).toFixed(1) + "deg) scale(" + (1 - Math.abs(d) * 0.07).toFixed(3) + ")";
+        p.firstChild.style.transformOrigin = d > 0 ? "left center" : "right center";
+      });
+      n.textContent = (Math.round(x) + 1) + " / " + all.length;
+    }
+    box.addEventListener("scroll", function () { requestAnimationFrame(tilt); }, { passive: true });
+    w.addEventListener("click", function (e) {
+      var t = e.target.closest ? e.target : null; if (!t) return;
+      if (t.closest(".rv-x")) { w.remove(); document.body.style.overflow = ""; return; }
+      if (t.closest(".rv-prev")) return go(Math.round(box.scrollLeft / box.clientWidth) - 1);
+      if (t.closest(".rv-next")) return go(Math.round(box.scrollLeft / box.clientWidth) + 1);
+      var j = t.closest("[data-rv]"); if (j) return go(+j.dataset.rv);
+      var b = t.closest("[data-clanek]"); if (b) open(b.dataset.clanek);
+    });
+    requestAnimationFrame(function () { box.scrollLeft = (start || 0) * box.clientWidth; tilt(); });
   }
   function sheet(inner) {
     var old = $("nasvetWrap"); if (old) old.remove();
@@ -87,6 +139,8 @@
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("#nasvetiList [data-clanek]");
     if (b) open(b.dataset.clanek);
+    var r = e.target.closest && e.target.closest("#nasvetiList [data-revija]");
+    if (r) revija(+r.dataset.revija);
   });
   function refresh() {
     fetch(URL, { cache: "no-cache" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {

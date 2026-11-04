@@ -2,6 +2,13 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Revija Nakupko": "Nakupko magazin",
+    "Listaj kot katalog ›": "Lapozd, mint egy katalógust ›",
+    "starejših člankov": "régebbi cikk",
+    "Vsi starejši nasveti na enem mestu.": "Az összes régebbi tipp egy helyen.",
+    "Listaj levo in desno, kot katalog.": "Lapozz balra és jobbra, mint egy katalógusban.",
+    "Kazalo": "Tartalom",
+    "Beri članek ›": "Cikk olvasása ›",
     "Zaklenjen zaslon": "Zárolási képernyő",
     "Običajno": "Normál",
     "Več izdelkov": "Több termék",
