@@ -734,7 +734,9 @@
     (myChains() || []).forEach(add);
     stores.forEach(function (x) { if (x.chain && CHAIN_BY_KEY[x.chain] && !/^(bencinska|trafika|kiosk)$/.test(x.chain)) add(x.chain); });
     COMPARE_CHAINS.concat(["dm", "muller"]).forEach(add);
-    return keys;
+    // Samo trgovine, ki izdelek prodajajo: za česen ne Premium Pet ali Proteini.si.
+    var p = catalogFind(it.name), x = { name: it.name, cat: it.cat || (p && p.cat) || "" };
+    return keys.filter(function (k) { return k === it.store || sells({ chain: k }, x); });
   }
   var pickOpen = null, storesShown = false;
   function setItemStore(it, k) {
