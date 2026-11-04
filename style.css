@@ -943,3 +943,7 @@ body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-even
 .list li.item.picking .irow { border: 0; box-shadow: none; background: transparent; }
 .chip { background: rgba(255, 255, 255, .78); border-color: rgba(96, 41, 251, .14); }
 .done .irow { background: rgba(246, 240, 255, .7); }
+
+/* Barvna ikona Nasvetov (žarnica): svoje barve, brez obrobe */
+.tabs svg.ic-nasveti { stroke: none; width: 26px; height: 26px; }
+.tabs button.on svg.ic-nasveti { filter: drop-shadow(0 0 4px rgba(255,255,255,.55)); }
