@@ -35,10 +35,19 @@ enum StoreRules {
         text.range(of: pattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
+    // Odprta v nedeljo ali na praznik po OSM urniku = dežurna (kot opensSunday v app.js).
+    static func opensSunday(_ hours: String) -> Bool {
+        hours.components(separatedBy: CharacterSet(charactersIn: ";,")).contains { rule in
+            let r = rule.trimmingCharacters(in: .whitespaces)
+            guard let t = r.range(of: "\\s+\\d{1,2}:\\d{2}", options: .regularExpression) else { return false }
+            return matches(String(r[..<t.lowerBound]), "(^|[^A-Za-z])(Su|PH)([^A-Za-z]|$)")
+        }
+    }
+
     // Vrne (chain, duty) ali nil, če trgovine ne spremljamo.
     static func kind(text: String, hours: String) -> (chain: String?, duty: Bool)? {
         for (key, pattern) in chains where matches(text, pattern) { return (key, false) }
-        if matches(text, dutyPattern) || hours.contains("24/7") { return (nil, true) }
+        if matches(text, dutyPattern) || hours.contains("24/7") || opensSunday(hours) { return (nil, true) }
         return nil
     }
 
