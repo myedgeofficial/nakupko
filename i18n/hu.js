@@ -2,6 +2,8 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Vse trgovine ▾": "Összes bolt ▾",
+    "Skrij trgovine ▴": "Boltok elrejtése ▴",
     "Koliko?": "Mennyit?",
     "Kosi": "Darab",
     "Si kaj pozabil?": "Nem felejtettél el valamit?",

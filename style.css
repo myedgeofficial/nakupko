@@ -921,3 +921,25 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .store-pick .qchip { min-width: 44px; justify-content: center; font-weight: 800; }
 .store-pick .qchip { font-size: 20px; line-height: 1; }
 .store-pick .qinput { width: 72px; height: 40px; border: 2px solid var(--violet-soft, #E4D9FF); border-radius: 12px; text-align: center; font: 800 18px var(--font); color: var(--ink); background: #fff; }
+
+/* Odprt izdelek na seznamu: polne barve (pravilo .picking za kviz ga je prej zbledilo). */
+.list li.item.picking > * { opacity: 1; }
+.store-pick .chip-more { color: var(--violet); font-weight: 800; border-style: dashed; }
+
+/* ---------- Steklen videz: barvne lise za prosojnimi belimi karticami ---------- */
+body { background: #F7F4FD; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(60vw 60vw at 0% 0%, rgba(167, 139, 250, .38), transparent 70%),
+    radial-gradient(55vw 55vw at 100% 30%, rgba(244, 114, 182, .26), transparent 70%),
+    radial-gradient(70vw 70vw at 30% 100%, rgba(96, 165, 250, .26), transparent 70%); }
+.irow, .reco-card, .stile, .stores li, .nasvet-card, .trip-card, .store-pick, .list li.item.picking, #smReco:not(:empty) {
+  background: rgba(255, 255, 255, .7); }
+.irow, .reco-card, .stile, .stores li, .nasvet-card, .trip-card {
+  border: 1px solid rgba(255, 255, 255, .95);
+  box-shadow: inset 0 1px 0 #fff, 0 8px 24px -14px rgba(80, 40, 140, .28); }
+.reco-card, .stile, .nasvet-card, .trip-card, .stores li {
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); }
+.list li.item.picking { border: 1px solid rgba(255, 255, 255, .95); }
+.list li.item.picking .irow { border: 0; box-shadow: none; background: transparent; }
+.chip { background: rgba(255, 255, 255, .78); border-color: rgba(96, 41, 251, .14); }
+.done .irow { background: rgba(246, 240, 255, .7); }

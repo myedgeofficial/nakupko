@@ -3,6 +3,8 @@
 NK_PACK("hr", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Vse trgovine ▾": "Sve trgovine ▾",
+    "Skrij trgovine ▴": "Sakrij trgovine ▴",
     "Koliko?": "Koliko?",
     "Kosi": "Komada",
     "Si kaj pozabil?": "Jesi li nešto zaboravio?",

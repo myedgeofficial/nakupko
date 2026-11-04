@@ -2,6 +2,8 @@
 NK_PACK("fr", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Vse trgovine ▾": "Tous les magasins ▾",
+    "Skrij trgovine ▴": "Masquer les magasins ▴",
     "Koliko?": "Combien ?",
     "Kosi": "Pièces",
     "Si kaj pozabil?": "Tu as oublié quelque chose ?",

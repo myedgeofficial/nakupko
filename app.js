@@ -736,7 +736,7 @@
     COMPARE_CHAINS.concat(["dm", "muller"]).forEach(add);
     return keys;
   }
-  var pickOpen = null;
+  var pickOpen = null, storesShown = false;
   function setItemStore(it, k) {
     it.store = k || "";
     if (!it.store) delete it.store;
@@ -783,12 +783,20 @@
       box.appendChild(el("button", { type: "button", class: "chip", onclick: function () { removePhoto(it); } }, ["Odstrani sliko"]));
     } else photoButtons(it).forEach(function (b) { box.appendChild(b); });
     box.appendChild(el("span", { class: "pick-break" }));
+    // Trgovine so skrite za gumbom: vidi se samo izbrana, ves seznam ob tapu.
+    var storeChip = function (k) {
+      return el("button", { type: "button", class: "chip" + ((it.store || "") === k ? " on" : ""), onclick: function () { storesShown = false; setItemStore(it, k); } },
+        !k ? ["Kjerkoli"] : CHAIN_BY_KEY[k] ? [chainDot(k), storeKeyName(k)] : [storeKeyName(k)]);
+    };
     box.appendChild(el("span", { class: "muted small", text: "Kje kupiš?" }));
-    box.appendChild(el("button", { type: "button", class: "chip" + (!it.store ? " on" : ""), onclick: function () { setItemStore(it, ""); } }, ["Kjerkoli"]));
-    storeChoices(it).forEach(function (k) {
-      box.appendChild(el("button", { type: "button", class: "chip" + (it.store === k ? " on" : ""), onclick: function () { setItemStore(it, k); } },
-        CHAIN_BY_KEY[k] ? [chainDot(k), storeKeyName(k)] : [storeKeyName(k)]));
-    });
+    if (!storesShown) box.appendChild(storeChip(it.store || ""));
+    box.appendChild(el("button", { type: "button", class: "chip chip-more", onclick: function () { storesShown = !storesShown; renderAll(); } },
+      [storesShown ? "Skrij trgovine ▴" : "Vse trgovine ▾"]));
+    if (storesShown) {
+      box.appendChild(el("span", { class: "pick-break" }));
+      [""].concat(storeChoices(it)).forEach(function (k) { box.appendChild(storeChip(k)); });
+    }
+    box.appendChild(el("span", { class: "pick-break" }));
     box.appendChild(delBtn);
     return box;
   }
@@ -953,7 +961,7 @@
     var q = it.amt && Object.keys(it.amt).length ? amtText(it.amt) + (it.qty > 1 ? " · " + qtyText(it.qty) : "") : qtyText(it.qty);
     var row = el("div", { class: "irow" }, [
       thumbFor(it),
-      el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { pickOpen = pickOpen === it.id ? null : it.id; renderAll(); } }, [
+      el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { pickOpen = pickOpen === it.id ? null : it.id; storesShown = false; renderAll(); } }, [
         el("div", { class: "iname" }, [q ? el("i", { class: "iqty", text: q }) : null, el("span", { text: it.name })]),
         it.done ? null : priceChip(it, storeCtx),
         meta || tag ? el("div", { class: "imeta" }, [tag, meta ? document.createTextNode((tag ? " · " : "") + meta) : null]) : null
