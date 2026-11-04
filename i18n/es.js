@@ -2,6 +2,9 @@
 NK_PACK("es", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Koliko?": "¿Cuánto?",
+    "Kosi": "Piezas",
+    "Si kaj pozabil?": "¿Olvidaste algo?",
     // Moji nakupi (nakupi.js)
     "Skozi čas": "A lo largo del tiempo",
     "Izdelkov na teden": "Artículos por semana",

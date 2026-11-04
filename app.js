@@ -748,7 +748,36 @@
   function storePicker(it) {
     var delBtn = el("button", { type: "button", class: "chip chip-del", onclick: function () { pickOpen = null; removeItem(it.id); } }, ["Izbriši"]);
     if (it.done) return el("div", { class: "store-pick" }, [delBtn]);
-    var box = el("div", { class: "store-pick" }, [el("span", { class: "muted small", text: "Slika:" })]);
+    var box = el("div", { class: "store-pick" });
+    // Sadje in zelenjava: koliko – poljubno število kosov (korak 1) ali kilogramov (korak 0,5).
+    var p = catalogFind(it.name);
+    if (p && p.cat === "Sadje in zelenjava") {
+      var isKg = function () { return !!(it.amt && it.amt.g != null); };
+      var cur = function () { return isKg() ? it.amt.g / 1000 : (it.amt && it.amt.kos) || 0; };
+      var setN = function (kgMode, n) {
+        n = Math.max(0, Math.round(n * (kgMode ? 10 : 1)) / (kgMode ? 10 : 1));
+        if (!n) delete it.amt; else it.amt = kgMode ? { g: Math.round(n * 1000) } : { kos: n };
+        it.qty = 1; save(); renderAll();
+      };
+      var unit = function (kgMode) {
+        // preklop enote: 1,5 kg → 2 kosa in obratno, da število ostane smiselno
+        return el("button", { type: "button", class: "chip" + (isKg() === kgMode ? " on" : ""), onclick: function () {
+          if (isKg() !== kgMode) setN(kgMode, kgMode ? Math.max(0.5, Math.round(cur() * 0.2 * 2) / 2) : Math.max(1, Math.round(cur() * 5)));
+        } }, [kgMode ? "kg" : "Kosi"]);
+      };
+      var input = el("input", { class: "qinput", type: "text", inputmode: "decimal", "aria-label": "Koliko?", value: cur() ? String(cur()).replace(".", ",") : "" });
+      input.addEventListener("change", function () { setN(isKg(), parseFloat(String(input.value).replace(",", ".")) || 0); });
+      input.addEventListener("click", function (e) { e.stopPropagation(); });
+      box.appendChild(el("span", { class: "muted small", text: "Koliko?" }));
+      box.appendChild(unit(false));
+      box.appendChild(unit(true));
+      box.appendChild(el("span", { class: "pick-break" }));
+      box.appendChild(el("button", { type: "button", class: "chip qchip", "aria-label": "Manj", onclick: function () { setN(isKg(), cur() - (isKg() ? 0.5 : 1)); } }, ["−"]));
+      box.appendChild(input);
+      box.appendChild(el("button", { type: "button", class: "chip qchip", "aria-label": "Več", onclick: function () { setN(isKg(), cur() + (isKg() ? 0.5 : 1)); } }, ["+"]));
+      box.appendChild(el("span", { class: "pick-break" }));
+    }
+    box.appendChild(el("span", { class: "muted small", text: "Slika:" }));
     if (it.photo) {
       box.appendChild(el("button", { type: "button", class: "chip", onclick: function () { showPhoto(it); } }, ["Poglej sliko"]));
       box.appendChild(el("button", { type: "button", class: "chip", onclick: function () { removePhoto(it); } }, ["Odstrani sliko"]));
@@ -1340,6 +1369,23 @@
     });
     return recs.length;
   }
+  // »Kmalu ti zmanjka«: ko zapreš aplikacijo, iPhone ob 17h opomni na izdelke, ki jih običajno kupiš ob tem času.
+  // Isti nabor izdelkov največ enkrat na 3 dni, da opomnik ne nadleguje.
+  function planSoonReminder() {
+    if (!window.__nakupkoRemindSoon) return;
+    var due = recommendations(null).filter(function (r) { return r.score >= 2; }).slice(0, 3);
+    var keys = due.map(function (r) { return r.h.key; }).sort().join("|");
+    var last = state.soonLast || {};
+    if (!due.length || (last.keys === keys && Date.now() - last.ts < 3 * DAY)) return window.__nakupkoRemindSoon([], 0);
+    var at = new Date(); at.setHours(17, 0, 0, 0);
+    if (Date.now() > at.getTime() - 3600000) at.setDate(at.getDate() + 1);
+    var T = window.NK_T || function (s) { return s; };
+    window.__nakupkoRemindSoon(due.map(function (r) { return T(r.h.name); }), at.getTime());
+    state.soonLast = { keys: keys, ts: at.getTime() };
+    save();
+  }
+  document.addEventListener("visibilitychange", function () { if (document.hidden) planSoonReminder(); });
+
   function renderReco() {
     var n = renderRecoInto($("recoList"), currentStore());
     $("recoBox").classList.toggle("hidden", n === 0);
@@ -1658,14 +1704,18 @@
   // Odšel si: zapremo »V trgovini« (fromPhone: zaznal je iPhone v ozadju).
   function leftStore(id, fromPhone) {
     if (!activeStore || activeStore.id !== id) return;
-    var name = activeStore.short || activeStore.name;
+    var name = activeStore.short || activeStore.name, store = activeStore;
     if (!fromPhone) window.__nakupkoLeftAt = Date.now();  // iPhone: umakni seznam z zaklenjenega zaslona
     if (det && fromPhone) det.stop(Date.now() / 1000);
     activeStore = null;   // brez »snooze«: ob naslednjem prihodu se odpre znova
     $("storeMode").classList.add("hidden");
     document.body.style.overflow = "";
     renderAll();
-    toast("Zapustil si " + name + ". Nakupovanje zaprto.");
+    // »Si kaj pozabil?«: res si nakupoval (vsaj 2 min), za to trgovino pa je na seznamu še kaj.
+    var left = Date.now() - storeModeOpenedAt >= 120000 ? state.items.filter(function (i) { return !i.done && forStore(store, i); }) : [];
+    var T = window.NK_T || function (s) { return s; };
+    if (left.length) toast(T("Si kaj pozabil?") + " " + left.slice(0, 5).map(function (i) { return T(i.name); }).join(", ") + (left.length > 5 ? " …" : ""), { label: "OK", fn: function () {} });
+    else toast("Zapustil si " + name + ". Nakupovanje zaprto.");
   }
   function evaluateNear() {
     feed(false);

@@ -274,6 +274,8 @@
   if (platform === "ios") {
     window.__nakupkoShowRoute = function (st) { Geo.showRoute({ lat: st.lat, lon: st.lon, name: st.short || st.name || "" }).catch(function () {}); };
     window.__nakupkoRouteInfo = function (st) { return Geo.routeInfo({ lat: st.lat, lon: st.lon }); };
+    // »Kmalu ti zmanjka«: iPhone opomni ob uri at (ms); prazen seznam opomnik prekliče.
+    window.__nakupkoRemindSoon = function (names, at) { Geo.remindSoon({ names: names, at: at }).catch(function () {}); };
   }
 
   // iPhone je zaznal prihod/odhod (tudi v ozadju): aplikacija odpre/zapre »V trgovini«.

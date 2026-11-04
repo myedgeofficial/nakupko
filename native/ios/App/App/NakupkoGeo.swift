@@ -783,6 +783,13 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             for a in Activity<ShoppingAttributes>.activities { Task { await a.end(nil, dismissalPolicy: .immediate) } }
         }
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(s.store.id)"])
+        // »Si kaj pozabil?«: res si nakupoval (vsaj 2 min), odšel si, za to trgovino pa je na seznamu še kaj.
+        // Odprta aplikacija to pokaže sama (leftStore v app.js).
+        if lookForNext, Date().timeIntervalSince(s.since) >= forgotAfter, UIApplication.shared.applicationState != .active {
+            let done = Set((defaults.dictionary(forKey: "live.done") as? [String: Double] ?? [:]).keys)
+            let left = items(for: s.store).filter { !done.contains($0.id) }
+            if !left.isEmpty { postForgotNotification(store: s.store, items: left) }
+        }
         reportLeft(storeId: s.store.id)
         if notifyApp { onLeft?(s.store.id) }
         // Naslednja trgovina blizu (npr. iz Spara v dm v istem središču): še nekaj minut natančna lokacija.
@@ -804,6 +811,32 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
             let why = (obj["data"] as? String) ?? ""
             DispatchQueue.main.async { self?.log("  Apple: \(st) \(why.prefix(80))") }
         }.resume()
+    }
+
+    private let forgotAfter: TimeInterval = 120
+    private func postForgotNotification(store: GeoStore, items: [LiveItem]) {
+        let names = items.prefix(6).map { $0.label }.joined(separator: ", ") + (items.count > 6 ? " …" : "")
+        let content = UNMutableNotificationContent()
+        content.title = L10n.t("forgot")
+        content.body = L10n.t("forgotBody", [names])
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: "forgot-\(store.id)", content: content, trigger: nil))
+        log("  si kaj pozabil? (\(items.count))")
+    }
+
+    // »Kmalu ti zmanjka«: aplikacija pove, kaj običajno kupiš ob tem času, iPhone opomni ob uri `at`.
+    func remindSoon(names: [String], at: Date?) {
+        let c = UNUserNotificationCenter.current()
+        c.removePendingNotificationRequests(withIdentifiers: ["soon"])
+        guard let at = at, !names.isEmpty, at > Date() else { return }
+        let content = UNMutableNotificationContent()
+        content.title = L10n.t("soonTitle")
+        content.body = L10n.t("soonBody", [names.prefix(3).joined(separator: ", ")])
+        content.sound = .default
+        content.userInfo = ["soon": true]
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: at.timeIntervalSinceNow, repeats: false)
+        c.add(UNNotificationRequest(identifier: "soon", content: content, trigger: trigger))
     }
 
     private func postStoreNotification(id: String, store: GeoStore, open: [ItemGroup], count: Int) {
@@ -1037,8 +1070,18 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "routeInfo", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "showRoute", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "cook", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "takeCook", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "takeCook", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "remindSoon", returnType: CAPPluginReturnPromise)
     ]
+
+    @objc func remindSoon(_ call: CAPPluginCall) {
+        let names = (call.getArray("names") as? [String]) ?? []
+        let at = call.getDouble("at").map { Date(timeIntervalSince1970: $0 / 1000) }
+        DispatchQueue.main.async {
+            GeoManager.shared.remindSoon(names: names, at: at)
+            call.resolve()
+        }
+    }
 
     override public func load() {
         let geo = GeoManager.shared

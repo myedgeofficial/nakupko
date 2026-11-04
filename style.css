@@ -241,18 +241,18 @@ input[type=text], input[type=search], textarea {
 .seg button.on::after { content: " ✓"; }
 
 /* ---------- Seznam: kartica na izdelek ---------- */
-.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
-.list li.item { position: relative; border-radius: 19.5px; overflow: hidden; background: #E9DFFF; box-shadow: 0 1px 3px rgba(80, 40, 140, .06); }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.list li.item { position: relative; border-radius: 15px; overflow: hidden; background: #E9DFFF; box-shadow: 0 1px 3px rgba(80, 40, 140, .06); }
 .irow {
-  position: relative; z-index: 1; display: flex; align-items: center; gap: 12.5px;
-  background: #fff; border-radius: 19.5px; padding: 9px 12.5px 9px 9px; min-height: 81px;
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 10px;
+  background: #fff; border-radius: 15px; padding: 6px 10px 6px 6px; min-height: 56px;
   transition: transform .2s ease; touch-action: pan-y;
 }
 .list li.item.dragging .irow { transition: none; }
-.thumb { width: 63.5px; height: 63.5px; flex: 0 0 63.5px; border-radius: 17.5px; display: grid; place-items: center; background: var(--surface-2); }
-.thumb img { width: 49.5px; height: 49.5px; display: block; }
+.thumb { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12.5px; display: grid; place-items: center; background: var(--surface-2); }
+.thumb img { width: 34px; height: 34px; display: block; }
 .ibody { flex: 1; min-width: 0; cursor: pointer; }
-.iname { font: 800 18.5px/1.15 var(--font); color: var(--ink); overflow-wrap: break-word; }
+.iname { font: 800 16px/1.15 var(--font); color: var(--ink); overflow-wrap: break-word; }
 .iqty { font-style: normal; color: var(--violet); margin-right: 5.5px; }
 .imeta { font-size: 13px; font-weight: 700; color: var(--muted); margin-top: 3.5px; }
 .price {
@@ -264,11 +264,11 @@ input[type=text], input[type=search], textarea {
 .price.est .pmain { font-weight: 600; }
 .price .sale { color: var(--sale); background: #FDEEE8; border-radius: 879px; padding: 3px 9px; font: 800 12.5px/1.2 var(--font); white-space: nowrap; }
 .check { position: relative;
-  width: 33.5px; height: 33.5px; flex: 0 0 33.5px; border-radius: 50%; border: 2.5px solid #CBC3DC;
+  width: 27px; height: 27px; flex: 0 0 27px; border-radius: 50%; border: 2.5px solid #CBC3DC;
   background: #fff; display: grid; place-items: center; padding: 0; color: transparent; transition: background .15s, border-color .15s;
 }
 .check::before { content: ""; position: absolute; width: 49.5px; height: 49.5px; }
-.check svg { width: 17.5px; height: 17.5px; stroke-width: 3.2; }
+.check svg { width: 14px; height: 14px; stroke-width: 3.2; }
 .done .check { background: var(--grad-d); border-color: transparent; color: #fff; }
 .list li.item.done { box-shadow: none; }
 .done .irow { background: #F6F0FF; box-shadow: inset 0 0 0 1.5px #DCCBFF; }
@@ -277,7 +277,7 @@ input[type=text], input[type=search], textarea {
 .done .thumb img { opacity: .55; }
 /* Gumb za brisanje je za vrstico; pokaže se, ko jo povlečeš v levo. */
 .list li.item > .del {
-  position: absolute; z-index: 0; right: 0; top: 0; bottom: 0; width: 77.5px; border: 0; border-radius: 0 19.5px 19.5px 0;
+  position: absolute; z-index: 0; right: 0; top: 0; bottom: 0; width: 64px; border: 0; border-radius: 0 15px 15px 0;
   background: var(--danger); color: #fff; display: grid; place-items: center; padding: 0 0 0 9px;
 }
 .list li.item > .del svg { width: 21px; height: 21px; stroke-width: 2.6; }
@@ -544,9 +544,9 @@ details.card[open] > summary { margin-bottom: 10.5px; }
   .hero-near-name { font-size: 17px; }
   .ftab { font-size: 14px; letter-spacing: .04em; gap: 7px; }
   .irow { gap: 9.5px; padding-right: 10.5px; }
-  .thumb { width: 56.5px; height: 56.5px; flex-basis: 56.5px; }
-  .thumb img { width: 42px; height: 42px; }
-  .iname { font-size: 17px; }
+  .thumb { width: 40px; height: 40px; flex-basis: 40px; }
+  .thumb img { width: 30px; height: 30px; }
+  .iname { font-size: 15px; }
   .price { font-size: 14px; }
   .slogo, .slogo img, .slogo .wm { width: 38.5px; height: 38.5px; max-width: 38.5px; max-height: 38.5px; }
   .slogo img { width: auto; height: auto; }
@@ -796,10 +796,10 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 
 /* Koš v vrstici izdelka: izbriše brez označitve kot kupljeno (2026-10-31). */
 .trash {
-  width: 36px; height: 36px; flex: 0 0 36px; border: 0; border-radius: 50%; padding: 0; margin-right: -4px;
+  width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 50%; padding: 0; margin-right: -4px;
   background: transparent; color: #A9A0C2; display: grid; place-items: center; cursor: pointer;
 }
-.trash svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.trash svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .trash:active { background: #FDECEA; color: var(--danger); }
 .toast:has(.toast-act) { display: flex; align-items: center; white-space: nowrap; }
 .toast-act { margin-left: 14px; border: 0; background: transparent; color: #C9B8FF; font: 800 15px/1 var(--font); padding: 4px 2px; cursor: pointer; }
@@ -916,3 +916,8 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .nk-raz b { font-weight: 900; }
 .nk-raz b.gor { color: var(--violet); }
 .nk-raz b.dol { color: #C2577E; }
+
+/* Koliko sadja ali zelenjave: dovolj velik gumb za prst */
+.store-pick .qchip { min-width: 44px; justify-content: center; font-weight: 800; }
+.store-pick .qchip { font-size: 20px; line-height: 1; }
+.store-pick .qinput { width: 72px; height: 40px; border: 2px solid var(--violet-soft, #E4D9FF); border-radius: 12px; text-align: center; font: 800 18px var(--font); color: var(--ink); background: #fff; }

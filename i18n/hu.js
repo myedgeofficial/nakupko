@@ -2,6 +2,9 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Koliko?": "Mennyit?",
+    "Kosi": "Darab",
+    "Si kaj pozabil?": "Nem felejtettél el valamit?",
     // Moji nakupi (nakupi.js)
     "Skozi čas": "Időben",
     "Izdelkov na teden": "Termék hetente",
