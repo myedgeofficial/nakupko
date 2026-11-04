@@ -697,7 +697,7 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rsh-nutri p { margin: 8px 0 0; }
 
 /* kuhanje po korakih */
-.rsheet .rsh-cook { margin-top: 10px; background: var(--surface); color: var(--violet); border: 2px solid var(--violet); border-radius: 14px; padding: 10.5px 14px; font-weight: 800; }
+.rsheet .rsh-cook { margin-top: 10px; background: var(--surface); color: var(--violet); border: 2px solid var(--violet); border-radius: 14px; padding: 10.5px 14px; font-weight: 800; white-space: nowrap; }
 .kuhaj { position: fixed; inset: 0; z-index: 400; background: #0f0b1f; color: #fff; display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom)); font-family: var(--font); }
 .kh-top { display: flex; align-items: center; gap: 12px; }
 .kh-top b { flex: 1; font-weight: 900; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
