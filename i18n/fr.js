@@ -540,6 +540,7 @@ NK_PACK("fr", function (h) {
     [/^(.+) · odpiram čez (\d+) s$/, "$1 · ouverture dans $2 s"],
     [/^Kupiš ga vsak teden, zadnjič pred (.+)$/, function (m) { return "Tu l'achètes chaque semaine, la dernière fois il y a " + ago(m[1]); }],
     [/^Kupiš ga vsakih ~(\d+) dni, zadnjič pred (.+)$/, function (m) { return "Tu l'achètes tous les ~" + m[1] + " jours, la dernière fois il y a " + ago(m[2]); }],
+    [/^(.+ · )?običajno: (.+)$/, function (m) { return (m[1] || "") + "d’habitude : " + m[2]; }],
     [/^Tu ga običajno kupiš, zadnjič pred (\d+) dnevi$/, "Tu l'achètes d'habitude ici, la dernière fois il y a $1 jours"],
     [/^Običajno kupiš okoli (\d+)\. v mesecu$/, "Tu l'achètes d'habitude vers le $1 du mois"],
     [/^Običajno kupiš (ob \S+)( \(jutri\))?$/, function (m) { return "Tu l'achètes d'habitude " + (DAYS_ON[m[1]] || m[1]) + (m[2] ? " (demain)" : ""); }],
