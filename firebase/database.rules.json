@@ -11,7 +11,19 @@
         },
         "members": {
           "$member": {
-            ".validate": "$member.matches(/^[A-Z0-9]{10}$/)"
+            ".validate": "$member.matches(/^[A-Z0-9]{10}$/)",
+            "status": { ".validate": "newData.val() == 'pending' || newData.val() == 'ok'" },
+            "loc": { ".validate": "newData.isBoolean()" }
+          }
+        },
+        "adds": {
+          "$add": {
+            ".validate": "newData.hasChildren(['from', 'items', 'at'])"
+          }
+        },
+        "asks": {
+          "$ask": {
+            ".validate": "newData.hasChildren(['from', 'at'])"
           }
         },
         "visits": {
@@ -46,6 +58,9 @@
         ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')"
       },
       "osvezi": {
+        ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')"
+      },
+      "admob": {
         ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'teo.simonic7@gmail.com' || auth.token.email == 'urska.repusic@gmail.com')"
       }
     }
