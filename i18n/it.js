@@ -540,6 +540,7 @@ NK_PACK("it", function (h) {
     [/^(.+) · odpiram čez (\d+) s$/, "$1 · apro tra $2 s"],
     [/^Kupiš ga vsak teden, zadnjič pred (.+)$/, function (m) { return "Lo compri ogni settimana, l'ultima volta " + ago(m[1]) + " fa"; }],
     [/^Kupiš ga vsakih ~(\d+) dni, zadnjič pred (.+)$/, function (m) { return "Lo compri ogni ~" + m[1] + " giorni, l'ultima volta " + ago(m[2]) + " fa"; }],
+    [/^(.+ · )?običajno: (.+)$/, function (m) { return (m[1] || "") + "di solito: " + m[2]; }],
     [/^Tu ga običajno kupiš, zadnjič pred (\d+) dnevi$/, "Di solito lo compri qui, l'ultima volta $1 giorni fa"],
     [/^Običajno kupiš okoli (\d+)\. v mesecu$/, "Di solito lo compri intorno al $1 del mese"],
     [/^Običajno kupiš (ob \S+)( \(jutri\))?$/, function (m) { return "Di solito lo compri " + (DAYS_ON[m[1]] || m[1]) + (m[2] ? " (domani)" : ""); }],
