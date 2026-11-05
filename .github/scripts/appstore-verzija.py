@@ -73,8 +73,10 @@ tezave = []
 for lok in klic("GET", f"/appStoreVersions/{v['id']}/appStoreVersionLocalizations?limit=50")["data"]:
     jezik, a = lok["attributes"]["locale"], lok["attributes"]
     txt = besedila.get(jezik) or besedila.get(jezik.split("-")[0]) or besedila["en"]
-    nova = {"whatsNew": txt}
-    for k in ("promotionalText", "description", "keywords", "supportUrl", "marketingUrl"):
+    # javne povezave vedno na nakupko.com (nikoli myedgeofficial)
+    nova = {"whatsNew": txt, "marketingUrl": "https://nakupko.com",
+            "supportUrl": "https://nakupko.com/" + ("podpora.html" if jezik.startswith("sl") else "support.html")}
+    for k in ("promotionalText", "description", "keywords"):
         if not a.get(k) and stari.get(jezik, {}).get(k):
             nova[k] = stari[jezik][k]
     klic("PATCH", f"/appStoreVersionLocalizations/{lok['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": lok["id"], "attributes": nova}})

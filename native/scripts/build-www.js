@@ -20,7 +20,10 @@ let html = fs.readFileSync(indexPath, "utf8");
 const firstScript = html.indexOf("<script");
 if (firstScript < 0) throw new Error("index.html nima <script> oznake");
 html = html.replace("</head>", '  <link rel="stylesheet" href="native.css">\n</head>');
-html = html.slice(0, html.indexOf("<script")) + '<script>window.NAKUPKO_RELEASE = ' + (process.env.NAKUPKO_RELEASE === "1") + ';</script>\n  <script src="native.js"></script>\n  <script src="pay.js"></script>\n  ' + html.slice(html.indexOf("<script"));
+// Reklame (in Nakupko Plus) so vklopljene v VSAKI gradnji: TestFlight, APK, App Store, Google Play.
+// Izklop samo izrecno z NAKUPKO_RELEASE=0 (npr. lokalni preizkus).
+const release = process.env.NAKUPKO_RELEASE !== "0";
+html = html.slice(0, html.indexOf("<script")) + '<script>window.NAKUPKO_RELEASE = ' + release + ';</script>\n  <script src="native.js"></script>\n  <script src="pay.js"></script>\n  ' + html.slice(html.indexOf("<script"));
 fs.writeFileSync(indexPath, html);
-console.log(process.env.NAKUPKO_RELEASE === "1" ? "Gradnja za App Store (reklame + Nakupko Plus)" : "Testna gradnja (brez reklam in naročnine)");
+console.log(release ? "Gradnja z reklamami + Nakupko Plus" : "Gradnja BREZ reklam (NAKUPKO_RELEASE=0)");
 console.log("www pripravljen:", fs.readdirSync(out).join(", "));

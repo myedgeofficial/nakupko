@@ -273,7 +273,7 @@ final class GeoManager {
                 .setCircularRegion(s.optDouble("lat"), s.optDouble("lon"), r)
                 .setExpirationDuration(Geofence.NEVER_EXPIRE)
                 // Obvestilo šele, ko se pri trgovini zadržiš (ne v mimovožnji ali na robu območja).
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_DWELL | Geofence.GEOFENCE_TRANSITION_EXIT)
                 .setLoiteringDelay(STORE_DWELL_MS)
                 .setNotificationResponsiveness(30000).build());
         }
@@ -380,6 +380,8 @@ final class GeoManager {
     // done se pokliče, ko je obvestilo poslano (za sprejemnik v ozadju).
     void onEnteredStore(String requestId, Runnable done) {
         if (!requestId.startsWith(STORE_PREFIX) || !enabled()) { done.run(); return; }
+        // Za »Si kaj pozabil?« ob odhodu: kje in od kdaj si (prvi zaznani postanek šteje).
+        if (!requestId.equals(prefs.getString("dwellId", ""))) prefs.edit().putString("dwellId", requestId).putLong("dwellAt", System.currentTimeMillis()).apply();
         String url = prefs.getString("hhUrl", ""), code = prefs.getString("hhCode", "");
         if (url.isEmpty() || code.isEmpty()) { showStoreNotification(requestId, json("groups")); done.run(); return; }
         new Thread(() -> {
@@ -451,6 +453,113 @@ final class GeoManager {
             try { out.put(new JSONObject().put("icon", k[1]).put("name", k[0]).put("items", labels)); } catch (Exception ignored) {}
         }
         return out;
+    }
+
+    // ---------- »Si kaj pozabil?« in »Kmalu ti zmanjka?« (enako kot na iPhonu) ----------
+    private static final long FORGOT_AFTER = 2 * 60 * 1000L;
+    static final String CH_REMIND = "reminders";
+    private static final java.util.Map<String, String[]> TXT = new java.util.HashMap<>();
+    static {
+        // {forgot, forgotBody, soonTitle, soonBody}
+        TXT.put("sl", new String[]{"Si kaj pozabil?", "Še na seznamu: %s", "Kmalu ti zmanjka?", "Običajno ob tem času kupiš: %s. Dodaš na seznam?"});
+        TXT.put("en", new String[]{"Forgot something?", "Still on your list: %s", "Running low soon?", "You usually buy these around now: %s. Add to your list?"});
+        TXT.put("de", new String[]{"Etwas vergessen?", "Noch auf der Liste: %s", "Geht dir bald etwas aus?", "Um diese Zeit kaufst du meist: %s. Auf die Liste?"});
+        TXT.put("hr", new String[]{"Jesi li nešto zaboravio?", "Još na popisu: %s", "Uskoro ti ponestaje?", "Obično u ovo vrijeme kupuješ: %s. Dodati na popis?"});
+        TXT.put("it", new String[]{"Hai dimenticato qualcosa?", "Ancora nella lista: %s", "Sta per finire qualcosa?", "Di solito in questo periodo compri: %s. Aggiungere alla lista?"});
+        TXT.put("hu", new String[]{"Nem felejtettél el valamit?", "Még a listán: %s", "Hamarosan elfogy valami?", "Ilyenkor általában ezt veszed: %s. Felírod a listára?"});
+        TXT.put("fr", new String[]{"Tu as oublié quelque chose ?", "Encore sur ta liste : %s", "Bientôt à court ?", "D'habitude, tu achètes à cette période : %s. L'ajouter à ta liste ?"});
+        TXT.put("es", new String[]{"¿Olvidaste algo?", "Aún en tu lista: %s", "¿Se te acaba pronto?", "Sueles comprar por estas fechas: %s. ¿Lo añades a la lista?"});
+    }
+    String txt(int k) {
+        String l = prefs.getString("lang", "sl");
+        l = l.length() > 2 ? l.substring(0, 2) : l;
+        String[] t = TXT.get(l);
+        if (t == null) t = TXT.get("bs".equals(l) || "sr".equals(l) ? "hr" : "en");
+        return t[k];
+    }
+
+    void setLiveItems(JSONArray items, String lang) {
+        SharedPreferences.Editor e = prefs.edit().putString("liveItems", items == null ? "[]" : items.toString());
+        if (lang != null && !lang.isEmpty()) e.putString("lang", lang);
+        e.apply();
+    }
+
+    // Android je zaznal odhod iz trgovine: če si tam res nakupoval (vsaj 2 min) in je za to trgovino na seznamu še kaj.
+    void onExitedStore(String requestId) {
+        if (!requestId.startsWith(STORE_PREFIX) || !requestId.equals(prefs.getString("dwellId", ""))) return;
+        long since = prefs.getLong("dwellAt", 0);
+        prefs.edit().remove("dwellId").remove("dwellAt").apply();
+        if (!enabled() || foreground || System.currentTimeMillis() - since < FORGOT_AFTER) return;
+        String id = requestId.substring(STORE_PREFIX.length());
+        JSONObject store = null;
+        JSONArray stores = json("stores");
+        for (int i = 0; i < stores.length(); i++) {
+            JSONObject s = stores.optJSONObject(i);
+            if (s != null && id.equals(s.optString("id"))) { store = s; break; }
+        }
+        if (store == null) return;
+        String chain = store.has("chain") && !store.isNull("chain") ? store.optString("chain") : "";
+        JSONObject done = pendingDone();
+        JSONArray items = json("liveItems");
+        List<String> left = new ArrayList<>();
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject it = items.optJSONObject(i);
+            if (it == null || done.has(it.optString("id"))) continue;
+            String shop = it.optString("shop", "");
+            // Izdelek, vezan na drugo trgovino (npr. »iz dm«), tu ne manjka.
+            if (!shop.isEmpty() && !shop.equals(chain) && !shop.equals(id)) continue;
+            if (!StoreRules.sells(store.optString("only", ""), it.optString("cat", "") + " " + it.optString("label", ""))) continue;
+            left.add(it.optString("label"));
+        }
+        if (left.isEmpty()) return;
+        StringBuilder names = new StringBuilder();
+        for (int i = 0; i < left.size() && i < 6; i++) names.append(i > 0 ? ", " : "").append(left.get(i));
+        if (left.size() > 6) names.append(" …");
+        String body = String.format(txt(1), names);
+        NotificationCompat.Builder n = new NotificationCompat.Builder(ctx, CH_STORE)
+            .setSmallIcon(R.drawable.ic_stat_nakupko)
+            .setColor(0xFF8A3FFC)
+            .setContentTitle(txt(0))
+            .setContentText(body)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .setContentIntent(openApp(null));
+        post(("forgot-" + id).hashCode(), n);
+    }
+
+    // »Kmalu ti zmanjka«: aplikacija pove, kaj običajno kupiš ob tem času; Android opomni ob uri at (ms).
+    static final String ACTION_SOON = "si.nakupko.app.SOON";
+    void remindSoon(List<String> names, long at) {
+        android.app.AlarmManager am = ctx.getSystemService(android.app.AlarmManager.class);
+        Intent i = new Intent(ctx, ShopItemReceiver.class).setAction(ACTION_SOON);
+        PendingIntent pi = PendingIntent.getBroadcast(ctx, 7400, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        if (am != null) am.cancel(pi);
+        if (names.isEmpty() || at <= System.currentTimeMillis()) { prefs.edit().remove("soonNames").apply(); return; }
+        StringBuilder b = new StringBuilder();
+        for (int k = 0; k < names.size() && k < 3; k++) b.append(k > 0 ? ", " : "").append(names.get(k));
+        prefs.edit().putString("soonNames", b.toString()).apply();
+        // Neeksakten alarm (brez posebnega dovoljenja); Android ga sproži nekaj minut okoli ure.
+        if (am != null) am.setAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, at, pi);
+    }
+
+    void showSoon() {
+        String names = prefs.getString("soonNames", "");
+        prefs.edit().remove("soonNames").apply();
+        if (names.isEmpty()) return;
+        String body = String.format(txt(3), names);
+        NotificationCompat.Builder n = new NotificationCompat.Builder(ctx, CH_REMIND)
+            .setSmallIcon(R.drawable.ic_stat_nakupko)
+            .setColor(0xFF8A3FFC)
+            .setContentTitle(txt(2))
+            .setContentText(body)
+            .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .setContentIntent(openApp(null));
+        post(7400, n);
     }
 
     private void showStoreNotification(String requestId, JSONArray groups) {
@@ -821,5 +930,8 @@ final class GeoManager {
         nm.deleteNotificationChannel(CH_SHOP_OLD);
         nm.createNotificationChannel(store);
         nm.createNotificationChannel(shop);
+        NotificationChannel remind = new NotificationChannel(CH_REMIND, "Opomniki", NotificationManager.IMPORTANCE_DEFAULT);
+        remind.setDescription("»Kmalu ti zmanjka?« – kar običajno kupiš ob tem času.");
+        nm.createNotificationChannel(remind);
     }
 }

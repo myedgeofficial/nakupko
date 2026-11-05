@@ -241,18 +241,18 @@ input[type=text], input[type=search], textarea {
 .seg button.on::after { content: " ✓"; }
 
 /* ---------- Seznam: kartica na izdelek ---------- */
-.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
-.list li.item { position: relative; border-radius: 19.5px; overflow: hidden; background: #E9DFFF; box-shadow: 0 1px 3px rgba(80, 40, 140, .06); }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.list li.item { position: relative; border-radius: 15px; overflow: hidden; background: #E9DFFF; box-shadow: 0 1px 3px rgba(80, 40, 140, .06); }
 .irow {
-  position: relative; z-index: 1; display: flex; align-items: center; gap: 12.5px;
-  background: #fff; border-radius: 19.5px; padding: 9px 12.5px 9px 9px; min-height: 81px;
+  position: relative; z-index: 1; display: flex; align-items: center; gap: 10px;
+  background: #fff; border-radius: 15px; padding: 6px 10px 6px 6px; min-height: 56px;
   transition: transform .2s ease; touch-action: pan-y;
 }
 .list li.item.dragging .irow { transition: none; }
-.thumb { width: 63.5px; height: 63.5px; flex: 0 0 63.5px; border-radius: 17.5px; display: grid; place-items: center; background: var(--surface-2); }
-.thumb img { width: 49.5px; height: 49.5px; display: block; }
+.thumb { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12.5px; display: grid; place-items: center; background: var(--surface-2); }
+.thumb img { width: 34px; height: 34px; display: block; }
 .ibody { flex: 1; min-width: 0; cursor: pointer; }
-.iname { font: 800 18.5px/1.15 var(--font); color: var(--ink); overflow-wrap: break-word; }
+.iname { font: 800 16px/1.15 var(--font); color: var(--ink); overflow-wrap: break-word; }
 .iqty { font-style: normal; color: var(--violet); margin-right: 5.5px; }
 .imeta { font-size: 13px; font-weight: 700; color: var(--muted); margin-top: 3.5px; }
 .price {
@@ -264,11 +264,11 @@ input[type=text], input[type=search], textarea {
 .price.est .pmain { font-weight: 600; }
 .price .sale { color: var(--sale); background: #FDEEE8; border-radius: 879px; padding: 3px 9px; font: 800 12.5px/1.2 var(--font); white-space: nowrap; }
 .check { position: relative;
-  width: 33.5px; height: 33.5px; flex: 0 0 33.5px; border-radius: 50%; border: 2.5px solid #CBC3DC;
+  width: 27px; height: 27px; flex: 0 0 27px; border-radius: 50%; border: 2.5px solid #CBC3DC;
   background: #fff; display: grid; place-items: center; padding: 0; color: transparent; transition: background .15s, border-color .15s;
 }
 .check::before { content: ""; position: absolute; width: 49.5px; height: 49.5px; }
-.check svg { width: 17.5px; height: 17.5px; stroke-width: 3.2; }
+.check svg { width: 14px; height: 14px; stroke-width: 3.2; }
 .done .check { background: var(--grad-d); border-color: transparent; color: #fff; }
 .list li.item.done { box-shadow: none; }
 .done .irow { background: #F6F0FF; box-shadow: inset 0 0 0 1.5px #DCCBFF; }
@@ -277,7 +277,7 @@ input[type=text], input[type=search], textarea {
 .done .thumb img { opacity: .55; }
 /* Gumb za brisanje je za vrstico; pokaže se, ko jo povlečeš v levo. */
 .list li.item > .del {
-  position: absolute; z-index: 0; right: 0; top: 0; bottom: 0; width: 77.5px; border: 0; border-radius: 0 19.5px 19.5px 0;
+  position: absolute; z-index: 0; right: 0; top: 0; bottom: 0; width: 64px; border: 0; border-radius: 0 15px 15px 0;
   background: var(--danger); color: #fff; display: grid; place-items: center; padding: 0 0 0 9px;
 }
 .list li.item > .del svg { width: 21px; height: 21px; stroke-width: 2.6; }
@@ -544,9 +544,9 @@ details.card[open] > summary { margin-bottom: 10.5px; }
   .hero-near-name { font-size: 17px; }
   .ftab { font-size: 14px; letter-spacing: .04em; gap: 7px; }
   .irow { gap: 9.5px; padding-right: 10.5px; }
-  .thumb { width: 56.5px; height: 56.5px; flex-basis: 56.5px; }
-  .thumb img { width: 42px; height: 42px; }
-  .iname { font-size: 17px; }
+  .thumb { width: 40px; height: 40px; flex-basis: 40px; }
+  .thumb img { width: 30px; height: 30px; }
+  .iname { font-size: 15px; }
   .price { font-size: 14px; }
   .slogo, .slogo img, .slogo .wm { width: 38.5px; height: 38.5px; max-width: 38.5px; max-height: 38.5px; }
   .slogo img { width: auto; height: auto; }
@@ -669,13 +669,21 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rsh-step button { width: 38px; height: 38px; border-radius: 12px; border: 0; background: var(--surface); color: var(--violet); font: 900 22px/1 var(--font); box-shadow: var(--shadow); }
 .rsh-step b { min-width: 24px; text-align: center; font-size: 20px; font-variant-numeric: tabular-nums; }
 .rsh-list { display: grid; }
-.rsh-i { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; font: 800 16px var(--font); color: var(--ink); background: none; border: 0; border-bottom: 1px solid var(--line); padding: 11px 2px; }
+.rsh-i { border-bottom: 1px solid var(--line); }
+.rsh-tg { display: flex; align-items: center; gap: 11px; width: 100%; text-align: left; font: 800 16px var(--font); color: var(--ink); background: none; border: 0; padding: 11px 2px; cursor: pointer; }
 .rsh-i:last-child { border-bottom: 0; }
 .rsh-i .rnm { flex: 1; }
+/* »Imam doma« / »Brez tega« pod odkljukano sestavino */
+.rsh-o { display: flex; gap: 8px; padding: 0 0 11px 35px; }
+.rsh-o button { border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); font: 800 13.5px/1 var(--font); border-radius: 99px; padding: 8px 13px; cursor: pointer; }
+.rsh-o button.on { border-color: var(--violet); background: var(--violet-soft); color: var(--violet); }
+.rsh-i.brez .rsh-o button.on { border-color: var(--danger); background: #FDECEA; color: var(--danger); }
+.rsh-i.doma .rnm, .rsh-i.doma .ram { opacity: .55; text-decoration: none; }
+.kh-skip { opacity: .5; text-decoration: line-through; }
 .rsh-i .ram { color: var(--violet); white-space: nowrap; }
 .rcb { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid #CFC5E4; }
 .rsh-i.on .rcb { background: var(--violet) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12 5 5 9-10'/%3E%3C/svg%3E") center/14px no-repeat; border-color: var(--violet); }
-.rsh-i:not(.on) .rnm, .rsh-i:not(.on) .ram { opacity: .4; text-decoration: line-through; }
+.rsh-i.brez .rnm, .rsh-i.brez .ram { opacity: .4; text-decoration: line-through; }
 .rsheet .rsh-add { margin-top: 8px; }
 /* okvirne prehranske vrednosti (hranila.js) */
 .rsh-nutri { margin-top: 14px; background: var(--panel); border-radius: 16px; padding: 12px 14px; }
@@ -689,7 +697,7 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .rsh-nutri p { margin: 8px 0 0; }
 
 /* kuhanje po korakih */
-.rsheet .rsh-cook { margin-top: 10px; background: var(--surface); color: var(--violet); border: 2px solid var(--violet); }
+.rsheet .rsh-cook { margin-top: 10px; background: var(--surface); color: var(--violet); border: 2px solid var(--violet); border-radius: 14px; padding: 10.5px 14px; font-weight: 800; white-space: nowrap; }
 .kuhaj { position: fixed; inset: 0; z-index: 400; background: #0f0b1f; color: #fff; display: flex; flex-direction: column; padding: calc(12px + env(safe-area-inset-top)) 16px calc(14px + env(safe-area-inset-bottom)); font-family: var(--font); }
 .kh-top { display: flex; align-items: center; gap: 12px; }
 .kh-top b { flex: 1; font-weight: 900; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -788,10 +796,10 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 
 /* Koš v vrstici izdelka: izbriše brez označitve kot kupljeno (2026-10-31). */
 .trash {
-  width: 36px; height: 36px; flex: 0 0 36px; border: 0; border-radius: 50%; padding: 0; margin-right: -4px;
+  width: 32px; height: 32px; flex: 0 0 32px; border: 0; border-radius: 50%; padding: 0; margin-right: -4px;
   background: transparent; color: #A9A0C2; display: grid; place-items: center; cursor: pointer;
 }
-.trash svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.trash svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .trash:active { background: #FDECEA; color: var(--danger); }
 .toast:has(.toast-act) { display: flex; align-items: center; white-space: nowrap; }
 .toast-act { margin-left: 14px; border: 0; background: transparent; color: #C9B8FF; font: 800 15px/1 var(--font); padding: 4px 2px; cursor: pointer; }
@@ -834,3 +842,163 @@ details.card[open] > summary { margin-bottom: 10.5px; }
 .clanek .recept-box span { display: block; font: 800 11.5px/1 var(--font); letter-spacing: .07em; text-transform: uppercase; color: var(--violet); margin-bottom: 5px; }
 .clanek .recept-box a { font: 900 18px/1.2 var(--font); color: var(--ink); text-decoration: none; }
 .clanek .recept-box a::after { content: " ›"; color: var(--violet); }
+
+/* ---------- Članek: steklen videz in poudarki (2026-11-02) ---------- */
+/* --c = barva razdelka (nasveti.js pobarvaj): vijolična, modra, roza, turkizna, oranžna */
+.clanek { --c: #7C3AED; }
+.nasvet-sheet { background:
+  radial-gradient(120% 60% at 0% 0%, rgba(153, 35, 252, .12), transparent 60%),
+  radial-gradient(90% 50% at 100% 30%, rgba(20, 130, 252, .10), transparent 60%),
+  radial-gradient(90% 50% at 10% 85%, rgba(236, 72, 153, .08), transparent 60%), #FBF9FF; }
+.nasvet-sheet h1 { font-size: 27px; letter-spacing: -.015em; background: linear-gradient(100deg, #7C3AED 0%, #2563EB 55%, #DB2777 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.clanek-d { display: inline-block; font-weight: 800; color: #2563EB; background: rgba(255, 255, 255, .65); border: 1px solid rgba(37, 99, 235, .18); border-radius: 99px; padding: 4px 11px; margin-bottom: 6px; }
+.clanek .lead { font-size: 17.5px; font-weight: 700; line-height: 1.5; padding-left: 14px; border-left: 4px solid; border-image: linear-gradient(#7C3AED, #DB2777) 1; }
+.clanek .vedel, .clanek .recept-box { position: relative; background: rgba(255, 255, 255, .6); border: 1px solid rgba(255, 255, 255, .95);
+  box-shadow: 0 10px 28px rgba(72, 55, 251, .12), inset 0 1px 0 rgba(255, 255, 255, .9);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5); backdrop-filter: blur(14px) saturate(1.5); border-radius: 20px; padding: 14px 16px 14px 18px; overflow: hidden; }
+.clanek .vedel { background: linear-gradient(135deg, rgba(255, 237, 213, .75), rgba(255, 255, 255, .6)); }
+.clanek .vedel::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 4px 4px 0; background: linear-gradient(#F59E0B, #EA580C); }
+.clanek .vedel b { font: 900 12px/1 var(--font); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 7px; color: #C2410C; }
+.clanek .vedel b::before { content: "✦ "; color: #F59E0B; }
+.clanek .vedel .hl { color: #C2410C; background: rgba(245, 158, 11, .16); }
+.clanek .recept-box::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 0 4px 4px 0; background: linear-gradient(#10B981, #0D9488); }
+.clanek .recept-box span { color: #0D9488; }
+.clanek h2 { display: flex; align-items: center; gap: 9px; font-size: 20px; margin-top: 26px; color: var(--c); }
+.clanek h2::before { content: ""; flex: none; width: 18px; height: 6px; border-radius: 99px; background: var(--c); }
+.clanek li b, .clanek p b, .clanek li strong, .clanek p strong { font-weight: 900; color: var(--c); }
+.clanek .hl { font-weight: 900; color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); border-radius: 7px; padding: 0 5px; white-space: nowrap; }
+.clanek ul { list-style: none; padding-left: 4px; }
+.clanek ul li { position: relative; padding-left: 20px; margin-bottom: 6px; }
+.clanek ul li::before { content: ""; position: absolute; left: 3px; top: .62em; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.clanek ol { list-style: none; counter-reset: k; padding-left: 0; }
+.clanek ol li { counter-increment: k; position: relative; padding: 10px 12px 10px 48px; margin-bottom: 8px; border-radius: 16px; background: rgba(255, 255, 255, .6); border: 1px solid rgba(255, 255, 255, .95); box-shadow: 0 4px 14px rgba(72, 55, 251, .07); }
+.clanek ol li::before { content: counter(k); position: absolute; left: 11px; top: 10px; width: 26px; height: 26px; border-radius: 50%; background: var(--c); color: #fff; font: 900 14px/26px var(--font); text-align: center; }
+
+/* Moji nakupi (nakupi.js) */
+.nakupi-card { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; border: 0; color: var(--ink); cursor: pointer; }
+.nakupi-card svg { width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: var(--violet); stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.nakupi-sheet h1 { margin-right: 44px; }
+.nk-seg { display: flex; gap: 4px; background: var(--panel); border-radius: 14px; padding: 4px; margin: 4px 0 14px; }
+.nk-seg button { flex: 1; border: 0; border-radius: 11px; padding: 9px 6px; background: none; font-weight: 800; font-size: 14px; color: var(--muted); }
+.nk-seg button.on { background: var(--surface); color: var(--violet); box-shadow: 0 1px 4px rgba(40, 20, 90, .1); }
+.nk-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.nk-tiles div { background: var(--panel); border-radius: 16px; padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; }
+.nk-tiles b { font-size: 24px; font-weight: 900; color: var(--violet); line-height: 1.1; }
+.nk-tiles span { font-size: 12.5px; color: var(--muted); font-weight: 700; }
+.nk-naj { margin: 10px 2px 0 !important; font-size: 14px; color: var(--muted); }
+.nk-naj b { color: var(--ink); }
+.nk-h { font-size: 17px; font-weight: 900; margin: 20px 2px 8px; }
+.nk-card { background: var(--panel); border-radius: 16px; padding: 10px 14px; margin-bottom: 8px; }
+.nk-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; margin: 4px 0 8px; }
+.nk-bar i { display: block; min-width: 4px; }
+.nk-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
+.nk-row:first-of-type, .nk-bar + .nk-row { border-top: 0; }
+.nk-row > i { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 10px; }
+.nk-ime { flex: 1; min-width: 0; font-weight: 700; }
+.nk-n { color: var(--muted); font-weight: 700; }
+.nk-p, .nk-x { color: var(--violet); font-weight: 900; min-width: 44px; text-align: right; }
+.nk-dan-g { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 8px; }
+.nk-dan-g b { font-size: 14.5px; }
+.nk-dan-g b::first-letter { text-transform: uppercase; }
+.nk-dan-g span { font-size: 13px; color: var(--muted); font-weight: 700; text-align: right; }
+.nk-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nk-chips span { background: var(--surface); border-radius: 999px; padding: 5px 10px; font-size: 13px; font-weight: 700; }
+.nk-vec { display: block; margin: 6px auto 0; }
+.nk-op { margin-top: 14px !important; text-align: center; }
+.nk-prazno { text-align: center; padding: 24px 8px; }
+.nk-pod { margin: 2px 0 8px !important; font-size: 13px !important; color: var(--muted); font-weight: 700; }
+.nk-graf { display: flex; align-items: flex-end; gap: 6px; height: 150px; padding-top: 4px; }
+.nk-st { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; }
+.nk-st i { display: block; width: 100%; max-width: 34px; border-radius: 8px 8px 4px 4px; background: #CFC6F7; }
+.nk-st.naj i { background: var(--grad-d); }
+.nk-st-n { font-size: 12px; font-weight: 800; color: var(--violet); min-height: 14px; }
+.nk-st-o { font-size: 11.5px; font-weight: 700; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.nk-raz b { font-weight: 900; }
+.nk-raz b.gor { color: var(--violet); }
+.nk-raz b.dol { color: #C2577E; }
+
+/* Koliko sadja ali zelenjave: dovolj velik gumb za prst */
+.store-pick .qchip { min-width: 44px; justify-content: center; font-weight: 800; }
+.store-pick .qchip { font-size: 20px; line-height: 1; }
+.store-pick .qinput { width: 72px; height: 40px; border: 2px solid var(--violet-soft, #E4D9FF); border-radius: 12px; text-align: center; font: 800 18px var(--font); color: var(--ink); background: #fff; }
+
+/* Odprt izdelek na seznamu: polne barve (pravilo .picking za kviz ga je prej zbledilo). */
+.list li.item.picking > * { opacity: 1; }
+.store-pick .chip-more { color: var(--violet); font-weight: 800; border-style: dashed; }
+
+/* ---------- Steklen videz: barvne lise za prosojnimi belimi karticami ---------- */
+body { background: #F7F4FD; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(60vw 60vw at 0% 0%, rgba(167, 139, 250, .38), transparent 70%),
+    radial-gradient(55vw 55vw at 100% 30%, rgba(244, 114, 182, .26), transparent 70%),
+    radial-gradient(70vw 70vw at 30% 100%, rgba(96, 165, 250, .26), transparent 70%); }
+.irow, .reco-card, .stile, .stores li, .nasvet-card, .trip-card, .store-pick, .list li.item.picking, #smReco:not(:empty) {
+  background: rgba(255, 255, 255, .7); }
+.irow, .reco-card, .stile, .stores li, .nasvet-card, .trip-card {
+  border: 1px solid rgba(255, 255, 255, .95);
+  box-shadow: inset 0 1px 0 #fff, 0 8px 24px -14px rgba(80, 40, 140, .28); }
+.reco-card, .stile, .nasvet-card, .trip-card, .stores li {
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); }
+.list li.item.picking { border: 1px solid rgba(255, 255, 255, .95); }
+.list li.item.picking .irow { border: 0; box-shadow: none; background: transparent; }
+.chip { background: rgba(255, 255, 255, .78); border-color: rgba(96, 41, 251, .14); }
+.done .irow { background: rgba(246, 240, 255, .7); }
+
+/* Barvna ikona Nasvetov (žarnica): svoje barve, brez obrobe */
+.tabs svg.ic-nasveti { stroke: none; width: 26px; height: 26px; }
+.tabs button.on svg.ic-nasveti { filter: drop-shadow(0 0 4px rgba(255,255,255,.55)); }
+
+/* ---------- Revija Nakupko: starejši članki, listaš jih kot katalog ---------- */
+.revija-teaser { display: flex; align-items: center; gap: 16px; width: 100%; text-align: left; border: 0; cursor: pointer; margin-top: 4px;
+  padding: 18px 18px; border-radius: 22px; color: #fff; font: inherit;
+  background: linear-gradient(120deg, #7C3AED, #DB2777 60%, #EA580C); box-shadow: 0 14px 30px -14px rgba(124, 58, 237, .7); }
+.rt-book { position: relative; width: 58px; height: 70px; flex: none; }
+.rt-book i { position: absolute; inset: 0; border-radius: 4px 10px 10px 4px; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.18); }
+.rt-book i:nth-child(1) { transform: rotate(-9deg) translateX(-4px); opacity: .55; }
+.rt-book i:nth-child(2) { transform: rotate(-3deg); opacity: .8; }
+.rt-book i:nth-child(3) { background: linear-gradient(160deg, #fff 0 55%, #FDE68A 55%); }
+.rt-txt { display: grid; gap: 2px; }
+.rt-k { font: 800 12px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; opacity: .85; }
+.rt-txt > b { font: 900 21px/1.15 var(--font); }
+.rt-o { font: 700 14px var(--font); opacity: .92; }
+
+.revija { position: fixed; inset: 0; z-index: 290; display: flex; flex-direction: column; color: var(--ink);
+  background: radial-gradient(80vw 60vh at 0% 0%, #E9D5FF, transparent 70%), radial-gradient(80vw 60vh at 100% 100%, #FBCFE8, transparent 70%), #F7F4FD;
+  padding: calc(10px + env(safe-area-inset-top)) 0 calc(12px + env(safe-area-inset-bottom)); }
+.rv-top { display: flex; align-items: center; gap: 10px; padding: 0 16px 8px; }
+.rv-t { font: 900 18px var(--font); flex: 1; }
+.rv-n { font: 800 14px var(--font); color: var(--violet); background: rgba(255,255,255,.8); border-radius: 999px; padding: 5px 11px; }
+.rv-x { width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255,255,255,.85); display: grid; place-items: center; }
+.rv-x svg { width: 20px; height: 20px; stroke-width: 2.6; }
+.rv-pages { flex: 1; display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.rv-pages::-webkit-scrollbar { display: none; }
+.rv-page { flex: 0 0 100%; scroll-snap-align: center; padding: 8px 18px; display: flex; }
+.rv-in { position: relative; flex: 1; border-radius: 26px; padding: 26px 22px; overflow: auto; will-change: transform;
+  background: linear-gradient(165deg, color-mix(in srgb, var(--c, #7C3AED) 92%, #fff), color-mix(in srgb, var(--c, #7C3AED) 60%, #1e1036));
+  color: #fff; box-shadow: 0 24px 50px -24px rgba(40, 20, 90, .6), inset 0 1px 0 rgba(255,255,255,.4); display: flex; flex-direction: column; }
+.rv-in h2 { font: 900 30px/1.12 var(--font); margin: 10px 0 14px; letter-spacing: -.01em; }
+.rv-k { font: 800 12.5px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; opacity: .85; margin: 0; }
+.rv-o { font: 700 17px/1.45 var(--font); opacity: .95; margin: 0 0 22px; }
+.rv-beri { margin-top: auto; align-self: flex-start; border: 0; border-radius: 999px; padding: 13px 22px; font: 900 16px var(--font); color: var(--c, #7C3AED); background: #fff; }
+.rv-st { position: absolute; right: 20px; bottom: 18px; font: 900 14px var(--font); opacity: .7; }
+.rv-cover .rv-in { background: rgba(255,255,255,.78); color: var(--ink); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); border: 1px solid #fff; }
+.rv-cover .rv-k { color: var(--violet); opacity: 1; }
+.rv-hint { font: 800 15px var(--font); color: var(--muted); margin: 0 0 18px; }
+.rv-toc { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.rv-toc button { display: flex; gap: 12px; width: 100%; text-align: left; border: 0; border-radius: 14px; padding: 11px 12px; font: 800 15px/1.3 var(--font); color: var(--ink); background: rgba(124, 58, 237, .08); }
+.rv-toc button span { color: var(--violet); min-width: 22px; }
+.rv-toc-k { margin-top: 6px; }
+.rv-nav { display: flex; justify-content: center; gap: 18px; padding-top: 8px; }
+.rv-nav button { width: 52px; height: 44px; border-radius: 16px; border: 0; background: rgba(255,255,255,.9); font: 900 24px var(--font); color: var(--violet); box-shadow: 0 6px 16px -8px rgba(80, 40, 140, .4); }
+.revija ~ .sheet-wrap, #nasvetWrap { z-index: 320; }
+
+/* Sestavina iz recepta izbrisana s seznama: imaš doma ali kuhaš brez? */
+.rec-ask { position: fixed; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 60; border-radius: 22px; padding: 14px 16px;
+  background: rgba(255, 255, 255, .9); border: 1px solid #fff; box-shadow: 0 18px 40px -16px rgba(60, 30, 120, .45);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5); backdrop-filter: blur(18px) saturate(1.5); animation: fadein .2s ease-out; }
+.rec-ask p { margin: 0; font: 700 14px/1.35 var(--font); color: var(--muted); }
+.rec-ask p b { color: var(--ink); font-weight: 900; }
+.rec-ask .rec-ask-q { margin: 4px 0 10px; font: 800 16px/1.3 var(--font); color: var(--ink); }
+.rec-ask-b { display: flex; flex-wrap: wrap; gap: 8px; }
+.rec-ask-b .chip { font-weight: 800; padding: 10px 14px; }
+.rec-ask-undo { color: var(--muted); }

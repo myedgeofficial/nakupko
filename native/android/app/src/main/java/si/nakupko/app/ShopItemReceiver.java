@@ -13,6 +13,11 @@ public class ShopItemReceiver extends BroadcastReceiver {
             GeoManager.get(context).cookMove(intent.getIntExtra(GeoManager.EXTRA_DELTA, 0));
             return;
         }
+        // »Kmalu ti zmanjka?« ob uri, ki jo je nastavila aplikacija.
+        if (GeoManager.ACTION_SOON.equals(intent.getAction())) {
+            GeoManager.get(context).showSoon();
+            return;
+        }
         if (!GeoManager.ACTION_ITEM_DONE.equals(intent.getAction())) return;
         String id = intent.getStringExtra(GeoManager.EXTRA_ITEM);
         if (id != null && !id.isEmpty()) GeoManager.get(context).markDone(id);

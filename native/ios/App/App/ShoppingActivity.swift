@@ -25,6 +25,7 @@ struct ShoppingAttributes: ActivityAttributes {
         var total: Int
         var page: Int? = nil   // stran izdelkov (gumb »Naprej ›«)
         var lang: String? = nil  // jezik besedil na zaklenjenem zaslonu (iz aplikacije)
+        var size: Int? = nil     // izdelkov naenkrat: 4 (privzeto), 6 ali 8 (Nastavitve → Zaklenjen zaslon)
     }
     var store: String
 }
@@ -44,10 +45,16 @@ enum LiveList {
         defaults.set(Array(l.suffix(30)), forKey: "geo.log")
     }
 
+    // Izbrani prikaz v aplikaciji (native.js → setConfig): 4, 6 ali 8 izdelkov naenkrat.
+    static var size: Int {
+        let s = defaults.integer(forKey: "geo.liveSize")
+        return s == 6 || s == 8 ? s : perPage
+    }
+
     // Stran, ki še obstaja (po odkljukanju se seznam skrajša).
-    static func clampPage(_ page: Int?, count: Int) -> Int {
+    static func clampPage(_ page: Int?, count: Int, per: Int = perPage) -> Int {
         let p = page ?? 0
-        return p * perPage < count ? p : 0
+        return p * per < count ? p : 0
     }
 
     // Live Activity sprejme največ 4 KB: omejimo število in dolžino imen.
@@ -74,7 +81,7 @@ enum LiveList {
             guard let idx = s.items.firstIndex(where: { $0.id == id }) else { continue }
             s.items.remove(at: idx)
             s.done += 1
-            s.page = clampPage(s.page, count: s.items.count)
+            s.page = clampPage(s.page, count: s.items.count, per: s.size ?? perPage)
             await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
         }
         // Skupen seznam: odkljukano vidijo tudi ostali člani.
@@ -103,7 +110,7 @@ struct NextPageIntent: LiveActivityIntent {
         for a in Activity<ShoppingAttributes>.activities {
             var s = a.content.state
             let next = (s.page ?? 0) + 1
-            s.page = next * LiveList.perPage < s.items.count ? next : 0
+            s.page = next * (s.size ?? LiveList.perPage) < s.items.count ? next : 0
             LiveList.log("  stran \(s.page ?? 0), izdelkov \(s.items.count)")
             await a.update(ActivityContent(state: s, staleDate: Date().addingTimeInterval(4 * 3600)))
         }
@@ -191,6 +198,10 @@ enum L10n {
 
     private static let table: [String: [String: String]] = [
         "near": ["sl": "🛒 %@ je blizu", "en": "🛒 %@ is nearby", "de": "🛒 %@ ist in der Nähe", "hr": "🛒 %@ je blizu", "it": "🛒 %@ è vicino", "hu": "🛒 %@ a közelben", "fr": "🛒 %@ est tout près", "es": "🛒 %@ está cerca"],
+        "forgot": ["sl": "Si kaj pozabil?", "en": "Forgot something?", "de": "Etwas vergessen?", "hr": "Jesi li nešto zaboravio?", "it": "Hai dimenticato qualcosa?", "hu": "Nem felejtettél el valamit?", "fr": "Tu as oublié quelque chose ?", "es": "¿Olvidaste algo?"],
+        "forgotBody": ["sl": "Še na seznamu: %@", "en": "Still on your list: %@", "de": "Noch auf der Liste: %@", "hr": "Još na popisu: %@", "it": "Ancora nella lista: %@", "hu": "Még a listán: %@", "fr": "Encore sur ta liste : %@", "es": "Aún en tu lista: %@"],
+        "soonTitle": ["sl": "Kmalu ti zmanjka?", "en": "Running low soon?", "de": "Geht dir bald etwas aus?", "hr": "Uskoro ti ponestaje?", "it": "Sta per finire qualcosa?", "hu": "Hamarosan elfogy valami?", "fr": "Bientôt à court ?", "es": "¿Se te acaba pronto?"],
+        "soonBody": ["sl": "Običajno ob tem času kupiš: %@. Dodaš na seznam?", "en": "You usually buy these around now: %@. Add to your list?", "de": "Um diese Zeit kaufst du meist: %@. Auf die Liste?", "hr": "Obično u ovo vrijeme kupuješ: %@. Dodati na popis?", "it": "Di solito in questo periodo compri: %@. Aggiungere alla lista?", "hu": "Ilyenkor általában ezt veszed: %@. Felírod a listára?", "fr": "D'habitude, tu achètes à cette période : %@. L'ajouter à ta liste ?", "es": "Sueles comprar por estas fechas: %@. ¿Lo añades a la lista?"],
         "nearBody": ["sl": "Na seznamu imaš %@. Se ustaviš?", "en": "You have %@ on your list. Stopping by?", "de": "Du hast %@ auf der Liste. Kurz vorbeischauen?", "hr": "Na popisu imaš %@. Svratit ćeš?", "it": "Hai %@ nella lista. Ti fermi?", "hu": "%@ van a listádon. Beugrasz?", "fr": "Tu as %@ sur ta liste. Tu t'arrêtes ?", "es": "Tienes %@ en tu lista. ¿Pasas?"],
         "cheaper": ["sl": "%@ (%@ od tu) je za tvoj seznam okvirno cenejši.", "en": "%@ (%@ from here) is likely cheaper for your list.", "de": "%@ (%@ entfernt) ist für deine Liste voraussichtlich günstiger.", "hr": "%@ (%@ odavde) je za tvoj popis okvirno jeftiniji.", "it": "%@ (a %@ da qui) costa probabilmente meno per la tua lista.", "hu": "%@ (%@ innen) valószínűleg olcsóbb a listádra.", "fr": "%@ (à %@ d'ici) est probablement moins cher pour ta liste.", "es": "%@ (a %@ de aquí) es probablemente más barato para tu lista."],
         "denied": ["sl": "Dostop do lokacije je zavrnjen.", "en": "Location access denied.", "de": "Standortzugriff verweigert.", "hr": "Pristup lokaciji je odbijen.", "it": "Accesso alla posizione negato.", "hu": "Helyhozzáférés megtagadva.", "fr": "Accès à la position refusé.", "es": "Acceso a la ubicación denegado."],

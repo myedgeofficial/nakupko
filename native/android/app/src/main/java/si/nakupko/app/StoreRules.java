@@ -60,10 +60,20 @@ final class StoreRules {
         Kind(String chain, boolean duty) { this.chain = chain; this.duty = duty; }
     }
 
+    // Odprta v nedeljo ali na praznik po OSM urniku = dežurna (kot opensSunday v app.js).
+    static boolean opensSunday(String hours) {
+        if (hours == null) return false;
+        for (String r : hours.split("\\s*[;,]\\s*")) {
+            java.util.regex.Matcher m = Pattern.compile("^([A-Za-z ,-]+?)\\s+\\d{1,2}:\\d{2}").matcher(r.trim());
+            if (m.find() && matches(m.group(1), "(^|[^A-Za-z])(Su|PH)([^A-Za-z]|$)")) return true;
+        }
+        return false;
+    }
+
     // Vrne vrsto trgovine ali null, če je ne spremljamo.
     static Kind kind(String text, String hours) {
         for (String[] c : CHAINS) if (matches(text, c[1])) return new Kind(c[0], false);
-        if (matches(text, DUTY) || (hours != null && hours.contains("24/7"))) return new Kind(null, true);
+        if (matches(text, DUTY) || (hours != null && hours.contains("24/7")) || opensSunday(hours)) return new Kind(null, true);
         return null;
     }
 

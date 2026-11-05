@@ -29,6 +29,15 @@ public class GeofenceReceiver extends BroadcastReceiver {
             for (Geofence g : list) geo.onEnteredStore(g.getRequestId(), () -> { if (left.decrementAndGet() == 0) pending.finish(); });
             return;
         }
+        if (tr == Geofence.GEOFENCE_TRANSITION_EXIT) {
+            // Odhod iz trgovine: »Si kaj pozabil?«; domače območje gre naprej na osvežitev trgovin.
+            boolean home = false;
+            for (Geofence g : event.getTriggeringGeofences()) {
+                if (g.getRequestId().startsWith("store:")) geo.onExitedStore(g.getRequestId());
+                else home = true;
+            }
+            if (!home) return;
+        }
         Location loc = event.getTriggeringLocation();
         if (event.getGeofenceTransition() != Geofence.GEOFENCE_TRANSITION_EXIT || loc == null) return;
         // Novo območje in po potrebi nove trgovine; počakamo, da se nalaganje konča.

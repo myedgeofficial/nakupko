@@ -171,6 +171,16 @@ public class NakupkoGeoPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void remindSoon(PluginCall call) {
+        java.util.List<String> names = new java.util.ArrayList<>();
+        JSArray a = call.getArray("names", new JSArray());
+        for (int i = 0; i < a.length(); i++) { String n = a.optString(i, ""); if (!n.isEmpty()) names.add(n); }
+        Double at = call.getDouble("at");
+        geo.remindSoon(names, at == null ? 0 : at.longValue());
+        call.resolve();
+    }
+
+    @PluginMethod
     public void setConfig(PluginCall call) {
         boolean wasOn = geo.enabled();
         JSArray stores = call.getArray("stores", new JSArray());
@@ -178,6 +188,7 @@ public class NakupkoGeoPlugin extends Plugin {
         JSObject hh = call.getObject("household", null);
         String hhUrl = hh == null ? null : hh.optString("url", null);
         String hhCode = hh == null ? null : hh.optString("code", null);
+        geo.setLiveItems(call.getArray("items", new JSArray()), call.getString("lang", null));
         geo.configure(Boolean.TRUE.equals(call.getBoolean("enabled", false)), call.getFloat("radius", 60f), stores, groups, hhUrl, hhCode);
         if (!wasOn && geo.enabled()) askExtraPermissions();
         call.resolve();
