@@ -47,8 +47,9 @@
     if (!code || !shared) return;
     var local = {};
     api.state().items.forEach(function (i) { local[i.id] = i; });
-    var changed = false;
+    var changed = false, fresh = [];
     Object.keys(local).forEach(function (id) {
+      if (!(id in shared) && !(id in dirty) && !local[id].done) fresh.push(local[id].name);
       var base = id in dirty ? dirty[id] : shared[id];
       if (canon(base) !== canon(local[id])) { dirty[id] = JSON.parse(JSON.stringify(local[id])); changed = true; }
     });
@@ -56,6 +57,22 @@
       if (!local[id] && (id in dirty ? dirty[id] !== null : true)) { dirty[id] = null; changed = true; }
     });
     if (changed) { saveDirty(); flush(); }
+    if (fresh.length) tellAdded(fresh);
+  }
+
+  // »Ana je dodala na seznam: mleko, kruh«: nove izdelke zberemo 20 s in jih pošljemo v enem obvestilu
+  // (strežnik: itemsAdded v firebase/functions). Samo, če je na seznamu še kdo drug.
+  var addBuf = [], addTimer = null;
+  function tellAdded(names) {
+    if (pending()) return;
+    names.forEach(function (n) { n = String(n || "").trim(); if (n && addBuf.indexOf(n) < 0) addBuf.push(n); });
+    clearTimeout(addTimer);
+    addTimer = setTimeout(function () {
+      var items = addBuf.slice(0, 20), c = code; addBuf = [];
+      var others = members && Object.keys(members).some(function (id) { return id !== member() && members[id] && members[id].status !== "pending"; });
+      if (!c || !items.length || !others) return;
+      fetch(DB + "/h/" + c + "/adds.json", { method: "POST", body: JSON.stringify({ from: member(), name: myName() || "Član", items: items, at: { ".sv": "timestamp" } }) }).catch(function () {});
+    }, 20000);
   }
 
   function flush() {

@@ -1,5 +1,5 @@
 // Nakupko Plus: naročnina 0,99 €/mesec prek App Store (samo v iOS aplikaciji).
-// Samo v gradnji za App Store (window.NAKUPKO_RELEASE); testne gradnje na TestFlightu nimajo reklam ne naročnine.
+// Vklopljeno v vsaki gradnji (window.NAKUPKO_RELEASE, glej scripts/build-www.js), tudi na TestFlightu.
 // Način (NAKUPKO_PLUS_MODE):
 //   "ads"        – aplikacija je zastonj z reklamo spodaj, naročnina odstrani reklame (privzeto),
 //   "full"       – brez naročnine se pokaže le okno za naročnino (prvi teden je brezplačen, nastavi se v App Store Connect),
