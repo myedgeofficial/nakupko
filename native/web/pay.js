@@ -1,5 +1,5 @@
 // Nakupko Plus: naročnina 0,99 €/mesec prek App Store (samo v iOS aplikaciji).
-// Samo v gradnji za App Store (window.NAKUPKO_RELEASE); testne gradnje na TestFlightu nimajo reklam ne naročnine.
+// Vklopljeno v vsaki gradnji (window.NAKUPKO_RELEASE, glej scripts/build-www.js), tudi na TestFlightu.
 // Način (NAKUPKO_PLUS_MODE):
 //   "ads"        – aplikacija je zastonj z reklamo spodaj, naročnina odstrani reklame (privzeto),
 //   "full"       – brez naročnine se pokaže le okno za naročnino (prvi teden je brezplačen, nastavi se v App Store Connect),
@@ -184,7 +184,9 @@
     Ads.addListener("bannerAdFailedToLoad", function () {
       ad.loaded = false; ad.shown = false; setAdHeight(0);
       clearTimeout(ad.retry);
-      ad.retry = setTimeout(renderAds, Math.min(20000 * Math.pow(2, ad.fails++), 300000));
+      // Ponovni poskus mora veljati tudi, če je napaka prišla pred koncem klica showBanner
+      // (ta potem nastavi ad.shown = true in renderAds bi mislil, da banner že je).
+      ad.retry = setTimeout(function () { ad.shown = false; renderAds(); }, Math.min(20000 * Math.pow(2, ad.fails++), 300000));
     });
     // Privolitev (EU): Googlov obrazec se pokaže samo, če ga zakon zahteva in še ni odgovora.
     // Če se Googlov obrazec ali odgovor zatakne, reklame ne smejo čakati v nedogled (prej banner potem ni prišel nikoli).
