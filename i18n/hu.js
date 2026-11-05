@@ -540,6 +540,7 @@ NK_PACK("hu", function (h) {
     [/^(.+) · odpiram čez (\d+) s$/, "$1 · megnyitás $2 mp múlva"],
     [/^Kupiš ga vsak teden, zadnjič pred (.+)$/, function (m) { return "Minden héten veszed, utoljára " + ago(m[1]); }],
     [/^Kupiš ga vsakih ~(\d+) dni, zadnjič pred (.+)$/, function (m) { return "~" + m[1] + " naponta veszed, utoljára " + ago(m[2]); }],
+    [/^(.+ · )?običajno: (.+)$/, function (m) { return (m[1] || "") + "általában: " + m[2]; }],
     [/^Tu ga običajno kupiš, zadnjič pred (\d+) dnevi$/, "Általában itt veszed, utoljára $1 napja"],
     [/^Običajno kupiš okoli (\d+)\. v mesecu$/, "Általában a hónap $1. napja körül veszed"],
     [/^Običajno kupiš (ob \S+)( \(jutri\))?$/, function (m) { return "Általában " + (DAYS_ON[m[1]] || m[1]) + " veszed" + (m[2] ? " (holnap)" : ""); }],
