@@ -694,11 +694,31 @@
     state.items.splice(idx, 1);
     save(); renderAll();
     // Brisanje ni nakup: v zgodovino ne gre nič. Razveljavi vrne izdelek na isto mesto.
-    toast("Izbrisano: " + gone.name, { label: "Razveljavi", fn: function () {
+    var undo = function () {
       if (state.items.some(function (i) { return i.id === gone.id; })) return;
       state.items.splice(Math.min(idx, state.items.length), 0, gone);
       save(); renderAll();
-    } });
+    };
+    var rec = window.NK_RECEPTI && window.NK_RECEPTI.recipeFor ? window.NK_RECEPTI.recipeFor(gone.name) : null;
+    if (rec) askRecipeRemove(gone, rec, undo);
+    else toast("Izbrisano: " + gone.name, { label: "Razveljavi", fn: undo });
+  }
+  // Sestavina iz recepta: »Imam doma« (hranila ostanejo) ali »Kuham brez« (recept se prilagodi).
+  function askRecipeRemove(it, rec, undo) {
+    var old = $("recAsk"); if (old) old.remove();
+    var T = window.NK_T || function (s) { return s; };
+    var close = function () { box.remove(); };
+    var box = el("div", { class: "rec-ask", id: "recAsk", role: "dialog" }, [
+      el("p", null, [el("b", { text: T(it.name) }), document.createTextNode(" · " + rec.name)]),
+      el("p", { class: "rec-ask-q", text: "Ga imaš doma ali kuhaš brez njega?" }),
+      el("div", { class: "rec-ask-b" }, [
+        el("button", { type: "button", class: "chip", onclick: function () { close(); toast("V redu, imaš doma."); } }, ["🏠 Imam doma"]),
+        el("button", { type: "button", class: "chip", onclick: function () { close(); rec.skip(); toast("Kuhaš brez tega: recept je prilagojen."); } }, ["🚫 Kuham brez"]),
+        el("button", { type: "button", class: "chip rec-ask-undo", onclick: function () { close(); undo(); } }, ["Razveljavi"])
+      ])
+    ]);
+    document.body.appendChild(box);
+    setTimeout(function () { if (box.parentNode) close(); }, 12000);
   }
 
   function itemMeta(it) {
@@ -734,9 +754,11 @@
     (myChains() || []).forEach(add);
     stores.forEach(function (x) { if (x.chain && CHAIN_BY_KEY[x.chain] && !/^(bencinska|trafika|kiosk)$/.test(x.chain)) add(x.chain); });
     COMPARE_CHAINS.concat(["dm", "muller"]).forEach(add);
-    return keys;
+    // Samo trgovine, ki izdelek prodajajo: za česen ne Premium Pet ali Proteini.si.
+    var p = catalogFind(it.name), x = { name: it.name, cat: it.cat || (p && p.cat) || "" };
+    return keys.filter(function (k) { return k === it.store || sells({ chain: k }, x); });
   }
-  var pickOpen = null;
+  var pickOpen = null, storesShown = false;
   function setItemStore(it, k) {
     it.store = k || "";
     if (!it.store) delete it.store;
@@ -748,18 +770,55 @@
   function storePicker(it) {
     var delBtn = el("button", { type: "button", class: "chip chip-del", onclick: function () { pickOpen = null; removeItem(it.id); } }, ["Izbriši"]);
     if (it.done) return el("div", { class: "store-pick" }, [delBtn]);
-    var box = el("div", { class: "store-pick" }, [el("span", { class: "muted small", text: "Slika:" })]);
+    var box = el("div", { class: "store-pick" });
+    // Sadje in zelenjava: koliko – poljubno število kosov (korak 1) ali kilogramov (korak 0,5).
+    var p = catalogFind(it.name);
+    if (p && p.cat === "Sadje in zelenjava") {
+      var isKg = function () { return !!(it.amt && it.amt.g != null); };
+      var cur = function () { return isKg() ? it.amt.g / 1000 : (it.amt && it.amt.kos) || 0; };
+      var setN = function (kgMode, n) {
+        n = Math.max(0, Math.round(n * (kgMode ? 10 : 1)) / (kgMode ? 10 : 1));
+        if (!n) delete it.amt; else it.amt = kgMode ? { g: Math.round(n * 1000) } : { kos: n };
+        it.qty = 1; save(); renderAll();
+      };
+      var unit = function (kgMode) {
+        // preklop enote: 1,5 kg → 2 kosa in obratno, da število ostane smiselno
+        return el("button", { type: "button", class: "chip" + (isKg() === kgMode ? " on" : ""), onclick: function () {
+          if (isKg() !== kgMode) setN(kgMode, kgMode ? Math.max(0.5, Math.round(cur() * 0.2 * 2) / 2) : Math.max(1, Math.round(cur() * 5)));
+        } }, [kgMode ? "kg" : "Kosi"]);
+      };
+      var input = el("input", { class: "qinput", type: "text", inputmode: "decimal", "aria-label": "Koliko?", value: cur() ? String(cur()).replace(".", ",") : "" });
+      input.addEventListener("change", function () { setN(isKg(), parseFloat(String(input.value).replace(",", ".")) || 0); });
+      input.addEventListener("click", function (e) { e.stopPropagation(); });
+      box.appendChild(el("span", { class: "muted small", text: "Koliko?" }));
+      box.appendChild(unit(false));
+      box.appendChild(unit(true));
+      box.appendChild(el("span", { class: "pick-break" }));
+      box.appendChild(el("button", { type: "button", class: "chip qchip", "aria-label": "Manj", onclick: function () { setN(isKg(), cur() - (isKg() ? 0.5 : 1)); } }, ["−"]));
+      box.appendChild(input);
+      box.appendChild(el("button", { type: "button", class: "chip qchip", "aria-label": "Več", onclick: function () { setN(isKg(), cur() + (isKg() ? 0.5 : 1)); } }, ["+"]));
+      box.appendChild(el("span", { class: "pick-break" }));
+    }
+    box.appendChild(el("span", { class: "muted small", text: "Slika:" }));
     if (it.photo) {
       box.appendChild(el("button", { type: "button", class: "chip", onclick: function () { showPhoto(it); } }, ["Poglej sliko"]));
       box.appendChild(el("button", { type: "button", class: "chip", onclick: function () { removePhoto(it); } }, ["Odstrani sliko"]));
     } else photoButtons(it).forEach(function (b) { box.appendChild(b); });
     box.appendChild(el("span", { class: "pick-break" }));
+    // Trgovine so skrite za gumbom: vidi se samo izbrana, ves seznam ob tapu.
+    var storeChip = function (k) {
+      return el("button", { type: "button", class: "chip" + ((it.store || "") === k ? " on" : ""), onclick: function () { storesShown = false; setItemStore(it, k); } },
+        !k ? ["Kjerkoli"] : CHAIN_BY_KEY[k] ? [chainDot(k), storeKeyName(k)] : [storeKeyName(k)]);
+    };
     box.appendChild(el("span", { class: "muted small", text: "Kje kupiš?" }));
-    box.appendChild(el("button", { type: "button", class: "chip" + (!it.store ? " on" : ""), onclick: function () { setItemStore(it, ""); } }, ["Kjerkoli"]));
-    storeChoices(it).forEach(function (k) {
-      box.appendChild(el("button", { type: "button", class: "chip" + (it.store === k ? " on" : ""), onclick: function () { setItemStore(it, k); } },
-        CHAIN_BY_KEY[k] ? [chainDot(k), storeKeyName(k)] : [storeKeyName(k)]));
-    });
+    if (!storesShown) box.appendChild(storeChip(it.store || ""));
+    box.appendChild(el("button", { type: "button", class: "chip chip-more", onclick: function () { storesShown = !storesShown; renderAll(); } },
+      [storesShown ? "Skrij trgovine ▴" : "Vse trgovine ▾"]));
+    if (storesShown) {
+      box.appendChild(el("span", { class: "pick-break" }));
+      [""].concat(storeChoices(it)).forEach(function (k) { box.appendChild(storeChip(k)); });
+    }
+    box.appendChild(el("span", { class: "pick-break" }));
     box.appendChild(delBtn);
     return box;
   }
@@ -924,7 +983,7 @@
     var q = it.amt && Object.keys(it.amt).length ? amtText(it.amt) + (it.qty > 1 ? " · " + qtyText(it.qty) : "") : qtyText(it.qty);
     var row = el("div", { class: "irow" }, [
       thumbFor(it),
-      el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { pickOpen = pickOpen === it.id ? null : it.id; renderAll(); } }, [
+      el("div", { class: "ibody", role: "button", tabindex: "0", onclick: function () { pickOpen = pickOpen === it.id ? null : it.id; storesShown = false; renderAll(); } }, [
         el("div", { class: "iname" }, [q ? el("i", { class: "iqty", text: q }) : null, el("span", { text: it.name })]),
         it.done ? null : priceChip(it, storeCtx),
         meta || tag ? el("div", { class: "imeta" }, [tag, meta ? document.createTextNode((tag ? " · " : "") + meta) : null]) : null
@@ -1340,6 +1399,23 @@
     });
     return recs.length;
   }
+  // »Kmalu ti zmanjka«: ko zapreš aplikacijo, iPhone ob 17h opomni na izdelke, ki jih običajno kupiš ob tem času.
+  // Isti nabor izdelkov največ enkrat na 3 dni, da opomnik ne nadleguje.
+  function planSoonReminder() {
+    if (!window.__nakupkoRemindSoon) return;
+    var due = recommendations(null).filter(function (r) { return r.score >= 2; }).slice(0, 3);
+    var keys = due.map(function (r) { return r.h.key; }).sort().join("|");
+    var last = state.soonLast || {};
+    if (!due.length || (last.keys === keys && Date.now() - last.ts < 3 * DAY)) return window.__nakupkoRemindSoon([], 0);
+    var at = new Date(); at.setHours(17, 0, 0, 0);
+    if (Date.now() > at.getTime() - 3600000) at.setDate(at.getDate() + 1);
+    var T = window.NK_T || function (s) { return s; };
+    window.__nakupkoRemindSoon(due.map(function (r) { return T(r.h.name); }), at.getTime());
+    state.soonLast = { keys: keys, ts: at.getTime() };
+    save();
+  }
+  document.addEventListener("visibilitychange", function () { if (document.hidden) planSoonReminder(); });
+
   function renderReco() {
     var n = renderRecoInto($("recoList"), currentStore());
     $("recoBox").classList.toggle("hidden", n === 0);
@@ -1658,14 +1734,18 @@
   // Odšel si: zapremo »V trgovini« (fromPhone: zaznal je iPhone v ozadju).
   function leftStore(id, fromPhone) {
     if (!activeStore || activeStore.id !== id) return;
-    var name = activeStore.short || activeStore.name;
+    var name = activeStore.short || activeStore.name, store = activeStore;
     if (!fromPhone) window.__nakupkoLeftAt = Date.now();  // iPhone: umakni seznam z zaklenjenega zaslona
     if (det && fromPhone) det.stop(Date.now() / 1000);
     activeStore = null;   // brez »snooze«: ob naslednjem prihodu se odpre znova
     $("storeMode").classList.add("hidden");
     document.body.style.overflow = "";
     renderAll();
-    toast("Zapustil si " + name + ". Nakupovanje zaprto.");
+    // »Si kaj pozabil?«: res si nakupoval (vsaj 2 min), za to trgovino pa je na seznamu še kaj.
+    var left = Date.now() - storeModeOpenedAt >= 120000 ? state.items.filter(function (i) { return !i.done && forStore(store, i); }) : [];
+    var T = window.NK_T || function (s) { return s; };
+    if (left.length) toast(T("Si kaj pozabil?") + " " + left.slice(0, 5).map(function (i) { return T(i.name); }).join(", ") + (left.length > 5 ? " …" : ""), { label: "OK", fn: function () {} });
+    else toast("Zapustil si " + name + ". Nakupovanje zaprto.");
   }
   function evaluateNear() {
     feed(false);
@@ -2170,6 +2250,40 @@
     renderSizeChoices($("onboardBox"), function (k) { setSize(k); $("onboard").classList.add("hidden"); toast("Prikaz: " + SIZES[k].label); });
     $("onboard").classList.remove("hidden");
   }
+  // ---------- Zaklenjen zaslon (iPhone): koliko izdelkov naenkrat ----------
+  // Privzeto 4 (kot doslej); po 10 odprtjih aplikacija enkrat ponudi izbiro, sicer v Nastavitvah.
+  var LOCKS = {
+    4: { label: "Običajno", sub: "4 izdelki, z emojiji in gumbom »Odpri seznam«" },
+    6: { label: "Več izdelkov", sub: "6 izdelkov, puščica za naprej zgoraj" },
+    8: { label: "Največ izdelkov", sub: "8 manjših izdelkov, brez emojijev" }
+  };
+  function isIos() { try { return window.Capacitor && Capacitor.getPlatform && Capacitor.getPlatform() === "ios"; } catch (e) { return false; } }
+  function renderLockChoices(box, onPick) {
+    if (!box) return;
+    box.innerHTML = "";
+    var cur = state.settings.lockSize || 4;
+    [4, 6, 8].forEach(function (k) {
+      box.appendChild(el("button", { class: "pref-opt" + (cur === k ? " on" : ""), type: "button", onclick: function () { onPick(k); } }, [
+        el("div", { class: "pref-text" }, [el("b", { text: LOCKS[k].label }), el("span", { text: LOCKS[k].sub })]),
+        el("span", { class: "size-aa", text: String(k) })
+      ]));
+    });
+  }
+  function setLock(k) {
+    state.settings.lockSize = k; save();
+    renderLockChoices($("lockBox"), setLock);
+  }
+  function maybeAskLock() {
+    if (!isIos() || state.settings.lockAsked) return false;
+    state.settings.opens = (state.settings.opens || 0) + 1; save();
+    if (state.settings.opens < 10 || !$("onboard").classList.contains("hidden")) return false;
+    state.settings.lockAsked = true; save();
+    $("obTitle").textContent = "Seznam na zaklenjenem zaslonu";
+    $("obText").textContent = "Koliko izdelkov naj bo vidnih naenkrat, ko si v trgovini? Spremeniš lahko kadar koli v Nastavitvah.";
+    renderLockChoices($("onboardBox"), function (k) { setLock(k); $("onboard").classList.add("hidden"); var T = window.NK_T || function (x) { return x; }; toast(T("Zaklenjen zaslon") + ": " + T(LOCKS[k].label)); });
+    $("onboard").classList.remove("hidden");
+    return true;
+  }
   function maybeOnboard() {
     migratePrefs();
     if (state.settings.pricePref && !state.settings.size) { askSize(); return; }
@@ -2387,8 +2501,16 @@
 
   // ---------- Dogodki ----------
   // Spodaj Seznam in Nasveti; Nastavitve so zobnik v glavi (data-tab="stores").
+  var lastTab = "list"; // zobnik v odprtih Nastavitvah vrne na zavihek, s katerega si prišel
   document.querySelectorAll("button[data-tab]").forEach(function (b) {
     b.addEventListener("click", function () {
+      var cur = document.querySelector(".tab.active"), curId = cur ? cur.id.replace("tab-", "") : "";
+      if (b.dataset.tab === "stores" && curId === "stores") {
+        var back = document.querySelector('.tabs button[data-tab="' + lastTab + '"]') || document.querySelector('.tabs button[data-tab="list"]');
+        if (back) back.click();
+        return;
+      }
+      if (b.dataset.tab === "stores" && curId) lastTab = curId;
       document.querySelectorAll("button[data-tab]").forEach(function (x) { x.classList.toggle("on", x === b); });
       document.querySelectorAll(".tab").forEach(function (t) { t.classList.toggle("active", t.id === "tab-" + b.dataset.tab); });
       if (b.dataset.tab === "prices") renderPriceTable();
@@ -2606,6 +2728,7 @@
   // ---------- Zagon ----------
   applySize();
   renderSizeChoices($("sizeBox"), setSize);
+  if (isIos()) { $("lockCard").classList.remove("hidden"); renderLockChoices($("lockBox"), setLock); }
   (function () {
     // Jezik: samodejno po državi, kjer si (privzeto), ali ročna izbira, ki jo aplikacija ohrani.
     var box = $("langBox"), mode = window.NK_LANG_MODE || "auto", langs = window.NK_LANGS || { sl: "Slovenščina", en: "English" };
@@ -2619,6 +2742,7 @@
   })();
   renderPrefs();
   maybeOnboard();
+  if (state.settings.pricePref && state.settings.size) maybeAskLock();
   priceKeysClean();
   renderAll();
   renderStores();
@@ -2638,7 +2762,7 @@
   }
 
   // za teste
-  window.__nakupko = { state: function () { return state; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n, amt) { var a = typeof amt === "string" ? parseAmt(amt) : amt; addItem(n, "", 1, a ? { silent: true, amt: a } : { silent: true }); }, amtText: amtText, eur: eur, moneyScale: moneyScale, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
+  window.__nakupko = { state: function () { return state; }, catOf: function (n) { var p = catalogFind(n); return p ? p.cat : "Drugo"; }, emojiFor: function (it) { return (window.NAKUPKO_EMOJI || {})[iconFor(it)] || ""; }, chainOnly: function (k) { var c = CHAIN_BY_KEY[k], o = c && onlyOf(c); return o ? o.source : ""; }, toggle: function (id) { toggleItem(id); }, add: function (n, amt) { var a = typeof amt === "string" ? parseAmt(amt) : amt; addItem(n, "", 1, a ? { silent: true, amt: a } : { silent: true }); }, amtText: amtText, eur: eur, moneyScale: moneyScale, openStore: function () { openStoreMode(lastNearStore || activeStore || null); }, openStoreById: function (id) {
     // Klik na obvestilo »trgovina je blizu«: odpremo prav to trgovino, brez čakanja na GPS v aplikaciji.
     var list = stores.concat((state.storesCache && state.storesCache.list) || []);
     var st = list.filter(function (x) { return x.id === id; })[0] || lastNearStore || null;

@@ -116,7 +116,9 @@
     var api = window.__nakupko, s = api && api.moneyScale ? api.moneyScale() : 1;
     return api && api.eur ? api.eur(v * s) : v.toFixed(2).replace(".", ",") + " €";
   }
-  function costTxt(r) { return "≈ " + money(cost(r)); }
+  // Cene se v aplikaciji (še) ne prikazujejo (app.js SHOW_PRICES); brez njih ni ne cene jedi ne filtra po ceni.
+  var CENE = window.NAKUPKO_SHOW_PRICES === true;
+  function costTxt(r) { return CENE ? "≈ " + money(cost(r)) : ""; }
   function denOf(r) { var c = cost(r); return DENAR.filter(function (b) { return c > b[1] && c <= b[2] || (b[1] === 0 && c <= b[2]); })[0][0]; }
 
   function pool(t, b, d, m) {
@@ -130,7 +132,7 @@
   function openSet() { var o = {}; items().forEach(function (y) { if (!y.done) o[norm(y.name)] = 1; }); return o; }
   function card(i, open, cls) {
     var r = REC.jedi[i], hasAll = ings(r).every(function (x) { return open[norm(x[0])]; }), a = adapt(r);
-    return '<button type="button" class="rc' + (cls || "") + (hasAll ? " added" : "") + '" data-i="' + i + '"><span class="ric">' + ico(r[0]) + '</span><span class="rtx"><b>' + esc(nm(r)) + '</b><span class="rmeta">' + mins(r[3]) + dots(r[4]) + '<span class="rcost">' + esc(costTxt(r)) + "</span>" +
+    return '<button type="button" class="rc' + (cls || "") + (hasAll ? " added" : "") + '" data-i="' + i + '"><span class="ric">' + ico(r[0]) + '</span><span class="rtx"><b>' + esc(nm(r)) + '</b><span class="rmeta">' + mins(r[3]) + dots(r[4]) + (CENE ? '<span class="rcost">' + esc(costTxt(r)) + "</span>" : "") +
       (a && a.n ? '<span class="radapt">' + esc(T("prilagojeno")) + "</span>" : "") + "</span></span></button>";
   }
   function cards(ids) { var open = openSet(); return '<div class="rgrid">' + ids.map(function (i) { return card(i, open); }).join("") + "</div>"; }
@@ -226,10 +228,10 @@
       if (rb) now.sort(function (a, b) { return cost(REC.jedi[a]) - cost(REC.jedi[b]); });
       var all = pool(rt, null, rd, rm);
       h += step("Izberi jed", mapName(REC.mape.filter(function (m) { return m[0] === rm; })[0]),
-        '<div class="rbud"><span>' + esc(T("Cena na osebo")) + "</span>" + [["", T("Vse")]].concat(DENAR.slice(0, 3).map(function (b) { return [b[0], budLabel(b)]; })).map(function (b) {
+        (CENE ? '<div class="rbud"><span>' + esc(T("Cena na osebo")) + "</span>" + [["", T("Vse")]].concat(DENAR.slice(0, 3).map(function (b) { return [b[0], budLabel(b)]; })).map(function (b) {
           var n = b[0] ? pool(rt, b[0], rd, rm).length : all.length; if (b[0] && !n) return "";
           return '<button type="button" class="' + ((rb || "") === b[0] ? "on" : "") + '" data-bud="' + b[0] + '">' + esc(b[1]) + "</button>";
-        }).join("") + "</div>" + (now.length ? cards(now) : '<p class="empty">' + esc(T("Za to ceno ni jedi.")) + "</p>"));
+        }).join("") + "</div>" : "") + (now.length ? cards(now) : '<p class="empty">' + esc(T("Za to ceno ni jedi.")) + "</p>"));
     }
     box.innerHTML = h;
   }
@@ -333,7 +335,7 @@
     var r = cur, api = window.__nakupko, sh = $("rsheet"); if (!sh || !r) return;
     sh.querySelector(".rsh-ic").innerHTML = ico(r[0]);
     sh.querySelector(".rsh-t").textContent = nm(r);
-    sh.querySelector(".rsh-m").textContent = mins(r[3]) + " · " + T(TEZ[r[4] - 1][1]) + " · " + costTxt(r) + " " + T("na osebo");
+    sh.querySelector(".rsh-m").textContent = mins(r[3]) + " · " + T(TEZ[r[4] - 1][1]) + (CENE ? " · " + costTxt(r) + " " + T("na osebo") : "");
     var al = (r[9] || []).filter(function (a) { return a.indexOf("?") < 0 && kit.al.indexOf(a) < 0; }).map(function (a) { return T(ALER.filter(function (x) { return x[0] === a; })[0][1]).toLowerCase(); });
     sh.querySelector(".rsh-al").textContent = al.length ? T("Vsebuje") + ": " + al.join(", ") : "";
     var sw = swapTxt(r), nt = noteTxt(r), ad = sh.querySelector(".rsh-adapt");
@@ -342,7 +344,9 @@
     sh.querySelector(".rsh-n").textContent = servings;
     sh.querySelector(".rsh-list").innerHTML = ings(r).map(function (g, i) {
       var a = amtOf(g), txt = a && api && api.amtText ? api.amtText(a) : T("po okusu");
-      return '<button type="button" class="rsh-i' + (off[i] ? "" : " on") + '" data-i="' + i + '"><span class="rcb"></span><span class="rnm">' + esc(T(g[0])) + '</span><span class="ram">' + esc(txt) + "</span></button>";
+      // odkljukano: »Imam doma« (šteje v hranila) ali »Brez tega« (ne šteje, v korakih se prečrta)
+      var opt = off[i] ? '<span class="rsh-o"><button type="button" data-oi="' + i + '" data-o="doma" class="' + (off[i] === "doma" ? "on" : "") + '">' + esc(T("Imam doma")) + '</button><button type="button" data-oi="' + i + '" data-o="brez" class="' + (off[i] === "brez" ? "on" : "") + '">' + esc(T("Brez tega")) + "</button></span>" : "";
+      return '<div class="rsh-i' + (off[i] ? " " + off[i] : " on") + '"><button type="button" class="rsh-tg" data-i="' + i + '"><span class="rcb"></span><span class="rnm">' + esc(T(g[0])) + '</span><span class="ram">' + esc(txt) + "</span></button>" + opt + "</div>";
     }).join("");
     var n = ings(r).filter(function (g, i) { return !off[i]; }).length, b = sh.querySelector(".rsh-add");
     b.textContent = T("Dodaj na seznam") + " (" + n + ")"; b.disabled = !n;
@@ -358,11 +362,26 @@
       if (!hrLoading) { hrLoading = true; fetch("hranila.json").then(function (x) { return x.json(); }).then(function (d) { HR = d; drawNutri(); }).catch(function () { hrLoading = false; }); }
       return;
     }
-    var res = N.forRecipe(HR, cur[1], ings(cur)), v = res.v, n = res.n;
+    var res = N.forRecipe(HR, cur[1], ings(cur).filter(function (g, i) { return off[i] !== "brez"; })), v = res.v, n = res.n;
     var g = function (x) { return (x < 10 ? num(x, 1) : num(x, 0)) + " g"; };
     var rows = [["Energija", "≈ " + num(Math.round(v[0] / 10) * 10, 0) + " kcal"], ["Beljakovine", g(v[1])], ["Ogljikovi hidrati", g(v[2])], ["Maščobe", g(v[3])], ["Vlaknine", g(v[4])], ["Sol", num(v[5], 1) + " g"]];
     if (n !== 4) rows.push(["Porcij v celi jedi", String(n)]);
+    var bz = brez(cur, off).map(function (g) { return T(g[0]).toLowerCase(); });
+    if (bz.length) rows.push(["Brez", bz.join(", ")]);
     box.innerHTML = rows.map(function (x) { return "<div><span>" + esc(T(x[0])) + "</span><b>" + esc(x[1]) + "</b></div>"; }).join("");
+  }
+  // sestavine, ki jih uporabnik izpusti (»Brez tega«); off = {indeks: "doma" | "brez"}
+  function skipOf(o) { return Object.keys(o).filter(function (k) { return o[k] === "brez"; }).map(Number); }
+  function brez(r, o) { var s = Array.isArray(o) ? o : skipOf(o); return ings(r).filter(function (g, i) { return s.indexOf(i) >= 0; }); }
+  // v koraku prečrta omembe izpuščenih sestavin (»krompir« ujame tudi »krompirjem«)
+  function markSkip(txt, skip) {
+    var h = esc(txt);
+    skip.forEach(function (g) {
+      var w = String(T(g[0])).split(/\s+/)[0], st = w.length > 5 ? w.slice(0, w.length - 2) : w;
+      if (st.length < 3) return;
+      h = h.replace(new RegExp("(^|[^\\p{L}])(" + st.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\p{L}*)", "giu"), '$1<s class="kh-skip">$2</s>');
+    });
+    return h;
   }
   function openRecipe(i) {
     cur = REC.jedi[i]; off = {};
@@ -372,7 +391,7 @@
       '<button type="button" class="sheet-x" aria-label="' + esc(T("Zapri")) + '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
       '<div class="rsh-head"><span class="rsh-ic"></span><div><b class="rsh-t"></b><span class="rsh-m"></span><span class="rsh-al"></span></div></div><p class="rsh-adapt" hidden></p>' +
       '<div class="rsh-serv"><span>' + esc(T("Za koliko oseb?")) + '</span><span class="rsh-step"><button type="button" class="rsh-minus" aria-label="−">−</button><b class="rsh-n"></b><button type="button" class="rsh-plus" aria-label="+">+</button></span></div>' +
-      '<div class="rsh-list"></div><p class="muted small">' + esc(T("Odkljukaj, kar že imaš doma.")) + '</p>' +
+      '<div class="rsh-list"></div><p class="muted small">' + esc(T("Odkljukaj, česar ne rabiš kupiti, in izberi: imaš doma ali kuhaš brez tega.")) + '</p>' +
       '<button type="button" class="btn primary full rsh-add"></button>' +
       '<button type="button" class="btn full rsh-cook">' + esc(T("Kuhaj po korakih ›")) + "</button>" +
       '<details class="rsh-nutri"><summary>' + esc(T("Okvirne vrednosti na porcijo")) + '</summary><div class="rsh-nv"></div>' +
@@ -384,9 +403,10 @@
       var b = e.target.closest && e.target.closest("button"); if (!b) return;
       if (b.classList.contains("rsh-minus")) servings = Math.max(1, servings - 1);
       else if (b.classList.contains("rsh-plus")) servings = Math.min(20, servings + 1);
-      else if (b.dataset.i) off[+b.dataset.i] = !off[+b.dataset.i];
+      else if (b.dataset.i) off[+b.dataset.i] = off[+b.dataset.i] ? 0 : "doma";
+      else if (b.dataset.oi) off[+b.dataset.oi] = b.dataset.o;
       else if (b.classList.contains("rsh-add")) { addAll(); return; }
-      else if (b.classList.contains("rsh-cook")) { close(); cook(REC.jedi.indexOf(cur), servings); return; }
+      else if (b.classList.contains("rsh-cook")) { var bz = skipOf(off); close(); cook(REC.jedi.indexOf(cur), servings, bz); return; }
       try { localStorage.setItem(KEY, servings); } catch (err) { /* nič */ }
       drawSheet();
     });
@@ -396,7 +416,7 @@
   function addAll() {
     var api = window.__nakupko, n = 0; if (!api) return;
     ings(cur).forEach(function (g, i) { if (off[i]) return; api.add(g[0], amtOf(g)); n++; });
-    saveMoj(cur[1], servings);
+    saveMoj(cur[1], servings, skipOf(off));
     close(); draw();
     if (api.toast) api.toast(SL ? "Na seznam dodano: " + n + " sestavin za " + osebe(servings) : T("Dodano na seznam") + ": " + n + " · " + osebe(servings));
   }
@@ -405,10 +425,10 @@
   // ---------- kuhanje po korakih ----------
   // »Tvoji recepti«: jedi, ki si jih dal na seznam. Po nakupu so nad seznamom: »Kuhaj ›«.
   // Med kuhanjem je korak tudi na zaklenjenem zaslonu (iPhone: Live Activity, Android: obvestilo) z Nazaj/Naprej.
-  var MOJI = "nakupko-moji-recepti", ck = null, ckStep = 0, ckOs = 4, wake = null;
+  var MOJI = "nakupko-moji-recepti", ck = null, ckStep = 0, ckOs = 4, ckSkip = [], wake = null;
   function getMoji() { try { return JSON.parse(localStorage.getItem(MOJI) || "[]") || []; } catch (e) { return []; } }
   function setMoji(m) { try { localStorage.setItem(MOJI, JSON.stringify(m.slice(0, 6))); } catch (e) { /* nič */ } moji(); }
-  function saveMoj(name, os) { setMoji([{ n: name, o: os, t: Date.now() }].concat(getMoji().filter(function (x) { return x.n !== name; }))); }
+  function saveMoj(name, os, bz) { setMoji([{ n: name, o: os, t: Date.now(), b: bz && bz.length ? bz : undefined }].concat(getMoji().filter(function (x) { return x.n !== name; }))); }
   function byName(n) { if (!REC) return -1; for (var i = 0; i < REC.jedi.length; i++) if (REC.jedi[i][1] === n) return i; return -1; }
   function steps(r) { return r[7] ? r[7][SL ? 0 : 1] : []; }
   function moji() {
@@ -423,9 +443,9 @@
     });
   }
   function native(o) { if (window.__nakupkoCook) try { window.__nakupkoCook(o); } catch (e) { /* nič */ } }
-  function cook(i, os) {
+  function cook(i, os, bz) {
     if (!REC || !REC.jedi[i]) return;
-    ck = REC.jedi[i]; ckStep = 0; ckOs = os || servings;
+    ck = REC.jedi[i]; ckStep = 0; ckOs = os || servings; ckSkip = bz || [];
     var w = document.createElement("div");
     w.className = "kuhaj"; w.id = "kuhaj";
     w.innerHTML = '<div class="kh-top"><button type="button" class="kh-x" aria-label="' + esc(T("Zapri")) + '">×</button><b class="kh-name"></b><span class="kh-cnt"></span></div>' +
@@ -452,13 +472,15 @@
     w.querySelector(".kh-cnt").textContent = fin ? "✓" : (ckStep + 1) + " / " + n;
     w.querySelector(".kh-bar i").style.width = (fin ? 100 : (ckStep + 1) / n * 100) + "%";
     w.querySelector(".kh-k").textContent = fin ? "" : T("Korak") + " " + (ckStep + 1) + " / " + n;
-    var p = w.querySelector(".kh-step"); p.textContent = fin ? T("Dober tek!") : st[ckStep]; p.classList.toggle("fin", fin);
+    var p = w.querySelector(".kh-step"), sk = brez(ck, ckSkip);
+    p.innerHTML = fin ? esc(T("Dober tek!")) : markSkip(st[ckStep], sk); p.classList.toggle("fin", fin);
     w.querySelector(".kh-os").textContent = "(" + (SL ? ckOs + (ckOs === 1 ? " oseba" : ckOs === 2 ? " osebi" : ckOs < 5 ? " osebe" : " oseb") : osebe(ckOs)) + ")";
     var sw = swapTxt(ck), ad = w.querySelector(".kh-adapt");
-    ad.hidden = !sw.length || fin; ad.textContent = sw.length ? T("Prilagojeno zate") + ": " + sw.join(", ") : "";
-    w.querySelector(".kh-list").innerHTML = ings(ck).map(function (g) {
+    var adt = (sw.length ? [T("Prilagojeno zate") + ": " + sw.join(", ")] : []).concat(sk.length ? [T("Brez") + ": " + sk.map(function (g) { return T(g[0]).toLowerCase(); }).join(", ") + " · " + T("v korakih to preskoči")] : []);
+    ad.hidden = !adt.length || fin; ad.textContent = adt.join(" · ");
+    w.querySelector(".kh-list").innerHTML = ings(ck).map(function (g, i) {
       var a = scaleAmt(g[1], g[2], ckOs / 4), m = null; if (a) { m = {}; m[a[1]] = a[0]; }
-      return "<p>" + esc(T(g[0])) + "<span>" + esc(m && api && api.amtText ? api.amtText(m) : T("po okusu")) + "</span></p>";
+      return "<p" + (ckSkip.indexOf(i) >= 0 ? ' class="kh-skip"' : "") + ">" + esc(T(g[0])) + "<span>" + esc(m && api && api.amtText ? api.amtText(m) : T("po okusu")) + "</span></p>";
     }).join("");
     w.querySelector(".kh-prev").disabled = ckStep === 0;
     w.querySelector(".kh-next").textContent = fin ? T("Končano ✓") : ckStep === n - 1 ? T("Zadnji korak ✓") : T("Naprej ›");
@@ -477,7 +499,7 @@
     var b = e.target.closest && e.target.closest(".nk-moji button"); if (!b) return;
     if (b.dataset.unmoj) { setMoji(getMoji().filter(function (x) { return x.n !== b.dataset.unmoj; })); return; }
     var x = getMoji().filter(function (y) { return y.n === b.dataset.cook; })[0];
-    cook(byName(b.dataset.cook), x && x.o);
+    cook(byName(b.dataset.cook), x && x.o, x && x.b);
   });
   var loading = false;
   function load() {
@@ -522,6 +544,23 @@
       function go() { for (var i = 0; i < REC.jedi.length; i++) if (slugOf(REC.jedi[i][1]) === slug) { openRecipe(i); cb && cb(true); return; } cb && cb(false); }
       if (REC) { go(); return; }
       fetch("recepti.json").then(function (r) { return r.json(); }).then(function (d) { REC = REC || d; go(); }).catch(function () { cb && cb(false); });
+    },
+    // Izdelek, ki ga brišeš s seznama, je sestavina enega od »Tvojih receptov«: app.js vpraša, ali ga imaš
+    // doma ali kuhaš brez njega. skip() ga zapiše kot »Brez tega« (hranila in koraki recepta se prilagodijo).
+    recipeFor: function (name) {
+      if (!REC) return null;
+      var key = String(name || "").trim().toLowerCase(), m = getMoji();
+      for (var k = 0; k < m.length; k++) {
+        var i = byName(m[k].n); if (i < 0) continue;
+        var list = ings(REC.jedi[i]);
+        for (var j = 0; j < list.length; j++) {
+          if (String(list[j][0]).toLowerCase() !== key && String(T(list[j][0])).toLowerCase() !== key) continue;
+          return (function (x, j) {
+            return { name: nm(REC.jedi[byName(x.n)]), skip: function () { var b = (x.b || []).slice(); if (b.indexOf(j) < 0) b.push(j); saveMoj(x.n, x.o, b); } };
+          })(m[k], j);
+        }
+      }
+      return null;
     },
     // korak, spremenjen na zaklenjenem zaslonu (native.js ob vrnitvi v aplikacijo)
     step: function (n) { if (!ck || typeof n !== "number") return; ckStep = Math.max(0, Math.min(steps(ck).length, n)); drawCook(); }
