@@ -45,35 +45,43 @@ function sendApns(tokens, title, body) {
 
 // Besedila obvestil v jeziku prejemnika (jezik aplikacije: lang pri članu ali v zahtevi).
 const TEXT = {
-  sl: { need: (w, s) => w + " je v trgovini" + (s ? " " + s : "") + ": rabiš kaj?", needMore: "Odpri Nakupko in dodaj izdelke ali odgovori, da ne rabiš nič.", added: (w, l) => w + " rabi še: " + l, addedMore: "Izdelki so že na skupnem seznamu.", none: (w) => w + " ne rabi nič", noneMore: "Odgovor na tvoje vprašanje iz trgovine.",
+  sl: { put: (w, l) => w + " je dodal(a) na seznam: " + l, putMore: "Odpri Nakupko za celoten skupni seznam.",
+    need: (w, s) => w + " je v trgovini" + (s ? " " + s : "") + ": rabiš kaj?", needMore: "Odpri Nakupko in dodaj izdelke ali odgovori, da ne rabiš nič.", added: (w, l) => w + " rabi še: " + l, addedMore: "Izdelki so že na skupnem seznamu.", none: (w) => w + " ne rabi nič", noneMore: "Odgovor na tvoje vprašanje iz trgovine.",
     visit: (w, s) => w + " je v trgovini " + s, more: "Rabiš še kaj? Dodaj na skupen seznam.", live: "na seznamu. Kljukaj kar na zaklenjenem zaslonu.",
     ask: (w) => w + " se želi pridružiti tvojemu seznamu", askMore: "Odpri Nakupko in sprejmi ali zavrni.",
     loc: (w) => w + " ti bo sporočil(a), ko bo v trgovini", locMore: "Vidiš samo ime trgovine. Izklopi lahko kadarkoli." },
-  en: { need: (w, s) => w + " is at " + (s || "the store") + ": need anything?", needMore: "Open Nakupko to add items or say you need nothing.", added: (w, l) => w + " also needs: " + l, addedMore: "The items are already on the shared list.", none: (w) => w + " doesn't need anything", noneMore: "Reply to your question from the store.",
+  en: { put: (w, l) => w + " added to the list: " + l, putMore: "Open Nakupko to see the whole shared list.",
+    need: (w, s) => w + " is at " + (s || "the store") + ": need anything?", needMore: "Open Nakupko to add items or say you need nothing.", added: (w, l) => w + " also needs: " + l, addedMore: "The items are already on the shared list.", none: (w) => w + " doesn't need anything", noneMore: "Reply to your question from the store.",
     visit: (w, s) => w + " is at " + s, more: "Need anything else? Add it to the shared list.", live: "on your list. Tick them off right on the lock screen.",
     ask: (w) => w + " wants to join your list", askMore: "Open Nakupko to accept or decline.",
     loc: (w) => w + " will let you know when they're at a store", locMore: "You only see the store name. They can turn it off anytime." },
-  de: { need: (w, s) => w + (s ? " ist bei " + s : " ist im Geschäft") + ": brauchst du was?", needMore: "Öffne Nakupko und füge Artikel hinzu oder antworte, dass du nichts brauchst.", added: (w, l) => w + " braucht noch: " + l, addedMore: "Die Artikel sind schon auf der gemeinsamen Liste.", none: (w) => w + " braucht nichts", noneMore: "Antwort auf deine Frage aus dem Geschäft.",
+  de: { put: (w, l) => w + " hat auf die Liste gesetzt: " + l, putMore: "Öffne Nakupko für die ganze gemeinsame Liste.",
+    need: (w, s) => w + (s ? " ist bei " + s : " ist im Geschäft") + ": brauchst du was?", needMore: "Öffne Nakupko und füge Artikel hinzu oder antworte, dass du nichts brauchst.", added: (w, l) => w + " braucht noch: " + l, addedMore: "Die Artikel sind schon auf der gemeinsamen Liste.", none: (w) => w + " braucht nichts", noneMore: "Antwort auf deine Frage aus dem Geschäft.",
     visit: (w, s) => w + " ist bei " + s, more: "Brauchst du noch etwas? Füg es zur gemeinsamen Liste hinzu.", live: "auf der Liste. Hake sie direkt auf dem Sperrbildschirm ab.",
     ask: (w) => w + " möchte deiner Liste beitreten", askMore: "Öffne Nakupko, um anzunehmen oder abzulehnen.",
     loc: (w) => w + " sagt dir Bescheid, wenn er/sie im Geschäft ist", locMore: "Du siehst nur den Namen des Geschäfts. Jederzeit abschaltbar." },
-  hr: { need: (w, s) => w + " je u trgovini" + (s ? " " + s : "") + ": trebaš li nešto?", needMore: "Otvori Nakupko i dodaj proizvode ili odgovori da ne trebaš ništa.", added: (w, l) => w + " treba još: " + l, addedMore: "Proizvodi su već na zajedničkom popisu.", none: (w) => w + " ne treba ništa", noneMore: "Odgovor na tvoje pitanje iz trgovine.",
+  hr: { put: (w, l) => w + " je dodao/la na popis: " + l, putMore: "Otvori Nakupko za cijeli zajednički popis.",
+    need: (w, s) => w + " je u trgovini" + (s ? " " + s : "") + ": trebaš li nešto?", needMore: "Otvori Nakupko i dodaj proizvode ili odgovori da ne trebaš ništa.", added: (w, l) => w + " treba još: " + l, addedMore: "Proizvodi su već na zajedničkom popisu.", none: (w) => w + " ne treba ništa", noneMore: "Odgovor na tvoje pitanje iz trgovine.",
     visit: (w, s) => w + " je u trgovini " + s, more: "Trebaš još nešto? Dodaj na zajednički popis.", live: "na popisu. Označavaj ih na zaključanom zaslonu.",
     ask: (w) => w + " se želi pridružiti tvom popisu", askMore: "Otvori Nakupko i prihvati ili odbij.",
     loc: (w) => w + " će ti javiti kad je u trgovini", locMore: "Vidiš samo ime trgovine. Može se isključiti u bilo kojem trenutku." },
-  it: { need: (w, s) => w + (s ? " è da " + s : " è al negozio") + ": ti serve qualcosa?", needMore: "Apri Nakupko e aggiungi prodotti o rispondi che non ti serve niente.", added: (w, l) => "A " + w + " serve anche: " + l, addedMore: "I prodotti sono già nella lista condivisa.", none: (w) => "A " + w + " non serve niente", noneMore: "Risposta alla tua domanda dal negozio.",
+  it: { put: (w, l) => w + " ha aggiunto alla lista: " + l, putMore: "Apri Nakupko per vedere tutta la lista condivisa.",
+    need: (w, s) => w + (s ? " è da " + s : " è al negozio") + ": ti serve qualcosa?", needMore: "Apri Nakupko e aggiungi prodotti o rispondi che non ti serve niente.", added: (w, l) => "A " + w + " serve anche: " + l, addedMore: "I prodotti sono già nella lista condivisa.", none: (w) => "A " + w + " non serve niente", noneMore: "Risposta alla tua domanda dal negozio.",
     visit: (w, s) => w + " è da " + s, more: "Ti serve altro? Aggiungilo alla lista condivisa.", live: "nella lista. Spuntali dalla schermata di blocco.",
     ask: (w) => w + " vuole unirsi alla tua lista", askMore: "Apri Nakupko per accettare o rifiutare.",
     loc: (w) => w + " ti avviserà quando è in un negozio", locMore: "Vedi solo il nome del negozio. Si può disattivare in qualsiasi momento." },
-  hu: { need: (w, s) => w + (s ? " most itt van: " + s : " most boltban van") + ". Kell valami?", needMore: "Nyisd meg a Nakupkót, és adj hozzá termékeket, vagy válaszold, hogy nem kell semmi.", added: (w, l) => w + " még kér: " + l, addedMore: "A termékek már a közös listán vannak.", none: (w) => w + " nem kér semmit", noneMore: "Válasz a boltból feltett kérdésedre.",
+  hu: { put: (w, l) => w + " felírta a listára: " + l, putMore: "Nyisd meg a Nakupkót a teljes közös listához.",
+    need: (w, s) => w + (s ? " most itt van: " + s : " most boltban van") + ". Kell valami?", needMore: "Nyisd meg a Nakupkót, és adj hozzá termékeket, vagy válaszold, hogy nem kell semmi.", added: (w, l) => w + " még kér: " + l, addedMore: "A termékek már a közös listán vannak.", none: (w) => w + " nem kér semmit", noneMore: "Válasz a boltból feltett kérdésedre.",
     visit: (w, s) => w + " most itt van: " + s, more: "Kell még valami? Add hozzá a közös listához.", live: "a listán. Pipáld ki a zárolási képernyőn.",
     ask: (w) => w + " csatlakozni szeretne a listádhoz", askMore: "Nyisd meg a Nakupkót, és fogadd el vagy utasítsd el.",
     loc: (w) => w + " szól, amikor boltban van", locMore: "Csak a bolt nevét látod. Bármikor kikapcsolható." },
-  fr: { need: (w, s) => w + (s ? " est chez " + s : " est au magasin") + " : besoin de quelque chose ?", needMore: "Ouvre Nakupko pour ajouter des articles ou répondre que tu n'as besoin de rien.", added: (w, l) => w + " a aussi besoin de : " + l, addedMore: "Les articles sont déjà sur la liste partagée.", none: (w) => w + " n'a besoin de rien", noneMore: "Réponse à ta question depuis le magasin.",
+  fr: { put: (w, l) => w + " a ajouté à la liste : " + l, putMore: "Ouvre Nakupko pour voir toute la liste partagée.",
+    need: (w, s) => w + (s ? " est chez " + s : " est au magasin") + " : besoin de quelque chose ?", needMore: "Ouvre Nakupko pour ajouter des articles ou répondre que tu n'as besoin de rien.", added: (w, l) => w + " a aussi besoin de : " + l, addedMore: "Les articles sont déjà sur la liste partagée.", none: (w) => w + " n'a besoin de rien", noneMore: "Réponse à ta question depuis le magasin.",
     visit: (w, s) => w + " est chez " + s, more: "Besoin d'autre chose ? Ajoute-le à la liste partagée.", live: "sur ta liste. Coche-les sur l'écran verrouillé.",
     ask: (w) => w + " veut rejoindre ta liste", askMore: "Ouvre Nakupko pour accepter ou refuser.",
     loc: (w) => w + " te préviendra quand il/elle est au magasin", locMore: "Tu ne vois que le nom du magasin. Désactivable à tout moment." },
-  es: { need: (w, s) => w + (s ? " está en " + s : " está en la tienda") + ": ¿necesitas algo?", needMore: "Abre Nakupko para añadir productos o responder que no necesitas nada.", added: (w, l) => w + " también necesita: " + l, addedMore: "Los productos ya están en la lista compartida.", none: (w) => w + " no necesita nada", noneMore: "Respuesta a tu pregunta desde la tienda.",
+  es: { put: (w, l) => w + " añadió a la lista: " + l, putMore: "Abre Nakupko para ver toda la lista compartida.",
+    need: (w, s) => w + (s ? " está en " + s : " está en la tienda") + ": ¿necesitas algo?", needMore: "Abre Nakupko para añadir productos o responder que no necesitas nada.", added: (w, l) => w + " también necesita: " + l, addedMore: "Los productos ya están en la lista compartida.", none: (w) => w + " no necesita nada", noneMore: "Respuesta a tu pregunta desde la tienda.",
     visit: (w, s) => w + " está en " + s, more: "¿Necesitas algo más? Añádelo a la lista compartida.", live: "en tu lista. Márcalos en la pantalla bloqueada.",
     ask: (w) => w + " quiere unirse a tu lista", askMore: "Abre Nakupko para aceptar o rechazar.",
     loc: (w) => w + " te avisará cuando esté en una tienda", locMore: "Solo ves el nombre de la tienda. Se puede desactivar en cualquier momento." }
@@ -288,6 +296,35 @@ exports.askAnswer = onValueWritten({
   const items = (Array.isArray(r.items) ? r.items : []).map((x) => String(x).slice(0, 30)).slice(0, 10).join(", ");
   const res = await notifyAll([to], (t) => ans === "added" ? ["✓ " + t.added(who, items), t.addedMore] : ["✗ " + t.none(who), t.noneMore]);
   console.log("odgovor", code, ans, JSON.stringify(res));
+});
+
+// Član je dodal izdelke na skupni seznam (household.js zapiše /h/{koda}/adds/{id} = {from, name, items, at}):
+// ostali sprejeti člani dobijo obvestilo »Ana je dodala na seznam: mleko, kruh«. Zapis nato zbrišemo.
+exports.itemsAdded = onValueCreated({
+  ref: "/h/{code}/adds/{add}",
+  instance: "nakupko-8ad19-default-rtdb",
+  region: "europe-west1",
+  timeoutSeconds: 30,
+  memory: "128MiB"
+}, async (event) => {
+  const a = event.data.val() || {};
+  const { code } = event.params;
+  const members = (await admin.database().ref("/h/" + code + "/members").get()).val() || {};
+  const me = members[a.from];
+  const items = (Array.isArray(a.items) ? a.items : []).map((x) => String(x).slice(0, 30)).filter(Boolean);
+  await event.data.ref.remove();
+  if (!me || me.status === "pending" || !items.length) return;
+  const who = String(a.name || me.name || "Član").slice(0, 30);
+  const list = items.slice(0, 6).join(", ") + (items.length > 6 ? " …" : "");
+  const res = await notifyAll(accepted(members, a.from), (t) => ["📝 " + t.put(who, list), t.putMore]);
+  const cleanup = {};
+  [].concat(...res.map((x) => x[0] || [])).forEach((r) => {
+    if (r.status === 410 || /BadDeviceToken|Unregistered/.test(r.data)) {
+      Object.keys(members).forEach((id) => { if (members[id].ios === r.token) cleanup[id + "/ios"] = null; });
+    }
+  });
+  if (Object.keys(cleanup).length) await admin.database().ref("/h/" + code + "/members").update(cleanup);
+  console.log("dodano", code, items.length, JSON.stringify(res));
 });
 
 Object.assign(exports, require("./nadzor"));
