@@ -160,7 +160,10 @@ exports.liveStart = onValueCreated({
 
 function sendFcm(tokens, title, body) {
   if (!tokens.length) return Promise.resolve(null);
-  return admin.messaging().sendEachForMulticast({ tokens, notification: { title, body } }).catch((e) => ({ error: String(e) }));
+  // Android (1.3.9+): kanal »Skupni seznam« in visoka prioriteta, da obvestilo pride takoj tudi v načinu Doze.
+  return admin.messaging().sendEachForMulticast({ tokens, notification: { title, body }, android: { priority: "high", notification: { channelId: "household", color: "#8A3FFC" } } })
+    .then((r) => ({ ok: r.successCount, fail: r.failureCount, errors: r.responses.filter((x) => !x.success).map((x) => String(x.error && x.error.code)) }))
+    .catch((e) => ({ error: String(e) }));
 }
 
 exports.storeVisit = onValueCreated({
