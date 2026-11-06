@@ -47,6 +47,27 @@ jobs:
           npm ci
           npm run sync:android
 
+      # Obvestila skupnega seznama (FCM): google-services.json ustvarimo iz Firebase projekta nakupko-8ad19,
+      # da ne gre v (javen) git. Če Android aplikacija v Firebase še ne obstaja, jo ustvarimo.
+      - name: Firebase za obvestila (google-services.json)
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::warning::Ni FIREBASE_SERVICE_ACCOUNT: gradnja brez obvestil skupnega seznama."; exit 0; fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          FB="npx --yes firebase-tools@14 --project nakupko-8ad19 --non-interactive"
+          id=$($FB apps:list ANDROID --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=(JSON.parse(s).result||[]).find(a=>a.packageName==="si.nakupko.app");process.stdout.write(r?r.appId:"")})')
+          if [ -z "$id" ]; then
+            $FB apps:create ANDROID "Nakupko Android" --package-name si.nakupko.app
+            id=$($FB apps:list ANDROID --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=(JSON.parse(s).result||[]).find(a=>a.packageName==="si.nakupko.app");process.stdout.write(r?r.appId:"")})')
+          fi
+          [ -n "$id" ] || { echo "::error::Android aplikacije v Firebase ni bilo mogoče ustvariti"; exit 1; }
+          $FB apps:sdkconfig ANDROID "$id" --out android/app/google-services.json
+          rm -f "$RUNNER_TEMP/sa.json"
+          node -e 'const j=require("./android/app/google-services.json");if(!(j.client||[]).some(c=>c.client_info.android_client_info.package_name==="si.nakupko.app"))process.exit(1)' || { echo "::error::google-services.json nima si.nakupko.app"; exit 1; }
+          echo "google-services.json pripravljen (aplikacija $id)"
+
       - name: Podpisni ključ
         if: env.HAS_KEY == 'true'
         env:
@@ -69,6 +90,8 @@ jobs:
           (cd .. && NAKUPKO_RELEASE=1 npm run sync:android)
           # Brez vtičnika AdMob v gradnji Android ne prikaže nobenega oglasa (tako je bilo do 1.3.7).
           grep -q '"AdMob"\|admob' app/src/main/assets/capacitor.plugins.json || { echo "::error::AdMob vtičnik ni v gradnji (capacitor.plugins.json)"; exit 1; }
+          # Google Play gradnja brez FCM ne dobi obvestil skupnega seznama (tako je bilo do 1.3.8).
+          if [ "${{ github.event_name }}" != "pull_request" ] && [ ! -s app/google-services.json ]; then echo "::error::Ni google-services.json: AAB bi bil brez obvestil"; exit 1; fi
           ./gradlew --no-daemon bundleRelease -PversionCode=${{ github.run_number }} -PadmobAppId="$ADMOB_APP_ID"
           cp app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/out/Nakupko.aab"
           if [ "$HAS_KEY" != "true" ]; then
