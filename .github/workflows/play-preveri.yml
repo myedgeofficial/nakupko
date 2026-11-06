@@ -1,0 +1,12 @@
+name: Play preveri verzijo (začasno)
+on:
+  push:
+    branches: [claude/project-thread-wlpnla-preveri]
+jobs:
+  v:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -sL -A "Mozilla/5.0" "https://play.google.com/store/apps/details?id=si.nakupko.app&hl=en&gl=SI" -o p.html
+          ls -la p.html
+          grep -o -E '\[\[\["[0-9]+\.[0-9]+\.[0-9]+"\]\]' p.html | sort -u
