@@ -11,6 +11,9 @@ on:
       status:
         description: "completed | draft"
         default: "completed"
+      opombe_veja:
+        description: "Veja s .github/scripts/kaj-je-novega.json (rabis-kaj ali android)"
+        default: "rabis-kaj"
 
 jobs:
   oddaja:
@@ -19,9 +22,10 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           gh release download android -p Nakupko.aab -D "$RUNNER_TEMP"
-          git fetch -q origin rabis-kaj && git show origin/rabis-kaj:.github/scripts/kaj-je-novega.json > "$RUNNER_TEMP/opombe.json" || true
+          git fetch -q origin "$VEJA" && git show "origin/$VEJA:.github/scripts/kaj-je-novega.json" > "$RUNNER_TEMP/opombe.json" || true
         env:
           GH_TOKEN: ${{ github.token }}
+          VEJA: ${{ inputs.opombe_veja || 'rabis-kaj' }}
       - run: pip install google-api-python-client google-auth
       - run: python3 .github/scripts/play-oddaja.py
         env:
