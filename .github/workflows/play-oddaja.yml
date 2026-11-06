@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: |
           gh release download android -p Nakupko.aab -D "$RUNNER_TEMP"
-          git fetch -q origin "$VEJA" && git show "origin/$VEJA:.github/scripts/kaj-je-novega.json" > "$RUNNER_TEMP/opombe.json" || true
+          git fetch -q --depth 1 origin "$VEJA" && git show "FETCH_HEAD:.github/scripts/kaj-je-novega.json" > "$RUNNER_TEMP/opombe.json" && python3 -c "import json,sys;print(\"Opombe:\", list(json.load(open(sys.argv[1]))))" "$RUNNER_TEMP/opombe.json"
         env:
           GH_TOKEN: ${{ github.token }}
           VEJA: ${{ inputs.opombe_veja || 'rabis-kaj' }}
