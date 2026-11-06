@@ -54,6 +54,23 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- Obvestila skupnega seznama (Firebase Cloud Messaging) -->
+        <service
+            android:name=".NakupkoPushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="household" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_nakupko" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/nakupko_push" />
         <!-- Tap na izdelek v seznamu na zaklenjenem zaslonu -->
         <receiver
             android:name=".ShopItemReceiver"

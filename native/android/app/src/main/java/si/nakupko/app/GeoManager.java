@@ -159,9 +159,10 @@ final class GeoManager {
             .putLong("fetchLon", Double.doubleToLongBits(l.getLongitude())).apply();
     }
 
-    void configure(boolean on, float r, JSONArray stores, JSONArray groups, String hhUrl, String hhCode) {
+    void configure(boolean on, float r, JSONArray stores, JSONArray groups, String hhUrl, String hhCode, String hhMember, String hhName) {
         SharedPreferences.Editor e = prefs.edit().putFloat("radius", r).putString("groups", groups.toString()).putBoolean("enabled", on)
-            .putString("hhUrl", hhUrl == null ? "" : hhUrl).putString("hhCode", hhCode == null ? "" : hhCode);
+            .putString("hhUrl", hhUrl == null ? "" : hhUrl).putString("hhCode", hhCode == null ? "" : hhCode)
+            .putString("hhMember", hhMember == null ? "" : hhMember).putString("hhName", hhName == null ? "" : hhName);
         e.apply();
         if (stores.length() > 0) {
             prefs.edit().putString("stores", stores.toString()).apply();
@@ -458,6 +459,7 @@ final class GeoManager {
     // ---------- »Si kaj pozabil?« in »Kmalu ti zmanjka?« (enako kot na iPhonu) ----------
     private static final long FORGOT_AFTER = 2 * 60 * 1000L;
     static final String CH_REMIND = "reminders";
+    static final String CH_HOUSEHOLD = "household";
     private static final java.util.Map<String, String[]> TXT = new java.util.HashMap<>();
     static {
         // {forgot, forgotBody, soonTitle, soonBody}
@@ -916,6 +918,53 @@ final class GeoManager {
         return PendingIntent.getBroadcast(ctx, 7300 + d, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
+    // ---------- Obvestila skupnega seznama (Firebase Cloud Messaging) ----------
+    // Žeton tega telefona zapišemo k članu skupnega seznama (/h/{koda}/members/{član}/fcm), da strežnik
+    // pošlje obvestila »X je dodal(a) na seznam«, »Rabiš kaj?« in prošnje za pridružitev tudi na Android.
+    void refreshPushToken() {
+        try {
+            if (com.google.firebase.FirebaseApp.getApps(ctx).isEmpty()) return;
+            com.google.firebase.messaging.FirebaseMessaging.getInstance().getToken()
+                .addOnSuccessListener(t -> { if (t != null && !t.isEmpty()) setPushToken(t); });
+        } catch (Exception ignored) {}
+    }
+
+    void setPushToken(String token) {
+        prefs.edit().putString("fcmToken", token).apply();
+        registerMember();
+    }
+
+    void registerMember() {
+        final String url = prefs.getString("hhUrl", ""), code = prefs.getString("hhCode", ""), member = prefs.getString("hhMember", "");
+        final String token = prefs.getString("fcmToken", ""), name = prefs.getString("hhName", ""), lang = prefs.getString("lang", "sl");
+        if (url.isEmpty() || code.isEmpty() || member.isEmpty() || token.isEmpty()) return;
+        final String key = code + "/" + member + "/" + token + "/" + name + "/" + lang;
+        if (key.equals(prefs.getString("fcmSentFor", ""))) return;
+        new Thread(() -> {
+            try {
+                String base = url + "/h/" + URLEncoder.encode(code, "UTF-8") + "/members/" + URLEncoder.encode(member, "UTF-8") + "/";
+                boolean ok = put(base + "fcm.json", JSONObject.quote(token)) && put(base + "platform.json", "\"android\"")
+                    && put(base + "lang.json", JSONObject.quote(lang)) && (name.isEmpty() || put(base + "name.json", JSONObject.quote(name)));
+                if (ok) prefs.edit().putString("fcmSentFor", key).apply();
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
+    private static boolean put(String u, String body) {
+        try {
+            HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
+            c.setRequestMethod("PUT");
+            c.setConnectTimeout(10000);
+            c.setReadTimeout(10000);
+            c.setDoOutput(true);
+            c.setRequestProperty("Content-Type", "application/json");
+            try (java.io.OutputStream os = c.getOutputStream()) { os.write(body.getBytes(StandardCharsets.UTF_8)); }
+            int code = c.getResponseCode();
+            c.disconnect();
+            return code == 200;
+        } catch (Exception e) { return false; }
+    }
+
     private void createChannels() {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
@@ -933,5 +982,8 @@ final class GeoManager {
         NotificationChannel remind = new NotificationChannel(CH_REMIND, "Opomniki", NotificationManager.IMPORTANCE_DEFAULT);
         remind.setDescription("»Kmalu ti zmanjka?« – kar običajno kupiš ob tem času.");
         nm.createNotificationChannel(remind);
+        NotificationChannel household = new NotificationChannel(CH_HOUSEHOLD, "Skupni seznam", NotificationManager.IMPORTANCE_HIGH);
+        household.setDescription("Ko kdo doda na skupni seznam, vpraša »Rabiš kaj?« ali se želi pridružiti.");
+        nm.createNotificationChannel(household);
     }
 }

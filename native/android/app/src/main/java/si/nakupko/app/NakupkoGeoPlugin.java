@@ -188,9 +188,16 @@ public class NakupkoGeoPlugin extends Plugin {
         JSObject hh = call.getObject("household", null);
         String hhUrl = hh == null ? null : hh.optString("url", null);
         String hhCode = hh == null ? null : hh.optString("code", null);
+        String hhMember = hh == null ? null : hh.optString("member", null);
+        String hhName = hh == null ? null : hh.optString("name", null);
         geo.setLiveItems(call.getArray("items", new JSArray()), call.getString("lang", null));
-        geo.configure(Boolean.TRUE.equals(call.getBoolean("enabled", false)), call.getFloat("radius", 60f), stores, groups, hhUrl, hhCode);
+        geo.configure(Boolean.TRUE.equals(call.getBoolean("enabled", false)), call.getFloat("radius", 60f), stores, groups, hhUrl, hhCode, hhMember, hhName);
         if (!wasOn && geo.enabled()) askExtraPermissions();
+        // Skupen seznam: žeton za obvestila zapišemo k članu; brez dovoljenja za obvestila jih Android ne pokaže.
+        if (hhCode != null && hhMember != null && !hhMember.isEmpty()) {
+            geo.refreshPushToken();
+            if (getActivity() != null) getActivity().runOnUiThread(this::askNotifications);
+        }
         call.resolve();
     }
 
