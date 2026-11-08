@@ -3,6 +3,9 @@
 NK_PACK("en", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Ga imaš doma ali ga ne rabiš?": "Do you have it at home or don't you need it?",
+    "🚫 Ne rabim": "🚫 Don't need it",
+    "Počisti vse": "Clear all",
     "Ga imaš doma ali kuhaš brez njega?": "Do you have it at home or are you cooking without it?",
     "🏠 Imam doma": "🏠 Have it at home",
     "🚫 Kuham brez": "🚫 Cook without",
@@ -529,6 +532,7 @@ NK_PACK("en", function (h) {
     [/^Zaprto · odpre (v \S+) ob (.+)$/, function (m) { return "Closed · opens " + (DAY_AT[m[1]] || m[1]) + " at " + m[2]; }],
     [/^(.+) \(okvirno\)$/, function (m) { return tr(m[1]) + " (approx.)"; }],
     [/^Med vsemi trgovinami: (.+)$/, function (m) { return "Among all stores: " + m[1].replace(/najceneje /g, "cheapest ").replace(/najbližje /g, "nearest "); }],
+    [/^Seznam je počiščen \((\d+)\)$/, "List cleared ($1)"],
     [/^Izbrisano: (.+)$/, function (m) { return "Deleted: " + word(m[1]); }],
     [/^Dodano: (.+?)( \(.+\))?$/, function (m) { return "Added: " + word(m[1]) + (m[2] || ""); }],
     [/^Slika dodana: (.+)$/, function (m) { return "Photo added: " + word(m[1]); }],
