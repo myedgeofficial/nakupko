@@ -2,6 +2,9 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "Ga imaš doma ali ga ne rabiš?": "Van otthon, vagy nincs rá szükséged?",
+    "🚫 Ne rabim": "🚫 Nem kell",
+    "Počisti vse": "Összes törlése",
     "Ga imaš doma ali kuhaš brez njega?": "Otthon van, vagy nélküle főzöl?",
     "🏠 Imam doma": "🏠 Van otthon",
     "🚫 Kuham brez": "🚫 Nélküle főzök",
@@ -527,6 +530,7 @@ NK_PACK("hu", function (h) {
     [/^Zaprto · odpre (v \S+) ob (.+)$/, function (m) { return "Zárva · nyit " + (DAY_AT[m[1]] || m[1]) + " " + m[2]; }],
     [/^(.+) \(okvirno\)$/, function (m) { return tr(m[1]) + " (kb.)"; }],
     [/^Med vsemi trgovinami: (.+)$/, function (m) { return "Az összes bolt közül: " + m[1].replace(/najceneje /g, "legolcsóbb ").replace(/najbližje /g, "legközelebbi "); }],
+    [/^Seznam je počiščen \((\d+)\)$/, "Lista törölve ($1)"],
     [/^Izbrisano: (.+)$/, function (m) { return "Törölve: " + word(m[1]); }],
     [/^Dodano: (.+?)( \(.+\))?$/, function (m) { return "Hozzáadva: " + word(m[1]) + (m[2] || ""); }],
     [/^Slika dodana: (.+)$/, function (m) { return "Fotó hozzáadva: " + word(m[1]); }],
