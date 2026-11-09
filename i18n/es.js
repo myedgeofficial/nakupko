@@ -2,6 +2,10 @@
 NK_PACK("es", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "✏️ Spremeni ime": "✏️ Cambiar nombre",
+    "Ga imaš doma ali ga ne rabiš?": "¿Lo tienes en casa o no lo necesitas?",
+    "🚫 Ne rabim": "🚫 No lo necesito",
+    "Počisti vse": "Borrar todo",
     "Ga imaš doma ali kuhaš brez njega?": "¿Lo tienes en casa o cocinas sin él?",
     "🏠 Imam doma": "🏠 Lo tengo en casa",
     "🚫 Kuham brez": "🚫 Cocino sin",
@@ -527,6 +531,7 @@ NK_PACK("es", function (h) {
     [/^Zaprto · odpre (v \S+) ob (.+)$/, function (m) { return "Cerrado · abre " + (DAY_AT[m[1]] || m[1]) + " a las " + m[2]; }],
     [/^(.+) \(okvirno\)$/, function (m) { return tr(m[1]) + " (aprox.)"; }],
     [/^Med vsemi trgovinami: (.+)$/, function (m) { return "Entre todas las tiendas: " + m[1].replace(/najceneje /g, "más barata ").replace(/najbližje /g, "más cercana "); }],
+    [/^Seznam je počiščen \((\d+)\)$/, "Lista borrada ($1)"],
     [/^Izbrisano: (.+)$/, function (m) { return "Eliminado: " + word(m[1]); }],
     [/^Dodano: (.+?)( \(.+\))?$/, function (m) { return "Añadido: " + word(m[1]) + (m[2] || ""); }],
     [/^Slika dodana: (.+)$/, function (m) { return "Foto añadida: " + word(m[1]); }],

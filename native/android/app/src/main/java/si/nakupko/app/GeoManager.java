@@ -501,6 +501,8 @@ final class GeoManager {
         }
         if (store == null) return;
         String chain = store.has("chain") && !store.isNull("chain") ? store.optString("chain") : "";
+        // Zaprta trgovina (nedelja, ponoči): stal si v zastoju ali parkiral zraven, ne nakupoval.
+        if (Boolean.FALSE.equals(StoreRules.isOpen(store.optString("hours", ""), chain.isEmpty() ? null : chain))) return;
         JSONObject done = pendingDone();
         JSONArray items = json("liveItems");
         List<String> left = new ArrayList<>();

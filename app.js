@@ -687,7 +687,8 @@
     save();
     renderAll();
   }
-  function removeItem(id) {
+  // ask: koš v vrstici vpraša »Imam doma / Kuham brez (Ne rabim)«; poteg v levo izbriše takoj.
+  function removeItem(id, ask) {
     var idx = state.items.findIndex(function (i) { return i.id === id; });
     if (idx < 0) return;
     var gone = state.items[idx];
@@ -700,20 +701,22 @@
       save(); renderAll();
     };
     var rec = window.NK_RECEPTI && window.NK_RECEPTI.recipeFor ? window.NK_RECEPTI.recipeFor(gone.name) : null;
-    if (rec) askRecipeRemove(gone, rec, undo);
+    if (rec || ask) askRecipeRemove(gone, rec, undo);
     else toast("Izbrisano: " + gone.name, { label: "Razveljavi", fn: undo });
   }
   // Sestavina iz recepta: »Imam doma« (hranila ostanejo) ali »Kuham brez« (recept se prilagodi).
+  // Brez recepta: »Imam doma« (predlog za ta izdelek nekaj časa utihne) ali »Ne rabim«.
   function askRecipeRemove(it, rec, undo) {
     var old = $("recAsk"); if (old) old.remove();
     var T = window.NK_T || function (s) { return s; };
     var close = function () { box.remove(); };
     var box = el("div", { class: "rec-ask", id: "recAsk", role: "dialog" }, [
-      el("p", null, [el("b", { text: T(it.name) }), document.createTextNode(" · " + rec.name)]),
-      el("p", { class: "rec-ask-q", text: "Ga imaš doma ali kuhaš brez njega?" }),
+      el("p", null, [el("b", { text: T(it.name) }), rec ? document.createTextNode(" · " + rec.name) : null]),
+      el("p", { class: "rec-ask-q", text: rec ? "Ga imaš doma ali kuhaš brez njega?" : "Ga imaš doma ali ga ne rabiš?" }),
       el("div", { class: "rec-ask-b" }, [
-        el("button", { type: "button", class: "chip", onclick: function () { close(); toast("V redu, imaš doma."); } }, ["🏠 Imam doma"]),
-        el("button", { type: "button", class: "chip", onclick: function () { close(); rec.skip(); toast("Kuhaš brez tega: recept je prilagojen."); } }, ["🚫 Kuham brez"]),
+        el("button", { type: "button", class: "chip", onclick: function () { close(); state.dismissed[norm(it.name)] = Date.now(); save(); toast("V redu, imaš doma."); } }, ["🏠 Imam doma"]),
+        rec ? el("button", { type: "button", class: "chip", onclick: function () { close(); rec.skip(); toast("Kuhaš brez tega: recept je prilagojen."); } }, ["🚫 Kuham brez"])
+          : el("button", { type: "button", class: "chip", onclick: function () { close(); toast("Izbrisano: " + it.name); } }, ["🚫 Ne rabim"]),
         el("button", { type: "button", class: "chip rec-ask-undo", onclick: function () { close(); undo(); } }, ["Razveljavi"])
       ])
     ]);
@@ -972,11 +975,11 @@
     var check = el("button", { class: "check", type: "button", "aria-label": it.done ? "Označi kot nekupljeno" : "Označi kot kupljeno",
       onclick: function () { toggleItem(it.id, storeCtx); } });
     check.innerHTML = CHECK_SVG;
-    // Brisanje: povleci vrstico v levo (gumb za njo) ali tapni ime in »Izbriši«.
+    // Brisanje: povleci vrstico v levo (izbriše takoj), koš (vpraša) ali tapni ime in »Izbriši«.
     var del = el("button", { class: "del", type: "button", "aria-label": "Izbriši " + it.name, onclick: function () { removeItem(it.id); } });
     del.innerHTML = X_SVG;
     // Viden koš v vrstici: izbriše izdelek, ne da bi ga označil kot kupljenega.
-    var trash = it.done ? null : el("button", { class: "trash", type: "button", "aria-label": "Izbriši " + it.name, onclick: function (e) { e.stopPropagation(); removeItem(it.id); } });
+    var trash = it.done ? null : el("button", { class: "trash", type: "button", "aria-label": "Izbriši " + it.name, onclick: function (e) { e.stopPropagation(); removeItem(it.id, true); } });
     if (trash) trash.innerHTML = TRASH_SVG;
     // Tap na ime: izbira trgovine za ta izdelek.
     var tag = it.store ? el("span", { class: "store-tag" }, [CHAIN_BY_KEY[it.store] ? chainDot(it.store) : null, storeKeyName(it.store)]) : null;
@@ -992,7 +995,7 @@
       check
     ]);
     var fresh = justAdded && justAdded.id === it.id;
-    var li = el("li", { class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") + (fresh ? " just-added" : "") }, [
+    var li = el("li", { "data-id": it.id, class: "item" + (it.done ? " done" : "") + (pickOpen === it.id ? " picking" : "") + (fresh ? " just-added" : "") }, [
       del,
       row,
       pickOpen === it.id ? storePicker(it) : null
@@ -1000,7 +1003,7 @@
     swipeable(li, row);
     return li;
   }
-  // Povleci v levo: pokaže gumb za brisanje (kot na iPhonu). Navpično drsenje ostane brskalniku.
+  // Povleci v levo: izdelek se takoj izbriše (z »Razveljavi«). Navpično drsenje ostane brskalniku.
   var swipedRow = null;
   function closeSwipe() { if (swipedRow) { swipedRow.classList.remove("swiped"); swipedRow.querySelector(".irow").style.transform = ""; swipedRow = null; } }
   function swipeable(li, row) {
@@ -1016,7 +1019,7 @@
       if (!moved && (Math.abs(ddx) < 10 || Math.abs(ddx) < Math.abs(ddy) * 1.2)) { if (Math.abs(ddy) > 12) x0 = null; return; }
       if (!moved) { moved = true; try { row.setPointerCapture(id); } catch (err) { /* nič */ } li.classList.add("dragging"); }
       var base = li.classList.contains("swiped") ? -88 : 0;
-      dx = Math.max(-110, Math.min(0, base + ddx));
+      dx = Math.min(0, base + ddx);
       row.style.transform = "translateX(" + dx + "px)";
     });
     function end() {
@@ -1024,7 +1027,11 @@
       x0 = null;
       li.classList.remove("dragging");
       if (!moved) return;
-      if (dx < -44) { li.classList.add("swiped"); row.style.transform = "translateX(-88px)"; swipedRow = li; }
+      if (dx < -72) {
+        var gid = li.getAttribute("data-id");
+        li.classList.add("swiped", "swipe-out"); row.style.transform = "translateX(-110%)";
+        setTimeout(function () { removeItem(gid); }, 160);
+      } else if (dx < -44) { li.classList.add("swiped"); row.style.transform = "translateX(-88px)"; swipedRow = li; }
       else { li.classList.remove("swiped"); row.style.transform = ""; if (swipedRow === li) swipedRow = null; }
     }
     row.addEventListener("pointerup", end);
@@ -1085,6 +1092,7 @@
     if (filter === "store" && !st) $("listEmpty").classList.remove("hidden");
     $("countOpen").textContent = state.items.filter(function (i) { return !i.done; }).length;
     $("clearDone").classList.toggle("hidden", !state.items.some(function (i) { return i.done; }));
+    $("clearAll").classList.toggle("hidden", state.items.filter(function (i) { return !i.done; }).length < 2);
   }
 
   function renderQuick() {
@@ -2593,6 +2601,14 @@
   $("clearDone").addEventListener("click", function () {
     state.items = state.items.filter(function (i) { return !i.done; });
     save(); renderAll();
+  });
+  // Počisti cel seznam (tudi nekupljeno). Brisanje ni nakup: v zgodovino ne gre nič; »Razveljavi« vse vrne.
+  $("clearAll").addEventListener("click", function () {
+    var before = state.items.slice(), n = before.filter(function (i) { return !i.done; }).length;
+    if (!n) return;
+    state.items = [];
+    save(); renderAll();
+    toast("Seznam je počiščen (" + n + ")", { label: "Razveljavi", fn: function () { if (!state.items.length) { state.items = before; save(); renderAll(); } } });
   });
 
   $("btnStoreMode").addEventListener("click", function () { openStoreMode(lastNearStore); });
