@@ -722,6 +722,9 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
 
     // Prihod potrjen: seja »v trgovini« – seznam te trgovine na zaklenjenem zaslonu, partner izve.
     private func arrived(_ store: GeoStore) {
+        // Zaprta trgovina (nedelja, ponoči): stojiš v zastoju ali parkiraš zraven, ne nakupuješ.
+        // Brez seje ni ne seznama na zaklenjenem zaslonu ne »Si kaj pozabil?« ob odhodu.
+        if !mayBeOpen(store) { return log("  preskok: \(store.name) je zaprta – ne nakupuješ") }
         session = ShopSession(store: store, since: Date())
         startPreciseUpdates()   // odhod spremljamo sproti, ne šele ob počasnem izhodu iz območja
         let id = store.id, its = items(for: store), count = its.count
@@ -730,7 +733,6 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         // Odprta aplikacija sama odpre »V trgovini« (native.js) in seznam na zaklenjenem zaslonu.
         if UIApplication.shared.applicationState == .active { onArrived?(id); return }
         if count == 0 { return log("  za to trgovino nimaš izdelkov") }
-        if !mayBeOpen(store) { return log("  preskok: trgovina je zaprta (\(store.hours ?? "?"))") }
         let now = Date().timeIntervalSince1970
         var sent = notified
         if let last = sent[id], now - last < renotifyAfter { return log("  preskok: obvestilo pred \(Int(now - last)) s") }
@@ -785,7 +787,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["store-\(s.store.id)"])
         // »Si kaj pozabil?«: res si nakupoval (vsaj 2 min), odšel si, za to trgovino pa je na seznamu še kaj.
         // Odprta aplikacija to pokaže sama (leftStore v app.js).
-        if lookForNext, Date().timeIntervalSince(s.since) >= forgotAfter, UIApplication.shared.applicationState != .active {
+        if lookForNext, Date().timeIntervalSince(s.since) >= forgotAfter, UIApplication.shared.applicationState != .active, mayBeOpen(s.store) {
             let done = Set((defaults.dictionary(forKey: "live.done") as? [String: Double] ?? [:]).keys)
             let left = items(for: s.store).filter { !done.contains($0.id) }
             if !left.isEmpty { postForgotNotification(store: s.store, items: left) }
