@@ -467,6 +467,13 @@
       p.appendChild(document.createTextNode("Koda: "));
       var b = document.createElement("b"); b.textContent = pretty(code); p.appendChild(b);
       add("p", { class: "muted small" }, online ? "Povezano kot " + (myName() || "Član") + ". Kar doda kdorkoli, vidijo vsi." : "Ni povezave. Spremembe se pošljejo, ko bo internet.");
+      // Ime se da popraviti (npr. tipkarska napaka ob pridružitvi); ostali ga vidijo v obvestilih.
+      var rn = add("button", { class: "link hh-rename", type: "button" }, "✏️ Spremeni ime");
+      rn.onclick = function () {
+        var old = myName(), n = askName();
+        if (!n || n === old) return;
+        announce(); renderCard(); nativeSync();
+      };
       requests().forEach(function (id) {
         var q = add("div", { class: "hh-req" });
         add("p", {}, (members[id].name || "Član") + " se želi pridružiti skupnemu seznamu.", q);

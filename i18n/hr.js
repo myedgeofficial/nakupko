@@ -3,6 +3,7 @@
 NK_PACK("hr", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "✏️ Spremeni ime": "✏️ Promijeni ime",
     "Ga imaš doma ali ga ne rabiš?": "Imaš li ga kod kuće ili ti ne treba?",
     "🚫 Ne rabim": "🚫 Ne treba mi",
     "Počisti vse": "Očisti sve",
