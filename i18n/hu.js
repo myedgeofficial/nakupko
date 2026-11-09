@@ -2,6 +2,7 @@
 NK_PACK("hu", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "✏️ Spremeni ime": "✏️ Név módosítása",
     "Ga imaš doma ali ga ne rabiš?": "Van otthon, vagy nincs rá szükséged?",
     "🚫 Ne rabim": "🚫 Nem kell",
     "Počisti vse": "Összes törlése",

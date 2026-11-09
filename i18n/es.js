@@ -2,6 +2,7 @@
 NK_PACK("es", function (h) {
   var tr = h.tr, word = h.word;
   var EXACT = {
+    "✏️ Spremeni ime": "✏️ Cambiar nombre",
     "Ga imaš doma ali ga ne rabiš?": "¿Lo tienes en casa o no lo necesitas?",
     "🚫 Ne rabim": "🚫 No lo necesito",
     "Počisti vse": "Borrar todo",
