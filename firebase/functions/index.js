@@ -331,3 +331,4 @@ exports.itemsAdded = onValueCreated({
 });
 
 Object.assign(exports, require("./nadzor"));
+Object.assign(exports, require("./kopija"));

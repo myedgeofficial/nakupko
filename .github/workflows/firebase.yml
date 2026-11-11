@@ -65,5 +65,19 @@ jobs:
           # Spletna aplikacija (za prijavo z Googlom na nadzorni plošči) in privzeta stran gostovanja.
           if ! $FB apps:list WEB --json | grep -q '"appId"'; then $FB apps:create WEB "Nakupko nadzor"; fi
           $FB hosting:sites:list --json | grep -q '"name"' || $FB hosting:sites:create nakupko-8ad19 || true
+          # Varnostne kopije baze (funkcija varnostnaKopija vsako noč): zaseben bucket v EU, kopije se brišejo po 35 dneh.
+          echo "::group::Varnostne kopije"
+          KB=gs://nakupko-8ad19-kopije
+          NUM=$(gcloud projects describe nakupko-8ad19 --format='value(projectNumber)')
+          gcloud storage buckets describe $KB --project nakupko-8ad19 >/dev/null 2>&1 || gcloud storage buckets create $KB --project nakupko-8ad19 --location europe-west1 --uniform-bucket-level-access --public-access-prevention
+          echo '{"rule":[{"action":{"type":"Delete"},"condition":{"age":35}}]}' > "$RUNNER_TEMP/lc.json"
+          gcloud storage buckets update $KB --lifecycle-file="$RUNNER_TEMP/lc.json" --quiet
+          gcloud storage buckets add-iam-policy-binding $KB --member="serviceAccount:$NUM-compute@developer.gserviceaccount.com" --role=roles/storage.objectCreator --quiet >/dev/null \
+            && echo "Bucket za kopije pripravljen." || echo "::warning::Bucket za kopije ni pripravljen."
+          echo "::endgroup::"
           $FB deploy --only database,functions,hosting --force
+          echo "::group::Preizkus kopije"
+          gcloud scheduler jobs run firebase-schedule-varnostnaKopija-europe-west1 --location europe-west1 --project nakupko-8ad19 --quiet && sleep 60
+          gcloud storage ls -l "$KB/rtdb/" || echo "::warning::Kopije še ni."
+          echo "::endgroup::"
           rm -f "$RUNNER_TEMP/sa.json" functions/.env
