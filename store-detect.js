@@ -47,16 +47,17 @@
     Object.keys(opts || {}).forEach(function (k) { if (opts[k] != null && k in p) p[k] = opts[k]; });
   };
 
-  Detector.prototype.exitRadius = function () { return this.p.entry + this.p.exitExtra; };
+  // extra: polovica velikosti trgovine (velik Spar, Leclerc …): razdalja se meri od roba, ne od sredine.
+  Detector.prototype.exitRadius = function (extra) { return this.p.entry + this.p.exitExtra + (extra || 0); };
 
   // Ali je ta meritev zanesljivo pri trgovini s (razdalja d)?
-  Detector.prototype.insideEntry = function (d, acc) {
-    return d <= this.p.entry + Math.min(acc, 20) * 0.5;
+  Detector.prototype.insideEntry = function (d, acc, extra) {
+    return d <= this.p.entry + (extra || 0) + Math.min(acc, 20) * 0.5;
   };
 
   // Seja se začne od zunaj (npr. ročno »V trgovini« ali prihod, ki ga je zaznal iPhone).
   Detector.prototype.start = function (store, now) {
-    this.active = { id: store.id, lat: store.lat, lon: store.lon, since: now, outSince: 0, outCount: 0 };
+    this.active = { id: store.id, lat: store.lat, lon: store.lon, extra: store.extra != null ? store.extra : Math.min((store.size || 0) * 0.7, 80), since: now, outSince: 0, outCount: 0 };
     this.pending = null;
   };
   Detector.prototype.stop = function (now) {
@@ -66,7 +67,7 @@
   };
 
   // fix: { lat, lon, acc (m, <0 = neznano), speed (m/s, <0 = neznano), time (s) }
-  // stores: [{ id, lat, lon, hasItems }]
+  // stores: [{ id, lat, lon, hasItems, extra }]
   // Vrne null ali { type: "arrived" | "left", id }.
   Detector.prototype.update = function (fix, stores) {
     var p = this.p, now = fix.time, acc = fix.acc == null || fix.acc < 0 ? 999 : fix.acc;
@@ -81,7 +82,7 @@
       var d = distM(fix, a);
       if (d > p.far && acc <= p.farAcc) { this.stop(now); return { type: "left", id: a.id, distance: d }; }
       if (acc > p.exitAcc) return null;   // nenatančno: ne štejemo, ne ponastavimo
-      if (d > this.exitRadius() + Math.min(acc, 30) * 0.3) {
+      if (d > this.exitRadius(a.extra) + Math.min(acc, 30) * 0.3) {
         if (!a.outCount) a.outSince = now;
         a.outCount++;
         var span = now - a.outSince;
@@ -89,7 +90,7 @@
           this.stop(now);
           return { type: "left", id: a.id, distance: d };
         }
-      } else if (d <= this.exitRadius()) {
+      } else if (d <= this.exitRadius(a.extra)) {
         a.outCount = 0; a.outSince = 0;   // še vedno v trgovini (GPS je le zanihal)
       }
       return null;
@@ -103,7 +104,7 @@
       var left = self.leftAt[s.id];
       if (left && now - left < p.again) return;
       var dd = distM(fix, s);
-      if (!self.insideEntry(dd, acc)) return;
+      if (!self.insideEntry(dd, acc, s.extra)) return;
       var score = dd - (s.hasItems ? p.itemsBonus : 0) - (self.pending && self.pending.id === s.id ? 5 : 0);
       if (!best || score < best.score) best = { s: s, score: score, d: dd };
     });

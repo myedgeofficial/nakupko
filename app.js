@@ -1635,7 +1635,7 @@
     var q = "[out:json][timeout:20];is_in(" + p.lat + "," + p.lon + ")->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(" +
       "nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|baby_goods|pet|doityourself|hardware|garden_centre|nutrition_supplements|health_food|chemist|tobacco|kiosk|newsagent)$\"](around:3000," + p.lat + "," + p.lon + ");" +
       "nwr[\"amenity\"=\"fuel\"](around:3000," + p.lat + "," + p.lon + ");" +
-      ");out center tags 250;";
+      ");out tags bb 250;";
     var tryAt = function (i) {
       if (i >= OVERPASS.length) {
         fetching = false;
@@ -1653,16 +1653,19 @@
           if (tuj) loadForeign(ctry);
           stores = els.map(function (e) {
             var t = e.tags || {};
-            var lat = e.lat != null ? e.lat : (e.center && e.center.lat);
-            var lon = e.lon != null ? e.lon : (e.center && e.center.lon);
+            // Stavba (way): sredina in velikost iz meja; točka (node): samo položaj.
+            var b = e.bounds, size = 0;
+            var lat = e.lat != null ? e.lat : b ? (b.minlat + b.maxlat) / 2 : (e.center && e.center.lat);
+            var lon = e.lon != null ? e.lon : b ? (b.minlon + b.maxlon) / 2 : (e.center && e.center.lon);
             if (lat == null || lon == null) return null;
+            if (b) size = Math.round(distM({ lat: b.minlat, lon: b.minlon }, { lat: b.maxlat, lon: b.maxlon }) / 2);
             var nm = t.name || t.brand || t.operator || "Trgovina";
             if (tuj) {
               // V tujini: vse trgovine z živili (in specializirane) po vrsti, brez slovenskih cen in urnikov.
               var gk = t.amenity === "fuel" ? "bencinska" : ABROAD_SHOP[t.shop];
               if (!gk) return null;
               var ad = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
-              var fs = { id: e.type + "/" + e.id, name: nm + (ad ? ", " + ad : ""), short: nm, chain: gk, gk: gk, bt: [t.brand, t.name, t.operator].filter(Boolean).join(" "), duty: false, tuj: true, lat: lat, lon: lon, hours: t.opening_hours || "" };
+              var fs = { id: e.type + "/" + e.id, name: nm + (ad ? ", " + ad : ""), short: nm, chain: gk, gk: gk, bt: [t.brand, t.name, t.operator].filter(Boolean).join(" "), duty: false, tuj: true, lat: lat, lon: lon, size: size, hours: t.opening_hours || "" };
               fs.chain = foreignChainOf(fs) || gk;
               return fs;
             }
@@ -1676,7 +1679,7 @@
             if (!chain && t.amenity === "fuel") chain = "bencinska";
             var defHours = chain && CHAIN_BY_KEY[chain] && CHAIN_BY_KEY[chain].hours;
             var addr = [t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(" ");
-            return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, hours: t.opening_hours || defHours || "" };
+            return { id: e.type + "/" + e.id, name: nm + (addr ? ", " + addr : ""), short: nm, chain: chain, duty: kind === "duty", lat: lat, lon: lon, size: size, hours: t.opening_hours || defHours || "" };
           }).filter(Boolean);
           if (!tuj) stores = stores.concat(missingJager(p, stores), missingOfficial(p, stores));
           applyOfficial(stores);
@@ -1708,8 +1711,10 @@
       if (s.lat == null || distM(lastPos, s) > 300) return false;
       var c = CHAIN_BY_KEY[s.chain];
       return !(c && c.only && !storeHasItems(s));
-    }).map(function (s) { return { id: s.id, lat: s.lat, lon: s.lon, hasItems: storeHasItems(s) }; });
+    }).map(function (s) { return { id: s.id, lat: s.lat, lon: s.lon, hasItems: storeHasItems(s), extra: storeExtra(s) }; });
   }
+  // Velika trgovina: 40 m štejemo od roba stavbe (polovica diagonale × 0,7), največ +80 m.
+  function storeExtra(s) { return Math.min((s.size || 0) * 0.7, 80); }
   function storeHasItems(s) { return state.items.some(function (i) { return !i.done && forStore(s, i); }); }
   function storeById(id) {
     return stores.concat((state.storesCache && state.storesCache.list) || []).filter(function (x) { return x.id === id; })[0] || null;
@@ -1725,7 +1730,7 @@
     return best;
   }
   // Trgovina je »tukaj«, ko si znotraj polmera prihoda (z upoštevanjem natančnosti GPS).
-  function inRange(d, acc) { return d <= state.settings.radius + Math.min(acc || 0, 20) * 0.5; }
+  function inRange(d, acc, s) { return d <= state.settings.radius + (s ? storeExtra(s) : 0) + Math.min(acc || 0, 20) * 0.5; }
   var lastFixAt = 0;
   // repeat: ista meritev znova (GPS se ne oglasi, ko stojiš); šteje za prihod, ne pa za odhod.
   function feed(repeat) {
@@ -1807,7 +1812,7 @@
     var list = stores.map(function (s) { return { s: s, d: distM(ref, s) }; }).sort(function (a, b) { return a.d - b.d; }).slice(0, 25);
     if (!list.length) { ul.appendChild(el("li", null, [el("span", { class: "muted", text: "V bližini ni najdenih trgovin." })])); return; }
     list.forEach(function (x) {
-      var near = lastPos && inRange(x.d, lastPos.acc);
+      var near = lastPos && inRange(x.d, lastPos.acc, x.s);
       var os = openState(x.s);
       var badge = el("span", { class: "store-badge", style: "background:" + ((CHAIN_BY_KEY[x.s.chain] || {}).color || "#7A8A84") }, [(x.s.short || "?").charAt(0).toUpperCase()]);
       ul.appendChild(el("li", { class: near ? "near" : "" }, [

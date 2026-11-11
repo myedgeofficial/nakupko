@@ -24,6 +24,9 @@ struct GeoStore: Codable {
     var duty: Bool? = nil
     var hours: String? = nil
     var only: String? = nil   // specializirana trgovina: kateri izdelki so zanjo (regex iz app.js)
+    var size: Double? = nil   // m: polovica diagonale stavbe (OpenStreetMap), za velike trgovine
+    // Velika trgovina (Leclerc, velik Spar): prihod/odhod merimo od roba stavbe, ne od sredine.
+    var extra: Double { min((size ?? 0) * 0.7, 80) }
 
     // Ali trgovina prodaja izdelek (enako kot sells() v app.js).
     func sells(_ text: String) -> Bool {
@@ -115,8 +118,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
     private struct Arrival { let store: GeoStore; let started: Date; var wantNear = false; var count = 0; var quiet = false }
     private var arrival: Arrival?
     private var detector = StoreDetector()
-    // Obvestilo »blizu« šele, ko si res pri trgovini (ne že na robu območja ali v mimovožnji).
-    private let nearRadius: CLLocationDistance = 120
+    // Obvestilo »blizu« šele, ko si res pri trgovini: na isti razdalji kot prihod (Teo: 40 m od roba).
     private let nearMaxSpeed: CLLocationSpeed = 7   // ~25 km/h
     private let arrivalTimeout: TimeInterval = 8 * 60
     // Po odhodu iz trgovine še nekaj minut iščemo naslednjo (npr. dm v istem nakupovalnem središču),
@@ -436,7 +438,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         fetching = true
         let task = UIApplication.shared.beginBackgroundTask(withName: "nakupko.stores")
         // Najprej država (is_in): zunaj Slovenije spremljamo vse trgovine z živili, ne le slovenskih verig.
-        let q = "[out:json][timeout:20];is_in(\(loc.coordinate.latitude),\(loc.coordinate.longitude))->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out center tags 150;"
+        let q = "[out:json][timeout:20];is_in(\(loc.coordinate.latitude),\(loc.coordinate.longitude))->.a;area.a[\"ISO3166-1\"][\"admin_level\"=\"2\"]->.c;.c out tags;(nwr[\"shop\"~\"^(supermarket|convenience|grocery|discount|greengrocer|department_store|mall|chemist)$\"](around:5000,\(loc.coordinate.latitude),\(loc.coordinate.longitude)););out tags bb 150;"
         var req = URLRequest(url: URL(string: "https://overpass-api.de/api/interpreter")!)
         req.httpMethod = "POST"
         req.timeoutInterval = 25
@@ -453,9 +455,15 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                 let country = elements.lazy.compactMap { ($0["tags"] as? [String: Any])?["ISO3166-1"] as? String }.first?.uppercased() ?? "SI"
                 let list: [GeoStore] = elements.compactMap { e in
                     let tags = e["tags"] as? [String: Any] ?? [:]
-                    let center = e["center"] as? [String: Any]
-                    guard let lat = (e["lat"] as? Double) ?? (center?["lat"] as? Double),
-                          let lon = (e["lon"] as? Double) ?? (center?["lon"] as? Double) else { return nil }
+                    // Stavba (way): sredina in velikost iz meja; točka (node): samo položaj.
+                    let b = (e["bounds"] as? [String: Any])?.compactMapValues { ($0 as? NSNumber)?.doubleValue }
+                    var size: Double? = nil
+                    var lat = e["lat"] as? Double, lon = e["lon"] as? Double
+                    if let b = b, let a1 = b["minlat"], let a2 = b["maxlat"], let o1 = b["minlon"], let o2 = b["maxlon"] {
+                        if lat == nil { lat = (a1 + a2) / 2; lon = (o1 + o2) / 2 }
+                        size = StoreDetector.distance(a1, o1, a2, o2) / 2
+                    }
+                    guard let lat = lat, let lon = lon else { return nil }
                     let name = (tags["name"] as? String) ?? (tags["brand"] as? String) ?? (tags["operator"] as? String) ?? "Trgovina"
                     let hours = (tags["opening_hours"] as? String) ?? ""
                     let text = [tags["brand"], tags["name"], tags["operator"]].compactMap { $0 as? String }.joined(separator: " ")
@@ -464,14 +472,14 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
                         let shop = (tags["shop"] as? String) ?? ""
                         guard ["supermarket", "convenience", "grocery", "discount"].contains(shop) else { return nil }
                         return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
-                                        chain: nil, duty: false, hours: hours)
+                                        chain: nil, duty: false, hours: hours, size: size)
                     }
                     // Samo verige in dežurne trgovine, kot v aplikaciji.
                     guard let kind = StoreRules.kind(text: text, hours: hours) else { return nil }
                     // Nakupovalni center le, če je Jager center (kot v app.js).
                     if (tags["shop"] as? String) == "mall" && kind.chain != "jager" { return nil }
                     return GeoStore(id: "\(e["type"] ?? "n")/\(e["id"] ?? 0)", name: name, lat: lat, lon: lon,
-                                    chain: kind.chain, duty: kind.duty, hours: hours, only: kind.chain.flatMap { StoreRules.only[$0] })
+                                    chain: kind.chain, duty: kind.duty, hours: hours, only: kind.chain.flatMap { StoreRules.only[$0] }, size: size)
                 }
                 guard !list.isEmpty else { return }
                 // Poslovalnice Jager iz uradnega seznama (dodala jih je aplikacija) ostanejo.
@@ -701,7 +709,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         guard var a = arrival, session == nil else { return }
         if Date().timeIntervalSince(a.started) > arrivalTimeout { return stopArrivalWatch("nisi se ustavil – konec spremljanja") }
         let d = loc.distance(from: CLLocation(latitude: a.store.lat, longitude: a.store.lon))
-        if a.wantNear && d <= nearRadius + min(max(loc.horizontalAccuracy, 0), 30) && (loc.speed < 0 || loc.speed < nearMaxSpeed) {
+        if a.wantNear && d <= radius + a.store.extra + min(max(loc.horizontalAccuracy, 0), 20) * 0.5 && (loc.speed < 0 || loc.speed < nearMaxSpeed) {
             a.wantNear = false
             arrival = a
             let now = Date().timeIntervalSince1970
@@ -712,7 +720,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
         }
         // Kandidati: trgovine v bližini; trgovina, za katero imaš izdelke, ima prednost pred sosednjo.
         let near = stores.filter { loc.distance(from: CLLocation(latitude: $0.lat, longitude: $0.lon)) < 300 }
-        let cands = near.map { DetectStore(id: $0.id, lat: $0.lat, lon: $0.lon, hasItems: !items(for: $0).isEmpty) }
+        let cands = near.map { DetectStore(id: $0.id, lat: $0.lat, lon: $0.lon, hasItems: !items(for: $0).isEmpty, extra: $0.extra) }
         if case .arrived(let id)? = detector.update(fix(loc), stores: cands), let store = near.first(where: { $0.id == id }) {
             arrival = nil
             log("  prišel si v trgovino \(store.name) (\(Int(loc.distance(from: CLLocation(latitude: store.lat, longitude: store.lon)))) m, ±\(Int(loc.horizontalAccuracy)) m)")
@@ -898,7 +906,7 @@ final class GeoManager: NSObject, CLLocationManagerDelegate, UNUserNotificationC
            let st = stores.first(where: { $0.id == sid }) ?? place {
             if session != nil { endSession("druga trgovina", notifyApp: false) }
             session = ShopSession(store: st, since: Date())
-            detector.start(id: st.id, lat: st.lat, lon: st.lon, now: Date().timeIntervalSince1970)
+            detector.start(id: st.id, lat: st.lat, lon: st.lon, now: Date().timeIntervalSince1970, extra: st.extra)
             arrival = nil
             startPreciseUpdates()
             log("v trgovini (aplikacija): \(st.name)")
@@ -1149,7 +1157,8 @@ public class NakupkoGeoPlugin: CAPPlugin, CAPBridgedPlugin {
                   let lat = (s["lat"] as? NSNumber)?.doubleValue,
                   let lon = (s["lon"] as? NSNumber)?.doubleValue else { return nil }
             return GeoStore(id: id, name: (s["name"] as? String) ?? "Trgovina", lat: lat, lon: lon,
-                            chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String, only: s["only"] as? String)
+                            chain: s["chain"] as? String, duty: s["duty"] as? Bool, hours: s["hours"] as? String, only: s["only"] as? String,
+                            size: (s["size"] as? NSNumber).map { $0.doubleValue }.flatMap { $0 > 0 ? $0 : nil })
         }
         var hh: Household?
         if let h = call.getObject("household"), let u = h["url"] as? String, let c = h["code"] as? String {

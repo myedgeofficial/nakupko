@@ -105,5 +105,19 @@ det = StoreDetector(); det.start(id: "spar", lat: spar.lat, lon: spar.lon, now: 
 r = run(&det, [.stay(5, 0, 10, 0, 30)], [spar], t0: 11)
 check("takoj nazaj: brez ponovnega prihoda", r.ev.count, 0)
 
+// Velika trgovina: 40 m se meri od roba (extra), ne od sredine.
+var big = store("leclerc", 0, 0); big.extra = 60
+let small = store("mala", 0, 0)
+det = StoreDetector(); det.entry = 40; det.dwell = 20
+r = run(&det, [.stay(90, 0, 10, 0, 40)], [big])
+check("velika trgovina: prihod 90 m od sredine", when(r.ev, "arrived"), 20)
+det = StoreDetector(); det.entry = 40; det.dwell = 20
+r = run(&det, [.stay(90, 0, 10, 0, 40)], [small])
+check("navadna trgovina: 90 m ni prihod", r.ev.count, 0)
+det = StoreDetector(); det.entry = 40; det.dwell = 20; det.start(id: "leclerc", lat: big.lat, lon: big.lon, now: 0, extra: 60)
+r = run(&det, [.stay(100, 0, 10, 0, 30)], [], t0: 1)
+check("velika trgovina: 100 m od sredine si še v njej", r.ev.count, 0)
+r = run(&det, [.stay(160, 0, 10, 0, 10)], [], t0: 40)
+check("velika trgovina: odhod na 160 m", r.ev.first?.hasPrefix("left:leclerc") ?? false, true)
 if failed > 0 { print("\(failed) napak"); exit(1) }
 print("Vsa pravila trgovin delujejo.")
