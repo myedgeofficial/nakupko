@@ -201,7 +201,7 @@
       // Samo verige in dežurne trgovine; urnik iPhonu pove, ali je trgovina odprta.
       cfg.stores = list.filter(function (x) { return !/^test\//.test(x.id) && (x.chain || x.duty); }).map(function (x) {
         // V tujini brez verige: iPhone/Android tam ne ugibata urnika in ne primerjata cen.
-        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, chain: (!x.tuj && x.chain) || null, duty: !!x.duty, hours: x.hours || "",
+        return { id: x.id, name: x.short || x.name, lat: x.lat, lon: x.lon, size: x.size || 0, chain: (!x.tuj && x.chain) || null, duty: !!x.duty, hours: x.hours || "",
           only: x.chain && api.chainOnly ? api.chainOnly(x.chain) : "" };
       });
       cfg.groups = groupsOf((s.items || []).filter(function (i) { return !i.done; }));
@@ -587,7 +587,7 @@
   function fixedDetection() {
     var api = window.__nakupko, st = api && api.state && api.state().settings;
     if (!st) return;
-    st.radius = 60; st.delay = 10;
+    st.radius = 40; st.delay = 20;   // Teo 2026-11-11: 40 m od roba trgovine, 20 s postanka
   }
 
   function showBackgroundStatus() {

@@ -21,6 +21,7 @@ struct DetectStore {
     var lat: Double
     var lon: Double
     var hasItems: Bool
+    var extra: Double = 0   // m: polovica velikosti trgovine – razdalja se meri od roba, ne od sredine
 }
 
 enum DetectEvent: Equatable {
@@ -46,7 +47,7 @@ struct StoreDetector {
     var itemsBonus: Double = 15   // m: trgovina z izdelki ima prednost pred sosednjo
 
     struct Pending: Codable { var id: String; var since: Double; var hits: Int }
-    struct Active: Codable { var id: String; var lat: Double; var lon: Double; var since: Double; var outSince: Double = 0; var outCount = 0 }
+    struct Active: Codable { var id: String; var lat: Double; var lon: Double; var since: Double; var outSince: Double = 0; var outCount = 0; var extra: Double? = nil }
     private(set) var pending: Pending?
     private(set) var active: Active?
     private var leftAt: [String: Double] = [:]
@@ -61,11 +62,11 @@ struct StoreDetector {
         return 2 * r * asin(min(1, sqrt(x)))
     }
 
-    private func insideEntry(_ d: Double, _ acc: Double) -> Bool { d <= entry + min(acc, 20) * 0.5 }
+    private func insideEntry(_ d: Double, _ acc: Double, _ extra: Double) -> Bool { d <= entry + extra + min(acc, 20) * 0.5 }
 
     // Seja se začne od zunaj (ročno »V trgovini« v aplikaciji ali obnovljena seja).
-    mutating func start(id: String, lat: Double, lon: Double, now: Double) {
-        active = Active(id: id, lat: lat, lon: lon, since: now)
+    mutating func start(id: String, lat: Double, lon: Double, now: Double, extra: Double = 0) {
+        active = Active(id: id, lat: lat, lon: lon, since: now, extra: extra)
         pending = nil
     }
 
@@ -87,7 +88,8 @@ struct StoreDetector {
             let d = Self.distance(fix.lat, fix.lon, a.lat, a.lon)
             if d > far && acc <= farAcc { stop(now: now); return .left(a.id) }
             if acc > exitAcc { return nil }   // nenatančno: ne štejemo, ne ponastavimo
-            if d > exitRadius + min(acc, 30) * 0.3 {
+            let exitR = exitRadius + (a.extra ?? 0)
+            if d > exitR + min(acc, 30) * 0.3 {
                 if a.outCount == 0 { a.outSince = now }
                 a.outCount += 1
                 let span = now - a.outSince
@@ -95,7 +97,7 @@ struct StoreDetector {
                     stop(now: now)
                     return .left(a.id)
                 }
-            } else if d <= exitRadius {
+            } else if d <= exitR {
                 a.outCount = 0; a.outSince = 0   // še vedno v trgovini (GPS je le zanihal)
             }
             active = a
@@ -108,7 +110,7 @@ struct StoreDetector {
         for s in stores {
             if let l = leftAt[s.id], now - l < again { continue }
             let d = Self.distance(fix.lat, fix.lon, s.lat, s.lon)
-            guard insideEntry(d, acc) else { continue }
+            guard insideEntry(d, acc, s.extra) else { continue }
             let score = d - (s.hasItems ? itemsBonus : 0) - (pending?.id == s.id ? 5 : 0)
             if best == nil || score < best!.score { best = (s, score) }
         }
@@ -121,7 +123,7 @@ struct StoreDetector {
         pending = p
         let need = now - fastAt < drove ? droveDwell : dwell
         if now - p.since >= need && p.hits >= 2 {
-            start(id: b.s.id, lat: b.s.lat, lon: b.s.lon, now: now)
+            start(id: b.s.id, lat: b.s.lat, lon: b.s.lon, now: now, extra: b.s.extra)
             return .arrived(b.s.id)
         }
         return nil

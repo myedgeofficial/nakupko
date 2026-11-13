@@ -114,5 +114,21 @@ d = new D.Detector();
 r = run(d, [[0, 0, 10, 0, 60]], [SPAR]);
 check("ostaneš v trgovini: le en prihod", r.ev.length, 1);
 
+
+// 14. Velika trgovina (extra = polovica velikosti): 40 m se meri od roba, ne od sredine.
+var BIG = Object.assign({ id: "leclerc", hasItems: true, extra: 60 }, at(0, 0));
+var SMALL = Object.assign({ id: "mala", hasItems: true }, at(0, 0));
+d = new D.Detector({ entry: 40, dwell: 20 });
+r = run(d, [[90, 0, 10, 0, 40]], [BIG]);
+check("velika trgovina: prihod 90 m od sredine", first(r, "arrived"), 20);
+d = new D.Detector({ entry: 40, dwell: 20 });
+r = run(d, [[90, 0, 10, 0, 40]], [SMALL]);
+check("navadna trgovina: 90 m ni prihod", r.ev.length, 0);
+d = new D.Detector({ entry: 40, dwell: 20 }); d.start(BIG, 0);
+r = run(d, [[100, 0, 10, 0, 30]], [], 1);
+check("velika trgovina: 100 m od sredine si še v njej", r.ev.length, 0);
+r = run(d, [[160, 0, 10, 0, 10]], [], 40);
+check("velika trgovina: odhod na 160 m", r.ev.length > 0 && r.ev[0].indexOf("left:leclerc") === 0, true);
+
 if (failed) { console.log(failed + " napak"); process.exit(1); }
 console.log("vse ok");
