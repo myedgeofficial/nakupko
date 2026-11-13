@@ -1091,7 +1091,8 @@
     $("listEmpty").textContent = filter === "store" && !st ? "Nisi v bližini trgovine. Vklopi zaznavanje trgovine v Nastavitvah." : (filter === "done" ? "Še nič kupljenega." : "Seznam je prazen.");
     if (filter === "store" && !st) $("listEmpty").classList.remove("hidden");
     $("countOpen").textContent = state.items.filter(function (i) { return !i.done; }).length;
-    $("clearDone").classList.toggle("hidden", !state.items.some(function (i) { return i.done; }));
+    // Teo 2026-11-13: »Počisti kupljeno« samo tam, kjer so odkljukani izdelki vidni (Kupljeno), ne na seznamu, kjer jih ni.
+    $("clearDone").classList.toggle("hidden", filter !== "done" || !state.items.some(function (i) { return i.done; }));
     $("clearAll").classList.toggle("hidden", state.items.filter(function (i) { return !i.done; }).length < 2);
   }
 
